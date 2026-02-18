@@ -36,6 +36,14 @@
   /* Transitions */
   --transition-fast: 150ms ease-in-out;
   --transition-normal: 300ms ease-in-out;
+
+  /* Status Badge Colors - Light Mode */
+  --status-draft-bg: #e8f4f8;
+  --status-draft-fg: #0277bd;
+  --status-progress-bg: #fff3e0;
+  --status-progress-fg: #e65100;
+  --status-complete-bg: #e8f5e9;
+  --status-complete-fg: #2e7d32;
 }
 
 /* Dark mode */
@@ -49,6 +57,14 @@
   --border-color: #404040;
   --accent-color: #6ba3ff;
   --accent-hover: #8ab8ff;
+
+  /* Status Badge Colors - Dark Mode */
+  --status-draft-bg: #1b4d5c;
+  --status-draft-fg: #6dd5e8;
+  --status-progress-bg: #5c4a1a;
+  --status-progress-fg: #ffb84d;
+  --status-complete-bg: #1a5c2a;
+  --status-complete-fg: #52e89f;
 }
 
 * {

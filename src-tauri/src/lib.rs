@@ -1,6 +1,3 @@
-use serde_json::json;
-use std::path::Path;
-
 // File system operations
 #[tauri::command]
 async fn check_ollama_connection() -> Result<bool, String> {

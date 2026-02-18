@@ -21,6 +21,11 @@ const uiStore = useUIStore()
 const storyStore = useStoryStore()
 
 onMounted(() => {
+  // Initialize a new story if none exists
+  if (!storyStore.currentStoryId) {
+    storyStore.createNewStory('My Story')
+  }
+
   // Initialize keyboard shortcuts
   initializeKeyboardShortcuts()
 

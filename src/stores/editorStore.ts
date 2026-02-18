@@ -22,15 +22,15 @@ export const useEditorStore = defineStore("editor", () => {
   const isSaving = ref<boolean>(false);
 
   const setContent = (newContent: string) => {
-    content.value = newContent;
-    isDirty.value = true;
-    unsavedChanges.value = true;
+    content.value = newContent
+    isDirty.value = true
+    unsavedChanges.value = true
 
     // Trigger auto-save if enabled
     if (autoSaveEnabled.value) {
-      autoSaveManager.triggerAutoSave("current-chapter");
+      autoSaveManager.triggerAutoSave("current-chapter")
     }
-  };
+  }
 
   const setCursorPosition = (position: number) => {
     cursorPosition.value = position;

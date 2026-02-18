@@ -97,6 +97,11 @@ const toggleSidebar = () => {
 }
 
 const createNewChapter = () => {
+  // Ensure a story exists
+  if (!storyStore.currentStoryId) {
+    storyStore.createNewStory()
+  }
+
   const id = `chapter-${Date.now()}`
   const chapter = {
     id,

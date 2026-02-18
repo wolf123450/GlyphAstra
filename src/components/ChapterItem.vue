@@ -118,8 +118,8 @@ const renameThis = () => {
 }
 
 .status-draft {
-  background-color: #e8f4f8;
-  color: #0277bd;
+  background-color: var(--status-draft-bg);
+  color: var(--status-draft-fg);
 }
 
 .chapter-item.active .status-draft {
@@ -128,8 +128,8 @@ const renameThis = () => {
 }
 
 .status-in-progress {
-  background-color: #fff3e0;
-  color: #e65100;
+  background-color: var(--status-progress-bg);
+  color: var(--status-progress-fg);
 }
 
 .chapter-item.active .status-in-progress {
@@ -138,8 +138,8 @@ const renameThis = () => {
 }
 
 .status-complete {
-  background-color: #e8f5e9;
-  color: #2e7d32;
+  background-color: var(--status-complete-bg);
+  color: var(--status-complete-fg);
 }
 
 .chapter-item.active .status-complete {
