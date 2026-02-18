@@ -1,0 +1,171 @@
+/**
+ * Keyboard Shortcuts Manager
+ * Handles keyboard shortcut registration and enforcement
+ */
+
+export type KeyboardCallback = () => void;
+
+export interface ShortcutBinding {
+  key: string;
+  ctrl?: boolean;
+  shift?: boolean;
+  alt?: boolean;
+  meta?: boolean;
+  callback: KeyboardCallback;
+}
+
+class KeyboardShortcutManager {
+  private bindings: Map<string, ShortcutBinding> = new Map();
+
+  /**
+   * Register a keyboard shortcut
+   */
+  register(
+    shortcutKey: string,
+    callback: KeyboardCallback,
+    options?: {
+      ctrl?: boolean;
+      shift?: boolean;
+      alt?: boolean;
+      meta?: boolean;
+    }
+  ): void {
+    const id = this.generateId(shortcutKey, options);
+    this.bindings.set(id, {
+      key: shortcutKey,
+      ...options,
+      callback,
+    });
+  }
+
+  /**
+   * Unregister a keyboard shortcut
+   */
+  unregister(shortcutKey: string, options?: any): void {
+    const id = this.generateId(shortcutKey, options);
+    this.bindings.delete(id);
+  }
+
+  /**
+   * Handle keyboard event
+   */
+  handleKeyDown(event: KeyboardEvent): void {
+    for (const binding of this.bindings.values()) {
+      if (
+        event.key.toLowerCase() === binding.key.toLowerCase() &&
+        event.ctrlKey === (binding.ctrl || false) &&
+        event.shiftKey === (binding.shift || false) &&
+        event.altKey === (binding.alt || false) &&
+        event.metaKey === (binding.meta || false)
+      ) {
+        event.preventDefault();
+        binding.callback();
+        break;
+      }
+    }
+  }
+
+  /**
+   * Parse shortcut string (e.g., "ctrl+s")
+   */
+  parseShortcut(shortcutStr: string): {
+    key: string;
+    ctrl: boolean;
+    shift: boolean;
+    alt: boolean;
+    meta: boolean;
+  } {
+    const parts = shortcutStr.toLowerCase().split("+");
+    const result = {
+      key: "",
+      ctrl: false,
+      shift: false,
+      alt: false,
+      meta: false,
+    };
+
+    for (const part of parts) {
+      switch (part) {
+        case "ctrl":
+          result.ctrl = true;
+          break;
+        case "shift":
+          result.shift = true;
+          break;
+        case "alt":
+          result.alt = true;
+          break;
+        case "meta":
+        case "cmd":
+          result.meta = true;
+          break;
+        default:
+          result.key = part;
+      }
+    }
+
+    return result;
+  }
+
+  private generateId(
+    shortcutKey: string,
+    options?: any
+  ): string {
+    const parts = [shortcutKey];
+    if (options?.ctrl) parts.push("ctrl");
+    if (options?.shift) parts.push("shift");
+    if (options?.alt) parts.push("alt");
+    if (options?.meta) parts.push("meta");
+    return parts.join("+");
+  }
+
+  /**
+   * Clear all bindings
+   */
+  clear(): void {
+    this.bindings.clear();
+  }
+
+  /**
+   * Get all bindings
+   */
+  getBindings(): ShortcutBinding[] {
+    return Array.from(this.bindings.values());
+  }
+}
+
+export const keyboardShortcutManager = new KeyboardShortcutManager();
+
+/**
+ * Initialize global keyboard shortcuts
+ */
+export function initializeKeyboardShortcuts(): void {
+  window.addEventListener("keydown", (event) => {
+    keyboardShortcutManager.handleKeyDown(event);
+  });
+}
+
+/**
+ * Register default shortcuts
+ */
+export function registerDefaultShortcuts(callbacks: Record<string, () => void>): void {
+  const defaultShortcuts = {
+    "ctrl+n": callbacks["new-chapter"],
+    "ctrl+s": callbacks["save"],
+    "ctrl+f": callbacks["search"],
+    "ctrl+,": callbacks["settings"],
+    tab: callbacks["toggle-mode"],
+  };
+
+  for (const [shortcut, callback] of Object.entries(defaultShortcuts)) {
+    if (callback) {
+      const parsed = keyboardShortcutManager.parseShortcut(shortcut);
+      keyboardShortcutManager.register(parsed.key, callback, {
+        ctrl: parsed.ctrl,
+        shift: parsed.shift,
+        alt: parsed.alt,
+        meta: parsed.meta,
+      });
+    }
+  }
+}
