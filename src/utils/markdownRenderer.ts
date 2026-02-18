@@ -9,42 +9,6 @@ function getCursorLineNum(content: string, cursorPos: number): number {
   return content.substring(0, cursorPos).split('\n').length - 1
 }
 
-function getLineStartPos(content: string, lineNum: number): number {
-  const lines = content.split('\n')
-  let pos = 0
-  for (let i = 0; i < lineNum; i++) {
-    pos += lines[i].length + 1
-  }
-  return pos
-}
-
-function getWordBoundaries(
-  content: string,
-  cursorPos: number
-): { start: number; end: number } {
-  const lines = content.split('\n')
-  const lineNum = getCursorLineNum(content, cursorPos)
-  const lineStartPos = getLineStartPos(content, lineNum)
-  const col = cursorPos - lineStartPos
-  const lineContent = lines[lineNum]
-  
-  let wordStart = col
-  let wordEnd = col
-  
-  while (wordStart > 0 && !/\s/.test(lineContent[wordStart - 1])) {
-    wordStart--
-  }
-  
-  while (wordEnd < lineContent.length && !/\s/.test(lineContent[wordEnd])) {
-    wordEnd++
-  }
-  
-  return {
-    start: lineStartPos + wordStart,
-    end: lineStartPos + wordEnd
-  }
-}
-
 export function renderMarkdown(
   content: string,
   cursorPos: number,
@@ -58,8 +22,7 @@ export function renderMarkdown(
     return escapeHtml(content)
   }
   
-  const { start: wordStart, end: wordEnd } = getWordBoundaries(content, cursorPos)
-  return renderSeamless(content, cursorPos, wordStart, wordEnd)
+  return renderSeamless(content, cursorPos)
 }
 
 function escapeHtml(text: string): string {
@@ -99,9 +62,7 @@ function renderPreview(content: string): string {
 
 function renderSeamless(
   content: string,
-  cursorPos: number,
-  wordStart: number,
-  wordEnd: number
+  cursorPos: number
 ): string {
   const lines = content.split('\n')
   const cursorLineNum = getCursorLineNum(content, cursorPos)
@@ -113,30 +74,37 @@ function renderSeamless(
     const line = lines[lineNum]
     const isCurrentLine = lineNum === cursorLineNum
     
-    const headerMatch = line.match(/^(#{1,6})\s/)
-    const headerLevel = headerMatch ? headerMatch[1].length : 0
-    const isHeader = headerLevel > 0
-    
     let lineHtml = ''
     
-    for (let col = 0; col < line.length; col++) {
-      const currentPos = charPos + col
-      const char = line[col]
-      const isInCursorWord = isCurrentLine && currentPos >= wordStart && currentPos < wordEnd
-      
-      if (isInCursorWord) {
-        lineHtml += escapeHtml(char)
-      } else if (isHeader && col < headerLevel) {
-        // Skip header markers
-      } else if (isHeader && col === headerLevel && char === ' ') {
-        lineHtml += ' '
+    if (isCurrentLine) {
+      // On cursor line: show everything raw (already escaped by escapeHtml)
+      lineHtml = escapeHtml(line)
+    } else {
+      // On non-cursor lines: apply markdown formatting
+      const headerMatch = line.match(/^(#{1,6})\s(.*)$/)
+      if (headerMatch) {
+        const headerLevel = headerMatch[1].length
+        const headerContent = headerMatch[2]
+        lineHtml = `<h${headerLevel}>${escapeHtml(headerContent)}</h${headerLevel}>`
       } else {
-        lineHtml += escapeHtml(char)
+        // Regular line: apply inline formatting
+        lineHtml = escapeHtml(line)
+        
+        // Apply formatting patterns to escaped text
+        // Strikethrough
+        lineHtml = lineHtml.replace(/~~(.*?)~~/g, '<del>$1</del>')
+        // Bold
+        lineHtml = lineHtml.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        // Italic
+        lineHtml = lineHtml.replace(/\*(.*?)\*/g, '<em>$1</em>')
+        // Inline code
+        lineHtml = lineHtml.replace(/`(.*?)`/g, '<code>$1</code>')
+        // List items
+        if (line.match(/^[-*]\s/)) {
+          lineHtml = lineHtml.replace(/^([-*])\s/, '<li>')
+          lineHtml += '</li>'
+        }
       }
-    }
-    
-    if (!isCurrentLine) {
-      lineHtml = applyFormatting(lineHtml, isHeader, headerLevel)
     }
     
     result += lineHtml
@@ -151,15 +119,3 @@ function renderSeamless(
   return result
 }
 
-function applyFormatting(text: string, isHeader: boolean, headerLevel: number): string {
-  if (isHeader) {
-    return `<h${headerLevel}>${text}</h${headerLevel}>`
-  }
-  
-  text = text.replace(/~~(.*?)~~/g, '<del>$1</del>')
-  text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-  text = text.replace(/\*(.*?)\*/g, '<em>$1</em>')
-  text = text.replace(/`(.*?)`/g, '<code>$1</code>')
-  
-  return text
-}

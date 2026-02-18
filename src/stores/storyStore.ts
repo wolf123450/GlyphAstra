@@ -76,12 +76,12 @@ export const useStoryStore = defineStore("story", () => {
   };
 
   const updateChapter = (id: string, updates: Partial<Chapter>) => {
-    const chapter = chapters.value.find((ch) => ch.id === id);
+    const chapter = chapters.value.find((ch) => ch.id === id)
     if (chapter) {
-      Object.assign(chapter, updates);
-      metadata.value.lastModified = new Date().toISOString();
+      Object.assign(chapter, updates)
+      metadata.value.lastModified = new Date().toISOString()
     }
-  };
+  }
 
   const deleteChapter = (id: string) => {
     const index = chapters.value.findIndex((ch) => ch.id === id);
@@ -118,8 +118,8 @@ export const useStoryStore = defineStore("story", () => {
   };
 
   const setCurrentChapter = (id: string | null) => {
-    currentChapterId.value = id;
-  };
+    currentChapterId.value = id
+  }
 
   const setCurrentStory = (id: string | null) => {
     currentStoryId.value = id;
@@ -205,8 +205,10 @@ export const useStoryStore = defineStore("story", () => {
   /**
    * Create new story
    */
-  const createNewStory = (title: string = "Untitled Story") => {
+  const createNewStory = (title: string = "Untitled Story"): string => {
     const now = new Date().toISOString();
+    const newStoryId = `story-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    
     metadata.value = {
       title,
       summary: "",
@@ -220,7 +222,9 @@ export const useStoryStore = defineStore("story", () => {
     chapters.value = [];
     characters.value = [];
     currentChapterId.value = null;
-    currentStoryId.value = null;
+    currentStoryId.value = newStoryId;
+    
+    return newStoryId;
   };
 
   /**

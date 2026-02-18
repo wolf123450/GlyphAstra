@@ -1,0 +1,331 @@
+<template>
+  <div
+    ref="editorInput"
+    class="editor-input"
+    contenteditable="plaintext-only"
+    @input="onInput"
+    @click="onCursorActivity"
+    @keydown="handleKeydown"
+    @keyup="onKeyup"
+    @mouseup="onCursorActivity"
+    @paste="handlePaste"
+    @cut="handleCut"
+  ></div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, watch, nextTick } from 'vue'
+import { tokenizeMarkdown } from '@/utils/seamlessRenderer'
+import {
+  buildStructuredHTML,
+  getCursorOffset,
+  setCursorPosition,
+  getSelectionRange,
+  updateTokenVisibility,
+} from '@/utils/editorCursor'
+
+interface Props {
+  content: string
+  cursorPos: number
+  forceMode?: 'seamless' | 'markdown' | 'preview'
+}
+
+interface Emits {
+  'update:content': [value: string]
+  'update:cursorPos': [value: number]
+}
+
+const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
+
+const editorInput = ref<HTMLDivElement | null>(null)
+let selectionStart = 0
+let selectionEnd = 0
+let isUpdatingDOM = false
+let pendingCursorPos: number | null = null
+
+const tokens = computed(() => tokenizeMarkdown(props.content))
+
+// ─── Helpers ───────────────────────────────────────────────────────
+
+const container = () => editorInput.value!
+const sel = () => window.getSelection()
+const mode = () => props.forceMode ?? 'seamless'
+const livePos = () => getCursorOffset(container(), sel())
+
+// ─── Watchers ──────────────────────────────────────────────────────
+
+watch(() => props.cursorPos, () => {
+  if (!editorInput.value) return
+  updateTokenVisibility(container(), props.cursorPos, mode())
+})
+
+watch(
+  () => props.content,
+  () => {
+    nextTick(() => {
+      if (!editorInput.value) return
+      isUpdatingDOM = true
+      editorInput.value.innerHTML = buildStructuredHTML(tokens.value, props.content)
+
+      const target = pendingCursorPos ?? props.cursorPos
+      pendingCursorPos = null
+
+      updateTokenVisibility(container(), target, mode())
+      setCursorPosition(container(), props.content.length, target, sel())
+
+      selectionStart = target
+      selectionEnd = target
+
+      isUpdatingDOM = false
+    })
+  },
+  { immediate: true }
+)
+
+// ─── Cursor tracking events ────────────────────────────────────────
+
+const onCursorActivity = () => {
+  if (isUpdatingDOM) return
+  const pos = livePos()
+  emit('update:cursorPos', pos)
+  updateTokenVisibility(container(), pos, mode())
+}
+
+const onKeyup = (e: KeyboardEvent) => {
+  if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(e.key)) {
+    onCursorActivity()
+  }
+}
+
+// ─── Input handling ────────────────────────────────────────────────
+
+const handleKeydown = (event: KeyboardEvent) => {
+  const pos = livePos()
+
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    if (selectionStart !== selectionEnd) {
+      pendingCursorPos = selectionStart + 1
+      emit('update:content', props.content.slice(0, selectionStart) + '\n' + props.content.slice(selectionEnd))
+      emit('update:cursorPos', pendingCursorPos)
+    } else {
+      pendingCursorPos = pos + 1
+      emit('update:content', props.content.slice(0, pos) + '\n' + props.content.slice(pos))
+      emit('update:cursorPos', pendingCursorPos)
+    }
+    return
+  }
+
+  if (event.key === 'Delete') {
+    event.preventDefault()
+    if (selectionStart !== selectionEnd) {
+      pendingCursorPos = selectionStart
+      emit('update:content', props.content.slice(0, selectionStart) + props.content.slice(selectionEnd))
+      emit('update:cursorPos', pendingCursorPos)
+    } else if (pos < props.content.length) {
+      pendingCursorPos = pos
+      emit('update:content', props.content.slice(0, pos) + props.content.slice(pos + 1))
+      emit('update:cursorPos', pendingCursorPos)
+    }
+    return
+  }
+
+  if (event.key === 'Tab') {
+    event.preventDefault()
+    if (selectionStart !== selectionEnd) {
+      pendingCursorPos = selectionStart + 2
+      emit('update:content', props.content.slice(0, selectionStart) + '  ' + props.content.slice(selectionEnd))
+      emit('update:cursorPos', pendingCursorPos)
+    } else {
+      pendingCursorPos = pos + 2
+      emit('update:content', props.content.slice(0, pos) + '  ' + props.content.slice(pos))
+      emit('update:cursorPos', pendingCursorPos)
+    }
+    return
+  }
+
+  // For all other keys: record live selection range for use in onInput
+  const s = sel()
+  if (s && !s.isCollapsed) {
+    const [start, end] = getSelectionRange(container(), s)
+    selectionStart = start
+    selectionEnd = end
+  } else {
+    selectionStart = pos
+    selectionEnd = pos
+  }
+}
+
+const handlePaste = (event: ClipboardEvent) => {
+  event.preventDefault()
+  const pos = livePos()
+  const text = event.clipboardData?.getData('text/plain') || ''
+
+  if (selectionStart !== selectionEnd) {
+    const pasteStart = selectionStart
+    const pasteEnd = selectionEnd
+    pendingCursorPos = pasteStart + text.length
+    selectionStart = pendingCursorPos
+    selectionEnd = pendingCursorPos
+    emit('update:content', props.content.slice(0, pasteStart) + text + props.content.slice(pasteEnd))
+    emit('update:cursorPos', pendingCursorPos)
+  } else {
+    pendingCursorPos = pos + text.length
+    selectionStart = pendingCursorPos
+    selectionEnd = pendingCursorPos
+    emit('update:content', props.content.slice(0, pos) + text + props.content.slice(pos))
+    emit('update:cursorPos', pendingCursorPos)
+  }
+}
+
+const handleCut = (event: ClipboardEvent) => {
+  event.preventDefault()
+  if (selectionStart !== selectionEnd) {
+    const cutEnd = selectionEnd
+    event.clipboardData?.setData('text/plain', props.content.slice(selectionStart, cutEnd))
+    pendingCursorPos = selectionStart
+    selectionEnd = selectionStart
+    emit('update:content', props.content.slice(0, selectionStart) + props.content.slice(cutEnd))
+    emit('update:cursorPos', pendingCursorPos)
+  }
+}
+
+const onInput = (event: InputEvent) => {
+  if (isUpdatingDOM) return
+
+  if (event.data) {
+    if (selectionStart !== selectionEnd) {
+      pendingCursorPos = selectionStart + event.data.length
+      emit('update:content', props.content.slice(0, selectionStart) + event.data + props.content.slice(selectionEnd))
+      emit('update:cursorPos', pendingCursorPos)
+    } else {
+      const pos = selectionStart
+      pendingCursorPos = pos + event.data.length
+      emit('update:content', props.content.slice(0, pos) + event.data + props.content.slice(pos))
+      emit('update:cursorPos', pendingCursorPos)
+    }
+  } else {
+    // Deletion (backspace)
+    if (selectionStart !== selectionEnd) {
+      pendingCursorPos = selectionStart
+      emit('update:content', props.content.slice(0, selectionStart) + props.content.slice(selectionEnd))
+      emit('update:cursorPos', pendingCursorPos)
+    } else if (selectionStart > 0) {
+      pendingCursorPos = selectionStart - 1
+      emit('update:content', props.content.slice(0, selectionStart - 1) + props.content.slice(selectionStart))
+      emit('update:cursorPos', pendingCursorPos)
+    }
+  }
+}
+</script>
+
+<style scoped>
+.editor-input {
+  flex: 1;
+  padding: var(--spacing-md);
+  border: none;
+  background-color: transparent;
+  color: var(--text-primary);
+  caret-color: var(--accent-color);
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: none;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  outline: none;
+}
+.editor-input:focus { outline: none; }
+
+/* ── Base token reset ───────────────────────────────────── */
+.editor-input :deep(.token) { position: relative; }
+.editor-input :deep(.token .marker) { display: none; }
+
+/* ── Rendered: headers ──────────────────────────────────── */
+.editor-input :deep(.token-header.rendered) { font-weight: 700; }
+.editor-input :deep(.token-header.rendered .marker) { display: none; }
+/* Bold inside a heading is already weight-700 from the heading itself;
+   bump to 900 (bolder) so it stays visually distinct. */
+.editor-input :deep(.token-header.rendered .token-bold.rendered .content) { font-weight: 900; }
+.editor-input :deep(.token-header.rendered[data-level="1"]) { font-size: 2em; }
+.editor-input :deep(.token-header.rendered[data-level="2"]) { font-size: 1.6em; }
+.editor-input :deep(.token-header.rendered[data-level="3"]) { font-size: 1.35em; }
+.editor-input :deep(.token-header.rendered[data-level="4"]) { font-size: 1.15em; }
+.editor-input :deep(.token-header.rendered[data-level="5"]) { font-size: 1.05em; }
+.editor-input :deep(.token-header.rendered[data-level="6"]) { font-size: 1em; font-weight: 600; }
+
+/* ── Rendered: bold ─────────────────────────────────────── */
+.editor-input :deep(.token-bold.rendered .marker) { display: none; }
+.editor-input :deep(.token-bold.rendered .content) { font-weight: 700; }
+
+/* ── Rendered: italic ───────────────────────────────────── */
+.editor-input :deep(.token-italic.rendered .marker) { display: none; }
+.editor-input :deep(.token-italic.rendered .content) { font-style: italic; }
+
+/* ── Rendered: strikethrough ────────────────────────────── */
+.editor-input :deep(.token-strikethrough.rendered .marker) { display: none; }
+.editor-input :deep(.token-strikethrough.rendered .content) { text-decoration: line-through; opacity: 0.6; }
+
+/* ── Rendered: inline code ──────────────────────────────── */
+.editor-input :deep(.token-code.rendered .marker) { display: none; }
+.editor-input :deep(.token-code.rendered .content) {
+  background-color: var(--bg-tertiary);
+  color: var(--accent-color);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+/* ── Rendered: list items ───────────────────────────────── */
+.editor-input :deep(.token-list.rendered .marker) { display: none; }
+/* Use child combinator (>) so padding-left and ::before only apply to the
+   direct .content of the list token, not to nested inline .content spans. */
+.editor-input :deep(.token-list.rendered > .content) { position: relative; padding-left: 1.2em; }
+.editor-input :deep(.token-list.rendered > .content::before) {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--accent-color);
+  font-weight: 700;
+}
+
+/* ── Source mode: show raw markdown ─────────────────────── */
+.editor-input :deep(.token.source .marker) {
+  display: inline !important;
+  background-color: rgba(150, 100, 200, 0.15);
+  padding: 1px 3px;
+  border-radius: 2px;
+  color: var(--text-secondary);
+}
+.editor-input :deep(.token.source .content) {
+  font-weight: normal !important;
+  font-style: normal !important;
+  text-decoration: none !important;
+  opacity: 1 !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  font-size: 1em !important;
+  padding-left: 0 !important;
+}
+/* Suppress the list bullet on nested .content spans too when in source mode */
+.editor-input :deep(.token.source .content::before) { display: none !important; }
+.editor-input :deep(.token-list.rendered > .content > .token.source .content::before) { display: none !important; }
+.editor-input :deep(.token-header.source),
+.editor-input :deep(.token-bold.source),
+.editor-input :deep(.token-italic.source),
+.editor-input :deep(.token-strikethrough.source),
+.editor-input :deep(.token-code.source),
+.editor-input :deep(.token-list.source) {
+  font-weight: normal !important;
+  font-style: normal !important;
+  text-decoration: none !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  font-size: 1em !important;
+}
+</style>
