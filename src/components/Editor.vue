@@ -39,6 +39,14 @@
         >
           ⬇
         </button>
+        <button
+          class="action-btn"
+          :class="{ active: isOverviewOpen }"
+          @click="toggleOverview"
+          title="Story Overview"
+        >
+          ◨
+        </button>
       </div>
     </div>
 
@@ -92,9 +100,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useStoryStore } from '@/stores/storyStore'
 import { useEditorStore } from '@/stores/editorStore'
+import { useUIStore } from '@/stores/uiStore'
+import { autoSaveManager } from '@/utils/autoSave'
 import type { RenderMode } from '@/utils/seamlessRenderer'
 import EditorSeamless from './EditorSeamless.vue'
 import EditorMarkdown from './EditorMarkdown.vue'
@@ -102,23 +112,65 @@ import EditorPreview from './EditorPreview.vue'
 
 const storyStore = useStoryStore()
 const editorStore = useEditorStore()
+const uiStore = useUIStore()
 
 const currentChapter = computed(() => storyStore.currentChapter)
 const isDirty = computed(() => editorStore.isDirty)
+const isOverviewOpen = computed(() => uiStore.activePanel === 'overview')
+
+const toggleOverview = () => {
+  uiStore.setActivePanel(isOverviewOpen.value ? 'editor' : 'overview')
+}
 
 const renderMode = ref<RenderMode>('seamless')
 const cursorPosition = ref(0)
 
+// editorStore.content is the single source of truth while editing.
+// When the chapter changes we flush to storyStore and load the new chapter.
 const content = computed({
-  get: () => {
-    if (currentChapter.value) {
-      return currentChapter.value.content || editorStore.content
-    }
-    return editorStore.content
-  },
-  set: (value) => {
-    editorStore.setContent(value)
-  },
+  get: () => editorStore.content,
+  set: (value) => editorStore.setContent(value),
+})
+
+/** Flush editor content back into the currently-tracked chapter (if it still exists) */
+const flushCurrentChapter = (chapterId: string | null) => {
+  if (!chapterId) return
+  // Only flush if this chapter belongs to the currently loaded story
+  if (!storyStore.getChapterById(chapterId)) return
+  const wc = editorStore.content
+    .trim()
+    .split(/\s+/)
+    .filter((w: string) => w.length > 0).length
+  storyStore.updateChapter(chapterId, {
+    content: editorStore.content,
+    wordCount: wc,
+    lastEdited: new Date().toISOString(),
+  })
+}
+
+// When the active chapter changes: save the previous one, load the new one
+watch(
+  () => storyStore.currentChapterId,
+  (newId, oldId) => {
+    flushCurrentChapter(oldId ?? null)
+    const chapter = newId ? storyStore.getChapterById(newId) : null
+    editorStore.loadContent(chapter?.content ?? '')
+  }
+)
+
+// On mount: initialise editor with the content of the already-selected chapter
+onMounted(() => {
+  const chapter = storyStore.currentChapter
+  if (chapter) editorStore.loadContent(chapter.content)
+
+  // Wire up auto-save so it actually calls saveChapter
+  autoSaveManager.registerSaveCallback('current-chapter', async () => {
+    await saveChapter()
+  })
+})
+
+onBeforeUnmount(() => {
+  autoSaveManager.unregisterSaveCallback('current-chapter')
 })
 
 const wordCount = computed(() => {
@@ -166,11 +218,13 @@ const saveChapter = async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--spacing-lg);
+  padding: 0 var(--spacing-lg);
   border-bottom: 1px solid var(--border-color);
   background-color: var(--bg-secondary);
   gap: var(--spacing-lg);
-  flex-wrap: wrap;
+  height: 52px;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .editor-title {

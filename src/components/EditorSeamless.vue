@@ -290,8 +290,12 @@ const onInput = (event: InputEvent) => {
   left: 0;
   color: var(--accent-color);
   font-weight: 700;
-}
-
+}/* Indented bullets: 1.5em extra per nesting level, applied as margin-left
+   so the whole bullet+text block shifts right (not just the text). */
+.editor-input :deep(.token-list.rendered[data-indent="1"] > .content) { margin-left: 1.5em; }
+.editor-input :deep(.token-list.rendered[data-indent="2"] > .content) { margin-left: 3em; }
+.editor-input :deep(.token-list.rendered[data-indent="3"] > .content) { margin-left: 4.5em; }
+.editor-input :deep(.token-list.rendered[data-indent="4"] > .content) { margin-left: 6em; }
 /* ── Source mode: show raw markdown ─────────────────────── */
 .editor-input :deep(.token.source .marker) {
   display: inline !important;

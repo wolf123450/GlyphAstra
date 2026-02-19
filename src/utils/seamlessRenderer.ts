@@ -10,6 +10,7 @@ export interface Token {
   start: number
   end: number
   level?: number // for headers
+  indent?: number // for list items: 0 = top-level, 1+ = nested (2 spaces per level)
   content: string // raw content including markers
   rendered: string // HTML rendering
   text: string // plain text for cursor positioning
@@ -54,15 +55,17 @@ export function tokenizeMarkdown(content: string): Token[] {
       continue
     }
 
-    // Check for list items
-    const listMatch = stripped.match(/^([-*])\s+(.*)$/)
+    // Check for list items (support leading whitespace for indented bullets)
+    const listMatch = stripped.match(/^(\s*)([-*])\s+(.*)$/)
     if (listMatch) {
-      const text = listMatch[2]
+      const text = listMatch[3]
+      const indent = Math.floor(listMatch[1].length / 2)
       const start = lineStartPos
       const end = start + line.length
 
       tokens.push({
         type: 'listItem',
+        indent,
         start,
         end,
         content: line,

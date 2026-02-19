@@ -76,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
+import { computed } from 'vue'
 import { useStoryStore } from '@/stores/storyStore'
 import { useUIStore } from '@/stores/uiStore'
 import type { Character } from '@/stores/storyStore'
@@ -89,14 +89,10 @@ const chapters = computed(() => storyStore.chapters)
 const totalWordCount = computed(() => storyStore.totalWordCount)
 const characters = computed(() => storyStore.characters)
 
-const metadata = reactive({
-  title: storyStore.metadata.title,
-  genre: storyStore.metadata.genre,
-  tone: storyStore.metadata.tone,
-  summary: storyStore.metadata.summary,
-  createdDate: storyStore.metadata.createdDate,
-  lastModified: storyStore.metadata.lastModified,
-})
+// Bind directly to the store object — no local copy needed.
+// When the story switches, storyStore.metadata is replaced and Vue
+// re-renders the template automatically.
+const metadata = computed(() => storyStore.metadata)
 
 const closeOverview = () => {
   uiStore.setActivePanel('editor')
@@ -133,13 +129,9 @@ const deleteCharacter = (id: string) => {
 }
 
 const saveOverview = async () => {
-  storyStore.updateMetadata({
-    title: metadata.title,
-    genre: metadata.genre,
-    tone: metadata.tone,
-    summary: metadata.summary,
-  })
-  // Save to storage
+  // Fields are already live-bound to storyStore.metadata via v-model,
+  // so just trigger a save and update lastModified.
+  storyStore.updateMetadata({})
   await storyStore.saveStory()
   uiStore.showNotification('Story overview saved!', 'success')
 }
@@ -160,13 +152,16 @@ const saveOverview = async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--spacing-lg);
+  padding: 0 var(--spacing-lg);
   border-bottom: 1px solid var(--border-color);
+  height: 52px;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .overview-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .close-btn {

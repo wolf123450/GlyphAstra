@@ -43,6 +43,17 @@ export const useEditorStore = defineStore("editor", () => {
     autoSaveManager.cancelAutoSave("current-chapter");
   };
 
+  /**
+   * Load content from outside (e.g. when switching chapters) without
+   * marking the editor dirty or triggering auto-save.
+   */
+  const loadContent = (text: string) => {
+    content.value = text;
+    isDirty.value = false;
+    unsavedChanges.value = false;
+    autoSaveManager.cancelAutoSave("current-chapter");
+  };
+
   const clearEditor = () => {
     content.value = "";
     cursorPosition.value = 0;
@@ -69,6 +80,7 @@ export const useEditorStore = defineStore("editor", () => {
     isSaving,
     // Methods
     setContent,
+    loadContent,
     setCursorPosition,
     markAsSaved,
     clearEditor,

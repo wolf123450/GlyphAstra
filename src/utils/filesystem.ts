@@ -1,12 +1,21 @@
 /**
  * File System Utilities
- * Handles local file operations through Tauri
+ * Handles local file operations through Tauri plugin-fs.
+ *
+ * All paths are relative to BaseDirectory.AppData, which resolves to
+ * %APPDATA%\blockbreaker on Windows.
  */
 
+import {
+  readTextFile,
+  writeTextFile,
+  mkdir,
+  readDir,
+  exists,
+  remove,
+  BaseDirectory,
+} from "@tauri-apps/plugin-fs";
 import { open, save } from "@tauri-apps/plugin-dialog";
-
-// Note: File system operations will be added with Tauri plugin-fs
-// For now, we'll provide the interface for future implementation
 
 export interface FileEntry {
   name: string;
@@ -21,181 +30,114 @@ export interface StoryProject {
   lastModified: string;
 }
 
+const BASE = BaseDirectory.AppData;
+
 /**
- * Read file contents
+ * Ensure a directory (and all parents) exists.
  */
-export async function readFile(filePath: string): Promise<string> {
+export async function ensureDir(dirPath: string): Promise<void> {
+  await mkdir(dirPath, { baseDir: BASE, recursive: true });
+}
+
+/**
+ * Read a text file. Returns null if the file does not exist.
+ */
+export async function readFile(filePath: string): Promise<string | null> {
   try {
-    // This will be implemented with Tauri file system plugin
-    console.log("Loading file:", filePath);
-    return "";
+    if (!(await exists(filePath, { baseDir: BASE }))) return null;
+    return await readTextFile(filePath, { baseDir: BASE });
   } catch (error) {
-    console.error("Error reading file:", error);
-    throw error;
+    console.error("[FS] Error reading file:", filePath, error);
+    return null;
   }
 }
 
 /**
- * Write file contents
+ * Write (overwrite) a text file, creating parent dirs as needed.
  */
 export async function writeFileContent(
   filePath: string,
-  _content: string
+  content: string
 ): Promise<void> {
-  try {
-    // This will be implemented with Tauri file system plugin
-    console.log("Writing to file:", filePath);
-  } catch (error) {
-    console.error("Error writing file:", error);
-    throw error;
+  const parts = filePath.split("/");
+  if (parts.length > 1) {
+    await ensureDir(parts.slice(0, -1).join("/"));
   }
+  await writeTextFile(filePath, content, { baseDir: BASE });
 }
 
 /**
- * Create a directory
+ * Check whether a path exists.
  */
-export async function createDirectory(dirPath: string): Promise<void> {
-  try {
-    // This will be implemented with Tauri file system plugin
-    console.log("Creating directory:", dirPath);
-  } catch (error) {
-    console.error("Error creating directory:", error);
-    throw error;
-  }
+export async function pathExists(filePath: string): Promise<boolean> {
+  return exists(filePath, { baseDir: BASE });
 }
 
 /**
- * List directory contents
+ * List the direct children of a directory.
  */
 export async function listDirectory(dirPath: string): Promise<FileEntry[]> {
   try {
-    // This will be implemented with Tauri file system plugin
-    console.log("Listing directory:", dirPath);
-    return [];
+    if (!(await exists(dirPath, { baseDir: BASE }))) return [];
+    const entries = await readDir(dirPath, { baseDir: BASE });
+    return entries.map((e) => ({
+      name: e.name ?? "",
+      path: `${dirPath}/${e.name}`,
+      isDir: e.isDirectory ?? false,
+    }));
   } catch (error) {
-    console.error("Error listing directory:", error);
-    throw error;
+    console.error("[FS] Error listing directory:", dirPath, error);
+    return [];
   }
 }
 
 /**
- * Open file dialog for loading
+ * Delete a file.
+ */
+export async function deleteFile(filePath: string): Promise<void> {
+  try {
+    if (await exists(filePath, { baseDir: BASE })) {
+      await remove(filePath, { baseDir: BASE });
+    }
+  } catch (error) {
+    console.error("[FS] Error deleting file:", filePath, error);
+  }
+}
+
+/**
+ * Open file dialog for loading a markdown or text file.
  */
 export async function openFileDialog(): Promise<string | null> {
   try {
     const selected = await open({
       multiple: false,
       filters: [
-        {
-          name: "Markdown",
-          extensions: ["md"],
-        },
-        {
-          name: "Text",
-          extensions: ["txt"],
-        },
+        { name: "Markdown", extensions: ["md"] },
+        { name: "Text", extensions: ["txt"] },
       ],
     });
     return selected as string | null;
   } catch (error) {
-    console.error("Error opening file dialog:", error);
+    console.error("[FS] Error opening file dialog:", error);
     return null;
   }
 }
 
 /**
- * Save file dialog
+ * Save file dialog.
  */
-export async function saveFileDialog(
-  filename: string
-): Promise<string | null> {
+export async function saveFileDialog(filename: string): Promise<string | null> {
   try {
     const selected = await save({
       filters: [
-        {
-          name: "Markdown",
-          extensions: ["md"],
-        },
-        {
-          name: "Text",
-          extensions: ["txt"],
-        },
+        { name: "Markdown", extensions: ["md"] },
+        { name: "Text", extensions: ["txt"] },
       ],
       defaultPath: filename,
     });
     return selected as string | null;
   } catch (error) {
-    console.error("Error saving file dialog:", error);
+    console.error("[FS] Error saving file dialog:", error);
     return null;
-  }
-}
-
-/**
- * Initialize a story project structure
- */
-export async function initializeStoryProject(
-  projectPath: string,
-  storyName: string
-): Promise<void> {
-  try {
-    // Create project directory
-    await createDirectory(projectPath);
-
-    // Create chapters directory
-    await createDirectory(`${projectPath}/chapters`);
-
-    // Create story.json metadata file
-    const metadata = {
-      title: storyName,
-      summary: "",
-      genre: "",
-      tone: "",
-      narrativeVoice: "",
-      createdDate: new Date().toISOString(),
-      lastModified: new Date().toISOString(),
-      wordCount: 0,
-      characters: [],
-    };
-
-    await writeFileContent(
-      `${projectPath}/story.json`,
-      JSON.stringify(metadata, null, 2)
-    );
-  } catch (error) {
-    console.error("Error initializing story project:", error);
-    throw error;
-  }
-}
-
-/**
- * Load story metadata
- */
-export async function loadStoryMetadata(
-  projectPath: string
-): Promise<Record<string, any>> {
-  try {
-    const content = await readFile(`${projectPath}/story.json`);
-    return JSON.parse(content);
-  } catch (error) {
-    console.error("Error loading story metadata:", error);
-    throw error;
-  }
-}
-
-/**
- * Save story metadata
- */
-export async function saveStoryMetadata(
-  projectPath: string,
-  metadata: Record<string, any>
-): Promise<void> {
-  try {
-    await writeFileContent(
-      `${projectPath}/story.json`,
-      JSON.stringify(metadata, null, 2)
-    );
-  } catch (error) {
-    console.error("Error saving story metadata:", error);
-    throw error;
   }
 }

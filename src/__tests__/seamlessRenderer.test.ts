@@ -165,6 +165,57 @@ describe('list item tokenization', () => {
   })
 })
 
+// ─── Indented list items ─────────────────────────────────────────────
+
+describe('indented list item tokenization', () => {
+  it('a top-level list item has indent 0', () => {
+    const tokens = tokenizeMarkdown('- item')
+    const li = tokenByType(tokens, 'listItem')!
+    expect(li.indent).toBe(0)
+  })
+
+  it('2-space-indented list item has indent 1', () => {
+    const tokens = tokenizeMarkdown('  - item')
+    const li = tokenByType(tokens, 'listItem')!
+    expect(li.indent).toBe(1)
+    expect(li.text).toBe('item')
+  })
+
+  it('4-space-indented list item has indent 2', () => {
+    const tokens = tokenizeMarkdown('    - item')
+    const li = tokenByType(tokens, 'listItem')!
+    expect(li.indent).toBe(2)
+  })
+
+  it('indented item preserves correct source positions (no gaps)', () => {
+    const content = '- top\n  - nested\n- back'
+    const tokens = tokenizeMarkdown(content)
+    expect(coversFullContent(tokens, content)).toBe(true)
+  })
+
+  it('mixed indent list: all items are listItem tokens', () => {
+    const content = '- top\n  - nested\n    - deep\n- top again'
+    const tokens = tokenizeMarkdown(content)
+    const items = allTokensByType(tokens, 'listItem')
+    expect(items.length).toBe(4)
+  })
+
+  it('indented item text does not include the leading whitespace or marker', () => {
+    const tokens = tokenizeMarkdown('  - nested item')
+    const li = tokenByType(tokens, 'listItem')!
+    expect(li.text).toBe('nested item')
+    expect(li.text).not.toContain('-')
+    expect(li.text).not.toContain('  ')
+  })
+
+  it('indented items with inline formatting become listItem tokens (not plain text)', () => {
+    const content = '  - nested with **bold**'
+    const tokens = tokenizeMarkdown(content)
+    expect(allTokensByType(tokens, 'listItem')).toHaveLength(1)
+    expect(tokenByType(tokens, 'listItem')!.indent).toBe(1)
+  })
+})
+
 // ─── Code spans ──────────────────────────────────────────────────────
 
 describe('inline code tokenization', () => {

@@ -154,7 +154,6 @@ export function registerDefaultShortcuts(callbacks: Record<string, () => void>):
     "ctrl+s": callbacks["save"],
     "ctrl+f": callbacks["search"],
     "ctrl+,": callbacks["settings"],
-    tab: callbacks["toggle-mode"],
   };
 
   for (const [shortcut, callback] of Object.entries(defaultShortcuts)) {
