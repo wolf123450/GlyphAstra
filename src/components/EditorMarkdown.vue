@@ -3,8 +3,18 @@
     :content="content"
     :cursorPos="cursorPos"
     forceMode="markdown"
+    :suggestion-text="suggestionText"
+    :suggestion-count="suggestionCount"
+    :suggestion-index="suggestionIndex"
+    :suggestion-generating="suggestionGenerating"
     @update:content="emit('update:content', $event)"
     @update:cursorPos="emit('update:cursorPos', $event)"
+    @trigger-ai="emit('trigger-ai')"
+    @accept-suggestion="emit('accept-suggestion')"
+    @dismiss-suggestion="emit('dismiss-suggestion')"
+    @next-suggestion="emit('next-suggestion')"
+    @prev-suggestion="emit('prev-suggestion')"
+    @type-char="emit('type-char', $event)"
   />
 </template>
 
@@ -14,17 +24,24 @@ import EditorSeamless from './EditorSeamless.vue'
 
 interface Props {
   content: string
+  suggestionText?: string
+  suggestionCount?: number
+  suggestionIndex?: number
+  suggestionGenerating?: boolean
 }
 
 interface Emits {
-  'update:content': [value: string]
-  'update:cursorPos': [value: number]
+  'update:content':    [value: string]
+  'update:cursorPos':  [value: number]
+  'trigger-ai':        []
+  'accept-suggestion': []
+  'dismiss-suggestion':[]
+  'next-suggestion':   []
+  'prev-suggestion':   []
+  'type-char':         [char: string]
 }
 
 defineProps<Props>()
 const emit = defineEmits<Emits>()
-
-// Markdown editor needs to track cursor position too
 const cursorPos = ref(0)
 </script>
-

@@ -102,6 +102,8 @@ export function findTokenSpan(node: Node | null, container: HTMLElement): HTMLEl
  * Count ALL text characters (including hidden marker text) from the start of
  * `root` to (targetNode, targetOffset). Returns the offset within the span's
  * raw source content.
+ * NOTE: elements with data-ghost="true" are skipped — they are inline ghost
+ * suggestion overlays and do not represent source document characters.
  */
 export function countTextUpTo(root: Node, targetNode: Node, targetOffset: number): number {
   let count = 0
@@ -109,6 +111,8 @@ export function countTextUpTo(root: Node, targetNode: Node, targetOffset: number
 
   const walk = (n: Node): boolean => {
     if (found) return true
+    // Skip ghost suggestion spans entirely
+    if (n instanceof HTMLElement && n.hasAttribute('data-ghost')) return false
     if (n === targetNode) {
       count += targetOffset
       found = true

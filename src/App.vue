@@ -3,6 +3,7 @@
     <Sidebar />
     <Editor />
     <Overview />
+    <AIPanel />
     <Notification />
   </div>
 </template>
@@ -12,6 +13,7 @@ import { onMounted, watch } from 'vue'
 import Sidebar from '@/components/Sidebar.vue'
 import Editor from '@/components/Editor.vue'
 import Overview from '@/components/Overview.vue'
+import AIPanel from '@/components/AIPanel.vue'
 import Notification from '@/components/Notification.vue'
 import { useUIStore } from '@/stores/uiStore'
 import { useStoryStore } from '@/stores/storyStore'
