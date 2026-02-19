@@ -6,7 +6,7 @@
  * that run inside the browser.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { tokenizeMarkdown } from '../utils/seamlessRenderer'
 import {
   buildStructuredHTML,
@@ -396,6 +396,45 @@ describe('buildStructuredHTML – inline content inside headers', () => {
     const div = makeContainer(content)
     const boldSpan = div.querySelector('.token-header .token-bold')!
     expect(boldSpan?.hasAttribute('data-start')).toBe(false)
+    cleanup(div)
+  })
+})
+
+describe('buildStructuredHTML – data-indent attribute on list items', () => {
+  it('top-level list item has data-indent="0"', () => {
+    const div = makeContainer('- top level')
+    expect((div.querySelector('.token-list') as HTMLElement).getAttribute('data-indent')).toBe('0')
+    cleanup(div)
+  })
+
+  it('2-space-indented item has data-indent="1"', () => {
+    const div = makeContainer('  - nested item')
+    expect((div.querySelector('.token-list') as HTMLElement).getAttribute('data-indent')).toBe('1')
+    cleanup(div)
+  })
+
+  it('4-space-indented item has data-indent="2"', () => {
+    const div = makeContainer('    - deep nested')
+    expect((div.querySelector('.token-list') as HTMLElement).getAttribute('data-indent')).toBe('2')
+    cleanup(div)
+  })
+
+  it('mixed nesting: each item carries its own indent level', () => {
+    const content = '- top\n  - nested\n    - deep'
+    const div = makeContainer(content)
+    const items = Array.from(div.querySelectorAll('.token-list')) as HTMLElement[]
+    expect(items[0].getAttribute('data-indent')).toBe('0')
+    expect(items[1].getAttribute('data-indent')).toBe('1')
+    expect(items[2].getAttribute('data-indent')).toBe('2')
+    cleanup(div)
+  })
+
+  it('cursor round-trips every position through an indented list item', () => {
+    const content = '  - nested **bold** item'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
     cleanup(div)
   })
 })

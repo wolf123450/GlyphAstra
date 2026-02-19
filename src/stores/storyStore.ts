@@ -2,6 +2,10 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { storageManager } from "@/utils/storage";
 import { serializeStory } from "@/utils/storyManager";
+import {
+  saveStory as fsSaveStory,
+  loadStory as fsLoadStory,
+} from "@/utils/fileStorage";
 
 export interface Chapter {
   id: string;
@@ -142,11 +146,21 @@ export const useStoryStore = defineStore("story", () => {
         chapters.value,
         characters.value
       );
-      const success = await storageManager.saveStory(id, serialized);
+
+      // Save to both file system (primary) and localStorage (backup)
+      const [fsSuccess, lsSuccess] = await Promise.allSettled([
+        fsSaveStory(id, serialized),
+        storageManager.saveStory(id, serialized),
+      ]).then((results) =>
+        results.map((r) => (r.status === "fulfilled" ? r.value : false))
+      );
+
+      const success = fsSuccess || lsSuccess;
       if (success) {
         metadata.value.lastModified = new Date().toISOString();
       }
-      return success;
+      if (!fsSuccess) console.warn("[StoryStore] File system save failed; localStorage only.");
+      return success as boolean;
     } catch (error) {
       console.error("Failed to save story:", error);
       return false;
@@ -161,7 +175,12 @@ export const useStoryStore = defineStore("story", () => {
   const loadStory = async (storyId: string): Promise<boolean> => {
     isSaving.value = true;
     try {
-      const story = await storageManager.loadStory(storyId);
+      // Prefer file system; fall back to localStorage
+      let story = await fsLoadStory(storyId);
+      if (!story) {
+        console.info("[StoryStore] Not on disk, trying localStorage...");
+        story = await storageManager.loadStory(storyId);
+      }
       if (!story) {
         console.warn("Story not found:", storyId);
         return false;
@@ -192,6 +211,7 @@ export const useStoryStore = defineStore("story", () => {
       
       characters.value = story.characters;
       currentStoryId.value = storyId;
+      currentChapterId.value = null; // caller can select a chapter after load
 
       return true;
     } catch (error) {

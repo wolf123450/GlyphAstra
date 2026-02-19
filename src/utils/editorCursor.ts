@@ -66,7 +66,11 @@ export function buildStructuredHTML(tokens: Token[], content: string): string {
     } else if (token.type === 'code') {
       html += `<span class="token token-code rendered" data-start="${token.start}" data-end="${token.end}"><span class="marker">\`</span><span class="content">${inner}</span><span class="marker">\`</span></span>`
     } else if (token.type === 'listItem') {
-      html += `<span class="token token-list rendered" data-start="${token.start}" data-end="${token.end}"><span class="marker">- </span><span class="content">${renderInlineContent(token.text)}</span></span>`
+      const indent = token.indent ?? 0
+      // Include the leading spaces in the marker so those source chars exist in
+      // the DOM and CursorOffset counting stays accurate.
+      const spaces = '  '.repeat(indent)
+      html += `<span class="token token-list rendered" data-start="${token.start}" data-end="${token.end}" data-indent="${indent}"><span class="marker">${esc(spaces)}- </span><span class="content">${renderInlineContent(token.text)}</span></span>`
     }
 
     lastEnd = token.end

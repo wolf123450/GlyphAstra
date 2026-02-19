@@ -87,7 +87,7 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
   - Ctrl+S: Save
   - Ctrl+F: Search
   - Ctrl+,: Settings
-  - Tab: Toggle edit/preview mode
+- [x] Story Overview opens via ◨ button in editor header (Tab no longer hijacked)
 
 **Deliverables - COMPLETE:**
 - ✅ Polished main UI shell
@@ -99,73 +99,100 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 
 ---
 
-## Phase 3: File & Storage Management (Week 5-6) 🟡 PARTIAL
+## Phase 3: File & Storage Management (Week 5-6) ✅ COMPLETE
 
-### 3.1 Local File System Integration
+### 3.1 Local File System Integration ✅
 - [x] Story data structure in memory with localStorage persistence
-- [ ] Actual file system integration through Tauri (pending)
-- [ ] Create story directory structure on disk
-- [ ] Implement file I/O operations through Tauri
+- [x] Actual file system integration through Tauri (`filesystem.ts` with `@tauri-apps/plugin-fs`)
+- [x] Create story directory structure on disk (`stories/{storyId}/`)
+- [x] Implement file I/O operations through Tauri
+- [x] AppData capabilities granted (`fs:allow-appdata-read-recursive`, write, meta)
 
 ### 3.2 Story Project System ✅
 - [x] Create story initialization flow
 - [x] Story metadata management (title, description, genre, tone, narrative voice)
 - [x] Basic folder and chapter CRUD operations
-- [ ] Load existing story projects from disk (needs Tauri integration)
+- [x] Load existing story projects from disk via `fileStorage.listProjects()`
 
 ### 3.3 Chapter Operations ✅
 - [x] Create new chapters programmatically
 - [x] Rename chapters (memory only, not file system)
 - [x] Delete chapters with proper handling
 - [x] Chapter properties (status, word count, metadata)
-- [ ] File system updates for renamed/reordered chapters (pending Tauri)
+- [x] Chapter content saved as individual `.md` files on disk
 
 ### 3.4 Auto-save System 🟡 PARTIAL
 - [x] Debounced autosave framework implemented
 - [x] Unsaved changes indicator in editor status bar
-- [ ] Save conflict handling (needs file system)
+- [ ] Save conflict handling
 - [ ] Recovery from crashes mechanism
 
 **Current Status:**
 - ✅ Story project system works in-memory with localStorage
-- ✅ Chapter management fully operational (in-memory)
-- 🟡 Local persistence partial (localStorage only, not file system)
+- ✅ Chapter management fully operational (in-memory + disk)
+- ✅ Dual-write persistence: file system primary, localStorage backup
+- ✅ `fileStorage.ts` — disk layer: `saveStory`, `loadStory`, `listProjects`, `deleteStory`
+- ✅ `filesystem.ts` — real Tauri fs I/O: `readFile`, `writeFileContent`, `ensureDir`, `pathExists`, `listDirectory`, `deleteFile`
+- ✅ `storyStore.saveStory()` writes to both FS and localStorage
+- ✅ `storyStore.loadStory()` reads from FS first, falls back to localStorage
 - ✅ Auto-save system framework in place
-- ⏳ Full file system integration requires Tauri fs plugin setup
 
 ---
 
 ## Phase 4: Markdown Editor & Preview System (Week 7-9) ✅ MOSTLY COMPLETE
 
-### 4.1 Markdown Editor 🟡 PARTIAL
+### 4.1 Markdown Editor ✅
 - [x] Editor component with content-editable div
 - [x] Line numbers and basic syntax awareness
-- [x] Tab and indentation support
-- [ ] Code formatting guides (visual helpers)
+- [x] Tab and indentation support (Tab inserts two spaces in editor)
 - [x] Three rendering modes: seamless, markdown, preview
+- [x] CRLF/LF normalisation (Windows clipboard paste works correctly)
+- [ ] Code formatting guides (visual helpers)
 
 ### 4.2 Preview Rendering ✅
 - [x] Real-time preview updates
 - [x] CSS styling for preview with proper markup elements
 - [x] Support for:
-  - [x] Headers (h1-h6)
-  - [x] Lists (ordered/unordered)
-  - [x] Bold/italic/strikethrough
+  - [x] Headers (h1-h6) with seamless hide/show of # markers
+  - [x] Unordered lists with nested/indented bullet levels
+  - [x] Bold / italic / strikethrough
   - [x] Inline code
-  - [x] Blockquotes (basic)
-  - [ ] Links and images (not yet implemented)
+  - [x] Inline formatting nested inside list items and headers
+  - [ ] Fenced code blocks (triple backtick) — **TODO**
+  - [ ] Ordered lists (1. 2. 3.) — **TODO**
+  - [ ] Blockquotes (> text) — **TODO**
+  - [ ] Horizontal rules (---) — **TODO**
+  - [ ] Links ([text](url)) — **TODO**
+  - [ ] Images (![alt](url)) — **TODO**
+  - [ ] Tables — **TODO**
 
 ### 4.3 Edit/Preview Toggle ✅
 - [x] Full markdown mode (raw text with syntax)
 - [x] Full preview mode (rendered HTML)
 - [x] Seamless mode (hybrid showing markdown and preview)
-- [ ] Sync scroll between editor and preview (in seamless mode)
 - [x] Smooth transitions between modes
+- [ ] Sync scroll between editor and preview (in seamless mode)
 
 ### 4.4 Inline Editing Mode
 - [ ] Detect cursor position in preview
 - [ ] Trigger inline edit mode when clicking text
 - [ ] Edit text without switching to edit mode
+
+### 4.5 Extended Markdown Features ⏳ NOT STARTED
+- [ ] Fenced code blocks (```lang\n...\n```) with syntax class on outer span
+- [ ] Ordered lists (1. item) with correct numbering and nesting
+- [ ] Blockquotes (> text) with visual left-bar style
+- [ ] Horizontal rules (--- / ***)
+- [ ] Links ([text](url)) — display as clickable in preview mode
+- [ ] Images (![alt](url)) — display in preview mode
+- [ ] Tables (pipe syntax)
+- [ ] Nested blockquotes
+
+### 4.6 Markdown Reference Page ⏳ NOT STARTED
+- [ ] Dedicated panel or modal showing all supported markdown syntax
+- [ ] Each entry: syntax example + rendered result side-by-side
+- [ ] Grouped by category (headings, emphasis, lists, code, etc.)
+- [ ] Accessible from editor header (? button)
 
 **Current Status:**
 - ✅ Markdown editor with three modes operational
@@ -281,7 +308,10 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 
 ## Phase 9: Settings & Customization (Week 20) ⏳ NOT STARTED
 
-- [ ] Editor settings (font, line height, tab width)
+**Note:** The ⚙ button in the sidebar and `Ctrl+,` shortcut both call `uiStore.toggleSettings()` which already flips `showSettings`, but no panel/modal renders in response. The `settingsStore` has the full data model. A `Settings.vue` modal component needs to be created and wired to `uiStore.showSettings`.
+
+- [ ] **Settings modal component** (`Settings.vue`) — reads/writes from `settingsStore`
+- [ ] Editor settings (font size, line height, tab width)
 - [ ] Theme customization
 - [ ] Keyboard shortcut customization
 - [ ] Auto-save interval settings
@@ -311,7 +341,7 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 - [ ] UI polish and animations
 - [ ] Loading states and transitions
 - [ ] Accessibility (WCAG compliance)
-- [ ] Unit and integration tests
+- ✅ Unit and integration test suite (Vitest, 109 tests across seamlessRenderer, editorCursor, CRLF tokenisation)
 
 ---
 
@@ -334,8 +364,8 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 ### Current Implementation Status:
 - ✅ **Phase 1**: Foundation - COMPLETE
 - ✅ **Phase 2**: UI Framework - COMPLETE  
-- 🟡 **Phase 3**: File Storage - 60% (localStorage works, file system pending Tauri)
-- ✅ **Phase 4**: Markdown Editor - 85% (three modes, basic markdown)
+- ✅ **Phase 3**: File Storage - COMPLETE (dual-write FS + localStorage, Tauri plugin-fs wired)
+- ✅ **Phase 4**: Markdown Editor - 90% (three modes, full inline markdown, indented lists; fenced code blocks / links / images / tables pending in 4.5)
 - ✅ **Phase 5**: Story Overview - 80% (panel functional, some fields pending)
 - 🟡 **Phase 6**: Ollama Integration - 40% (API functional, UI pending)
 - ⏳ **Phases 7-12**: Not yet started
@@ -354,10 +384,12 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 ✅ Word count, line count, and character count tracking
 
 ### Next Priorities:
-1. Implement actual file system I/O with Tauri (Phase 3)
-2. Connect Ollama API to UI for basic completions (Phase 6)
-3. Add advanced markdown features (links, images) (Phase 4)
-4. Implement UI completion preview system (Phase 7)
+1. Connect Ollama API to UI for basic completions (Phase 6)
+2. Settings modal — `Settings.vue` responding to `uiStore.showSettings` (Phase 9)
+3. Extended markdown features: fenced code blocks, ordered lists, blockquotes, links (Phase 4.5)
+4. Markdown reference page (Phase 4.6)
+5. Implement UI completion preview system (Phase 7)
+6. Crash recovery: on app start, check AppData for stories not in localStorage
 
 ---
 

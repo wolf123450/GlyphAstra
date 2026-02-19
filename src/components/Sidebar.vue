@@ -8,6 +8,32 @@
     </div>
 
     <div v-if="isOpen" class="sidebar-content">
+
+      <!-- Story Switcher -->
+      <div class="story-section">
+        <button class="story-title-btn" @click="showStoryPicker = !showStoryPicker" :title="currentStoryTitle">
+          <span class="story-name">{{ currentStoryTitle }}</span>
+          <span class="story-caret">{{ showStoryPicker ? '▲' : '▼' }}</span>
+        </button>
+
+        <div v-if="showStoryPicker" class="story-picker">
+          <button class="story-new-btn" @click="createAndSwitchStory">⊕ New Story</button>
+          <div class="story-list">
+            <button
+              v-for="proj in savedProjects"
+              :key="proj.id"
+              class="story-item"
+              :class="{ active: proj.id === storyStore.currentStoryId }"
+              @click="switchToStory(proj.id)"
+            >
+              <span class="story-item-name">{{ proj.name }}</span>
+              <span class="story-item-date">{{ formatDate(proj.lastModified) }}</span>
+            </button>
+            <div v-if="savedProjects.length === 0" class="story-item-empty">No saved stories</div>
+          </div>
+        </div>
+      </div>
+
       <!-- New Chapter Button -->
       <button class="btn-sidebar-action" @click="createNewChapter" title="Create new chapter (Ctrl+N)">
         <span class="icon">⊕</span>
@@ -57,13 +83,77 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useStoryStore } from '@/stores/storyStore'
 import { useUIStore } from '@/stores/uiStore'
+import { useEditorStore } from '@/stores/editorStore'
+import { storageManager } from '@/utils/storage'
 import ChapterItem from './ChapterItem.vue'
 
 const storyStore = useStoryStore()
+const editorStore = useEditorStore()
 const uiStore = useUIStore()
+
+const showStoryPicker = ref(false)
+
+const currentStoryTitle = computed(() => storyStore.metadata.title || 'Untitled Story')
+
+const savedProjects = computed(() => {
+  const projects = storageManager.getProjectsList()
+  const currentId = storyStore.currentStoryId
+  // Patch the current story's name with the live in-memory title so the list
+  // updates immediately when the user renames the story, before the next save.
+  const liveTitle = storyStore.metadata.title
+  return [...projects]
+    .map((p) => p.id === currentId ? { ...p, name: liveTitle || p.name } : p)
+    .sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime())
+})
+
+const formatDate = (iso: string) => {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  } catch {
+    return ''
+  }
+}
+
+const switchToStory = async (id: string) => {
+  if (id === storyStore.currentStoryId) {
+    showStoryPicker.value = false
+    return
+  }
+  // Flush and save the current story first
+  if (storyStore.currentChapterId) {
+    const wc = editorStore.content.trim().split(/\s+/).filter((w: string) => w.length > 0).length
+    storyStore.updateChapter(storyStore.currentChapterId, {
+      content: editorStore.content,
+      wordCount: wc,
+      lastEdited: new Date().toISOString(),
+    })
+  }
+  await storyStore.saveStory()
+  await storyStore.loadStory(id)
+  // Auto-select first chapter of the newly loaded story
+  if (!storyStore.currentChapterId && storyStore.chapters.length > 0) {
+    storyStore.setCurrentChapter(storyStore.chapters[0].id)
+  }
+  showStoryPicker.value = false
+}
+
+const createAndSwitchStory = async () => {
+  // Save current story first
+  if (storyStore.currentChapterId) {
+    const wc = editorStore.content.trim().split(/\s+/).filter((w: string) => w.length > 0).length
+    storyStore.updateChapter(storyStore.currentChapterId, {
+      content: editorStore.content,
+      wordCount: wc,
+      lastEdited: new Date().toISOString(),
+    })
+  }
+  await storyStore.saveStory()
+  storyStore.createNewStory('Untitled Story')
+  showStoryPicker.value = false
+}
 
 const isOpen = computed({
   get: () => uiStore.sidebarOpen,
@@ -144,6 +234,113 @@ const toggleTheme = () => {
 </script>
 
 <style scoped>
+.story-section {
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.story-title-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.story-title-btn:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.story-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.story-caret {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.story-picker {
+  background-color: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+}
+
+.story-new-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  color: var(--accent-color);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.story-new-btn:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.story-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.story-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.story-item:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.story-item.active {
+  background-color: color-mix(in srgb, var(--accent-color) 15%, transparent);
+}
+
+.story-item-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.story-item-date {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.story-item-empty {
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
 .sidebar {
   width: 250px;
   background-color: var(--bg-secondary);
@@ -163,9 +360,12 @@ const toggleTheme = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--spacing-lg);
+  padding: 0 var(--spacing-lg);
   border-bottom: 1px solid var(--border-color);
   gap: var(--spacing-md);
+  height: 52px;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .sidebar-title {

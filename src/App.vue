@@ -8,7 +8,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import Sidebar from '@/components/Sidebar.vue'
 import Editor from '@/components/Editor.vue'
 import Overview from '@/components/Overview.vue'
@@ -16,33 +16,55 @@ import Notification from '@/components/Notification.vue'
 import { useUIStore } from '@/stores/uiStore'
 import { useStoryStore } from '@/stores/storyStore'
 import { initializeKeyboardShortcuts, registerDefaultShortcuts } from '@/utils/keyboard'
+import { storageManager } from '@/utils/storage'
+
+const LAST_STORY_KEY = 'blockbreaker_last_story'
 
 const uiStore = useUIStore()
 const storyStore = useStoryStore()
 
-onMounted(() => {
-  // Initialize a new story if none exists
-  if (!storyStore.currentStoryId) {
+// Persist the last-open story ID so we can reload it on restart
+watch(() => storyStore.currentStoryId, (id) => {
+  if (id) localStorage.setItem(LAST_STORY_KEY, id)
+})
+
+onMounted(async () => {
+  // Try to restore the last open story
+  let loaded = false
+
+  const lastId = localStorage.getItem(LAST_STORY_KEY)
+  if (lastId) {
+    loaded = await storyStore.loadStory(lastId)
+  }
+
+  if (!loaded) {
+    // Fall back to the most recently modified saved story
+    const projects = storageManager.getProjectsList()
+    if (projects.length > 0) {
+      const sorted = [...projects].sort(
+        (a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
+      )
+      loaded = await storyStore.loadStory(sorted[0].id)
+    }
+  }
+
+  if (!loaded) {
     storyStore.createNewStory('My Story')
+  }
+
+  // Auto-select first chapter if none selected
+  if (!storyStore.currentChapterId && storyStore.chapters.length > 0) {
+    storyStore.setCurrentChapter(storyStore.chapters[0].id)
   }
 
   // Initialize keyboard shortcuts
   initializeKeyboardShortcuts()
 
-  // Register default shortcuts
   registerDefaultShortcuts({
-    'new-chapter': () => {
-      // Trigger new chapter creation - will be handled via Sidebar
-    },
-    'save': () => {
-      // Save current chapter - will be handled via Editor
-    },
-    'search': () => {
-      // Open search panel - will be implemented in Phase 8
-    },
-    'settings': () => {
-      uiStore.toggleSettings()
-    },
+    'new-chapter': () => {},
+    'save': () => {},
+    'search': () => {},
+    'settings': () => { uiStore.toggleSettings() },
     'toggle-mode': () => {
       const modes = ['editor', 'preview', 'overview'] as const
       const currentModeIndex = modes.indexOf(uiStore.activePanel)
@@ -51,10 +73,8 @@ onMounted(() => {
     },
   })
 
-  // Set initial theme
   uiStore.setTheme(uiStore.theme)
 
-  // Show welcome message if no chapters
   if (storyStore.chapters.length === 0) {
     uiStore.showNotification('Welcome to BlockBreaker! Create your first chapter to get started.', 'info', 0)
   }
