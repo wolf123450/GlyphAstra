@@ -1,16 +1,18 @@
 <template>
-  <div
-    ref="editorInput"
-    class="editor-input"
-    contenteditable="plaintext-only"
-    @input="onInput"
-    @click="onCursorActivity"
-    @keydown="handleKeydown"
-    @keyup="onKeyup"
-    @mouseup="onCursorActivity"
-    @paste="handlePaste"
-    @cut="handleCut"
-  ></div>
+  <div class="editor-wrapper">
+    <div
+      ref="editorInput"
+      class="editor-input"
+      contenteditable="plaintext-only"
+      @input="onInput"
+      @click="onCursorActivity"
+      @keydown="handleKeydown"
+      @keyup="onKeyup"
+      @mouseup="onCursorActivity"
+      @paste="handlePaste"
+      @cut="handleCut"
+    ></div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -28,11 +30,23 @@ interface Props {
   content: string
   cursorPos: number
   forceMode?: 'seamless' | 'markdown' | 'preview'
+  // Inline suggestion props (managed by parent)
+  suggestionText?: string
+  suggestionCount?: number
+  suggestionIndex?: number
+  suggestionGenerating?: boolean
 }
 
 interface Emits {
   'update:content': [value: string]
   'update:cursorPos': [value: number]
+  // AI suggestion events
+  'trigger-ai':        []
+  'accept-suggestion': []
+  'dismiss-suggestion':[]
+  'next-suggestion':   []
+  'prev-suggestion':   []
+  'type-char':         [char: string]
 }
 
 const props = defineProps<Props>()
@@ -43,6 +57,71 @@ let selectionStart = 0
 let selectionEnd = 0
 let isUpdatingDOM = false
 let pendingCursorPos: number | null = null
+
+// ─── Ghost DOM injection ──────────────────────────────────────────
+
+/**
+ * Remove any previously injected ghost span(s) and normalize text nodes.
+ */
+const removeGhostSpan = () => {
+  if (!editorInput.value) return
+  editorInput.value.querySelectorAll('[data-ghost]').forEach(el => {
+    const parent = el.parentNode
+    el.remove()
+    // Merge split text nodes so data-start/end arithmetic stays correct
+    if (parent instanceof HTMLElement) parent.normalize()
+  })
+}
+
+/**
+ * Inject the ghost suggestion span inline at the current cursor position so
+ * the text flows naturally with the document (wraps like real text).
+ */
+const injectGhostSpan = () => {
+  if (!editorInput.value) return
+  removeGhostSpan()
+
+  const displayText = props.suggestionText ||
+    (props.suggestionGenerating ? 'generating…' : '')
+  if (!displayText) return
+
+  const s = window.getSelection()
+  if (!s || s.rangeCount === 0) return
+
+  const insertRange = s.getRangeAt(0).cloneRange()
+  insertRange.collapse(true)
+
+  const ghost = document.createElement('span')
+  ghost.setAttribute('data-ghost', 'true')
+  ghost.setAttribute('contenteditable', 'false')
+  ghost.className = props.suggestionGenerating ? 'ghost-loading' : 'ghost-inline'
+
+  if (props.suggestionCount && props.suggestionCount > 1) {
+    ghost.appendChild(document.createTextNode(displayText))
+    const badge = document.createElement('span')
+    badge.className = 'ghost-badge'
+    badge.textContent = `${(props.suggestionIndex ?? 0) + 1}/${props.suggestionCount}`
+    ghost.appendChild(badge)
+  } else {
+    ghost.textContent = displayText
+  }
+
+  insertRange.insertNode(ghost)
+
+  // Restore cursor to immediately before the ghost span
+  const prev = ghost.previousSibling
+  if (prev?.nodeType === Node.TEXT_NODE) {
+    s.collapse(prev, (prev as Text).length)
+  } else {
+    const parent = ghost.parentNode!
+    const idx = Array.from(parent.childNodes).indexOf(ghost)
+    s.collapse(parent, idx)
+  }
+}
+
+const hasSuggestion = computed(() =>
+  !!(props.suggestionText && props.suggestionText.length > 0) || !!props.suggestionGenerating
+)
 
 const tokens = computed(() => tokenizeMarkdown(props.content))
 
@@ -66,6 +145,7 @@ watch(
     nextTick(() => {
       if (!editorInput.value) return
       isUpdatingDOM = true
+      removeGhostSpan()   // strip ghost before rebuilding innerHTML
       editorInput.value.innerHTML = buildStructuredHTML(tokens.value, props.content)
 
       const target = pendingCursorPos ?? props.cursorPos
@@ -78,9 +158,25 @@ watch(
       selectionEnd = target
 
       isUpdatingDOM = false
+
+      // Re-inject ghost if a suggestion is still active
+      if (props.suggestionText || props.suggestionGenerating) injectGhostSpan()
     })
   },
   { immediate: true }
+)
+
+// Re-inject (or remove) ghost whenever suggestion text / state changes
+watch(
+  [() => props.suggestionText, () => props.suggestionGenerating,
+   () => props.suggestionIndex, () => props.suggestionCount],
+  () => {
+    if (props.suggestionText || props.suggestionGenerating) {
+      nextTick(() => injectGhostSpan())
+    } else {
+      removeGhostSpan()
+    }
+  }
 )
 
 // ─── Cursor tracking events ────────────────────────────────────────
@@ -88,6 +184,11 @@ watch(
 const onCursorActivity = () => {
   if (isUpdatingDOM) return
   const pos = livePos()
+  // Dismiss suggestion on arbitrary cursor repositioning (click / mouseup)
+  if (hasSuggestion.value) {
+    removeGhostSpan()          // immediate visual removal
+    emit('dismiss-suggestion')
+  }
   emit('update:cursorPos', pos)
   updateTokenVisibility(container(), pos, mode())
 }
@@ -102,6 +203,46 @@ const onKeyup = (e: KeyboardEvent) => {
 
 const handleKeydown = (event: KeyboardEvent) => {
   const pos = livePos()
+
+  // ── Ctrl+Space → trigger AI generation ──────────────────────────
+  if (event.key === ' ' && event.ctrlKey && !event.shiftKey) {
+    event.preventDefault()
+    emit('trigger-ai')
+    return
+  }
+
+  // ── When a suggestion is active, intercept special keys ─────────
+  if (hasSuggestion.value) {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      emit('dismiss-suggestion')
+      return
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      emit('prev-suggestion')
+      return
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      emit('next-suggestion')
+      return
+    }
+    // Left/Right arrows move the cursor — dismiss the suggestion
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      emit('dismiss-suggestion')
+      // fall through — let the arrow key move the cursor normally
+    }
+    if (event.key === 'Backspace') {
+      emit('dismiss-suggestion')
+      // let normal backspace proceed
+    }
+    // Printable character — signal parent before input fires
+    if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      emit('type-char', event.key)
+      // Don't return — let the character be typed normally
+    }
+  }
 
   if (event.key === 'Enter') {
     event.preventDefault()
@@ -133,7 +274,9 @@ const handleKeydown = (event: KeyboardEvent) => {
 
   if (event.key === 'Tab') {
     event.preventDefault()
-    if (selectionStart !== selectionEnd) {
+    if (hasSuggestion.value) {
+      emit('accept-suggestion')
+    } else if (selectionStart !== selectionEnd) {
       pendingCursorPos = selectionStart + 2
       emit('update:content', props.content.slice(0, selectionStart) + '  ' + props.content.slice(selectionEnd))
       emit('update:cursorPos', pendingCursorPos)
@@ -221,6 +364,14 @@ const onInput = (event: InputEvent) => {
 </script>
 
 <style scoped>
+.editor-wrapper {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .editor-input {
   flex: 1;
   padding: var(--spacing-md);
@@ -331,5 +482,40 @@ const onInput = (event: InputEvent) => {
   padding: 0 !important;
   border-radius: 0 !important;
   font-size: 1em !important;
+}
+
+/* ── Inline AI ghost text (injected directly into the contenteditable) ── */
+.editor-input :deep([data-ghost]) {
+  pointer-events: none;
+  user-select: none;
+}
+.editor-input :deep(.ghost-inline) {
+  color: var(--text-tertiary);
+  opacity: 0.6;
+  font-style: italic;
+}
+.editor-input :deep(.ghost-loading) {
+  color: var(--text-tertiary);
+  opacity: 0.45;
+  font-style: italic;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.editor-input :deep(.ghost-badge) {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  font-size: 10px;
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-tertiary);
+  vertical-align: middle;
+  opacity: 0.8;
+  font-style: normal;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 0.6; }
 }
 </style>

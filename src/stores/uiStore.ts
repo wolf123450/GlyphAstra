@@ -7,7 +7,7 @@ export interface UIState {
   theme: "dark" | "light";
   showSettings: boolean;
   showSearchPanel: boolean;
-  activePanel: "editor" | "preview" | "overview";
+  activePanel: "editor" | "preview" | "overview" | "ai";
   sidebarSearchQuery: string;
   notificationMessage: string;
   notificationType: "success" | "error" | "info" | "warning";
@@ -20,7 +20,7 @@ export const useUIStore = defineStore("ui", () => {
   const theme = ref<"dark" | "light">("dark");
   const showSettings = ref<boolean>(false);
   const showSearchPanel = ref<boolean>(false);
-  const activePanel = ref<"editor" | "preview" | "overview">("editor");
+  const activePanel = ref<"editor" | "preview" | "overview" | "ai">("editor");
   const sidebarSearchQuery = ref<string>("");
   const notificationMessage = ref<string>("");
   const notificationType = ref<"success" | "error" | "info" | "warning">(
@@ -49,7 +49,7 @@ export const useUIStore = defineStore("ui", () => {
     showSearchPanel.value = !showSearchPanel.value;
   };
 
-  const setActivePanel = (panel: "editor" | "preview" | "overview") => {
+  const setActivePanel = (panel: "editor" | "preview" | "overview" | "ai") => {
     activePanel.value = panel;
   };
 

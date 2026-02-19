@@ -47,6 +47,14 @@
         >
           ◨
         </button>
+        <button
+          class="action-btn"
+          :class="{ active: isAIOpen }"
+          @click="toggleAI"
+          title="AI Assistant (Ctrl+Space)"
+        >
+          ✦
+        </button>
       </div>
     </div>
 
@@ -56,16 +64,36 @@
         v-if="renderMode === 'seamless' && currentChapter"
         :content="content"
         :cursorPos="cursorPosition"
+        :suggestion-text="ai.remainingText.value"
+        :suggestion-count="ai.totalCount.value"
+        :suggestion-index="ai.currentIndex.value"
+        :suggestion-generating="ai.isGenerating.value"
         @update:content="content = $event"
         @update:cursorPos="cursorPosition = $event"
+        @trigger-ai="onTriggerAI"
+        @accept-suggestion="onAcceptSuggestion"
+        @dismiss-suggestion="onDismissSuggestion"
+        @next-suggestion="onNextSuggestion"
+        @prev-suggestion="onPrevSuggestion"
+        @type-char="onTypeChar"
       />
 
       <!-- Markdown Mode -->
       <EditorMarkdown
         v-else-if="renderMode === 'markdown' && currentChapter"
         :content="content"
+        :suggestion-text="ai.remainingText.value"
+        :suggestion-count="ai.totalCount.value"
+        :suggestion-index="ai.currentIndex.value"
+        :suggestion-generating="ai.isGenerating.value"
         @update:content="content = $event"
         @update:cursorPos="cursorPosition = $event"
+        @trigger-ai="onTriggerAI"
+        @accept-suggestion="onAcceptSuggestion"
+        @dismiss-suggestion="onDismissSuggestion"
+        @next-suggestion="onNextSuggestion"
+        @prev-suggestion="onPrevSuggestion"
+        @type-char="onTypeChar"
       />
 
       <!-- Preview Mode -->
@@ -105,6 +133,7 @@ import { useStoryStore } from '@/stores/storyStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useUIStore } from '@/stores/uiStore'
 import { autoSaveManager } from '@/utils/autoSave'
+import { useAISuggestion } from '@/utils/useAISuggestion'
 import type { RenderMode } from '@/utils/seamlessRenderer'
 import EditorSeamless from './EditorSeamless.vue'
 import EditorMarkdown from './EditorMarkdown.vue'
@@ -117,10 +146,36 @@ const uiStore = useUIStore()
 const currentChapter = computed(() => storyStore.currentChapter)
 const isDirty = computed(() => editorStore.isDirty)
 const isOverviewOpen = computed(() => uiStore.activePanel === 'overview')
+const isAIOpen = computed(() => uiStore.activePanel === 'ai')
 
 const toggleOverview = () => {
   uiStore.setActivePanel(isOverviewOpen.value ? 'editor' : 'overview')
 }
+
+const toggleAI = () => {
+  uiStore.setActivePanel(isAIOpen.value ? 'editor' : 'ai')
+}
+
+// ─── AI inline suggestions ─────────────────────────────────────────────────
+const ai = useAISuggestion()
+
+const onTriggerAI = () => {
+  const pos = editorStore.cursorPosition
+  ai.trigger(editorStore.content.slice(0, pos))
+}
+
+const onAcceptSuggestion = () => {
+  const text = ai.acceptFull()
+  if (text) editorStore.insertAtCursor(text)
+}
+
+const onDismissSuggestion = () => ai.clear()
+const onNextSuggestion    = () => ai.next()
+const onPrevSuggestion    = () => ai.prev()
+const onTypeChar          = (char: string) => ai.tryMatchChar(char)
+
+// Dismiss suggestion when chapter changes
+watch(() => storyStore.currentChapterId, () => ai.clear())
 
 const renderMode = ref<RenderMode>('seamless')
 const cursorPosition = ref(0)

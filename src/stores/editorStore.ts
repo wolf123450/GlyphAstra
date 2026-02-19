@@ -54,6 +54,20 @@ export const useEditorStore = defineStore("editor", () => {
     autoSaveManager.cancelAutoSave("current-chapter");
   };
 
+  /**
+   * Insert text at the current cursor position (used by AI completions).
+   */
+  const insertAtCursor = (text: string) => {
+    const pos = cursorPosition.value;
+    content.value = content.value.slice(0, pos) + text + content.value.slice(pos);
+    cursorPosition.value = pos + text.length;
+    isDirty.value = true;
+    unsavedChanges.value = true;
+    if (autoSaveEnabled.value) {
+      autoSaveManager.triggerAutoSave("current-chapter");
+    }
+  };
+
   const clearEditor = () => {
     content.value = "";
     cursorPosition.value = 0;
@@ -81,6 +95,7 @@ export const useEditorStore = defineStore("editor", () => {
     // Methods
     setContent,
     loadContent,
+    insertAtCursor,
     setCursorPosition,
     markAsSaved,
     clearEditor,

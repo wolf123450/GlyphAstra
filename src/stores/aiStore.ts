@@ -27,6 +27,8 @@ export interface AIStyle {
 export const useAIStore = defineStore("ai", () => {
   const models = ref<OllamaModel[]>([]);
   const currentModel = ref<string>("llama2");
+  const currentStyle = ref<string>("mystical");
+  const suggestionTokens = ref<number>(80); // ~sentence length
   const isConnected = ref<boolean>(false);
   const isGenerating = ref<boolean>(false);
   const completionHistory = ref<Completion[]>([]);
@@ -82,6 +84,14 @@ export const useAIStore = defineStore("ai", () => {
     currentModel.value = model;
   };
 
+  const setCurrentStyle = (style: string) => {
+    currentStyle.value = style;
+  };
+
+  const setSuggestionTokens = (tokens: number) => {
+    suggestionTokens.value = tokens;
+  };
+
   const setGenerating = (generating: boolean) => {
     isGenerating.value = generating;
   };
@@ -118,6 +128,8 @@ export const useAIStore = defineStore("ai", () => {
     // State
     models,
     currentModel,
+    currentStyle,
+    suggestionTokens,
     isConnected,
     isGenerating,
     completionHistory,
@@ -129,6 +141,8 @@ export const useAIStore = defineStore("ai", () => {
     setConnected,
     setModels,
     setCurrentModel,
+    setCurrentStyle,
+    setSuggestionTokens,
     setGenerating,
     addCompletion,
     setCurrentCompletions,

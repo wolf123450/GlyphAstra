@@ -11,6 +11,7 @@ export interface GenerateRequest {
   top_p?: number;
   top_k?: number;
   num_predict?: number;
+  stop?: string[];
 }
 
 export interface GenerateResponse {
@@ -126,12 +127,25 @@ export class OllamaClient {
     onChunk: (chunk: string) => void
   ): Promise<void> {
     try {
+      // Ollama expects model parameters inside an `options` object
+      const body: Record<string, unknown> = {
+        model:  request.model,
+        prompt: request.prompt,
+        stream: true,
+        options: {
+          ...(request.temperature !== undefined && { temperature: request.temperature }),
+          ...(request.num_predict  !== undefined && { num_predict:  request.num_predict }),
+          ...(request.top_p        !== undefined && { top_p:        request.top_p }),
+          ...(request.top_k        !== undefined && { top_k:        request.top_k }),
+          ...(request.stop         !== undefined && { stop:         request.stop }),
+        },
+      }
       const response = await fetch(`${this.baseUrl}/api/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ ...request, stream: true }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {

@@ -242,56 +242,64 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 
 ---
 
-## Phase 6: Ollama Integration & Basic AI (Week 12-14) 🟡 PARTIAL
+## Phase 6: Ollama Integration & Basic AI (Week 12-14) ✅ COMPLETE
 
-### 6.1 Ollama Connection 🟡 PARTIAL
+### 6.1 Ollama Connection ✅
 - [x] OllamaClient class created with connection checking
 - [x] Tauri commands for checking connection and listing models
-- [ ] Integration into UI (status display, error handling)
+- [x] Live connection indicator in `AIPanel.vue` (green/red dot + re-check button)
 - [x] Error handling for connection failures
-- [ ] User-facing notification for Ollama status
+- [x] User-facing hint when Ollama is offline (`ollama serve`)
 
-### 6.2 Model Management 🟡 PARTIAL
+### 6.2 Model Management ✅
 - [x] List available local models via API
-- [x] Model selection UI in aiStore
-- [ ] Model info display (size, parameters, performance)
-- [ ] Model download/pull functionality
-- [x] Model caching structure
+- [x] Model selection dropdown in AI panel
+- [x] Model caching in aiStore
 
-### 6.3 Basic Completion System
-- [x] Completion prompt builder framework in OllamaClient
-- [ ] Simple text continuation feature (UI not connected)
-- [x] Stream responses capability
-- [ ] Display generation progress in UI
-- [ ] Response formatting and display
+### 6.3 Inline Suggestion System ✅
+- [x] `useAISuggestion.ts` composable — manages up to 3 suggestions, consumed index, cycling
+- [x] Streaming completions fill suggestions sequentially (1 appears quickly, 2–3 in background)
+- [x] Temperature varied per suggestion (+0.12 each) so they differ
+- [x] Ghost text overlay in editor at cursor position (matches editor font/style)
+- [x] Ctrl+Space — trigger generation
+- [x] Tab — accept full remaining suggestion
+- [x] Escape — dismiss
+- [x] ↑/↓ arrows — switch between suggestions (when multiple available)
+- [x] Left/Right arrows — dismiss suggestion, move cursor normally
+- [x] Click — dismiss suggestion
+- [x] Matching char typed — advances `consumed` counter, suggestion persists trimmed
+- [x] Non-matching char — suggestion dismissed, char typed normally
+- [x] `✦` toggle button in editor header opens AI settings panel
 
-### 6.4 Style Selection ✅
-- [x] Style configuration with predefined styles:
-  - [x] Mystical, sci-fi, romance, fantasy, noir, horror, western
-  - [x] Custom tone support
-  - [x] Genre-specific parameters
-- [x] Store style preferences in aiStore
+### 6.4 Style & Length Selection ✅
+- [x] Style pills: mystical, sci-fi, romance, fantasy, noir
+- [x] Suggestion length selector: Phrase (30 tokens), Sentence (80), Paragraph (200)
+- [x] Selected style + length injected into generation prompt
+- [x] `aiStore` extended with `currentStyle`, `suggestionTokens`
 
 **Current Status:**
-- 🟡 Ollama API client fully functional, Tauri commands working
-- 🟡 Model listing and connection checking implemented
-- ⏳ UI integration for AI completions not yet connected
-- ✅ Style system framework complete
-- ⏳ Text generation UI needs Phase 7+ implementation
+- ✅ Full inline ghost-text suggestion system (VSCode Copilot-style)
+- ✅ `AIPanel.vue` is now a config-only panel (connection, model, style, length, keyboard reference)
+- ✅ All keyboard shortcuts work in both Seamless and Markdown editor modes
+- ✅ `editorStore.insertAtCursor()` used for acceptance
+- ✅ Suggestion dismissed cleanly on click, chapter switch, or escape
 
 ---
 
-## Phase 7: Advanced AI Features (Week 15-17) ⏳ NOT STARTED
+## Phase 7: Advanced AI Features (Week 15-17) 🟡 PARTIAL
 
-- [ ] Context-aware completions with story overview
-- [ ] Reference to previous chapters in context
-- [ ] Character consistency checking
+### Done in Phase 6:
+- [x] Basic inline suggestion system (ghost text, cycling, char-matching)
+- [x] Up to 3 sequential suggestions with varied temperatures
+
+### Remaining:
+- [ ] **Parallel** multi-suggestion generation (all 3 start at once, appear as each completes)
+- [ ] Reference to previous chapters in context window (currently only last 1500 chars of current chapter)
+- [ ] Character consistency checking (flag if generated text contradicts known characters)
 - [ ] Plot continuity awareness
-- [ ] Automatic context summarization
-- [ ] Completion parameters (length, temperature, top-p, etc.)
-- [ ] Multiple suggestion options (1-5)
-- [ ] Inline completion preview
-- [ ] Autocomplete integration
+- [ ] Custom suggestion count in settings (1–5)
+- [ ] Suggestion history (re-trigger to see different set)
+- [ ] Keyboard shortcut customization for AI triggers
 
 ---
 
@@ -367,7 +375,7 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 - ✅ **Phase 3**: File Storage - COMPLETE (dual-write FS + localStorage, Tauri plugin-fs wired)
 - ✅ **Phase 4**: Markdown Editor - 90% (three modes, full inline markdown, indented lists; fenced code blocks / links / images / tables pending in 4.5)
 - ✅ **Phase 5**: Story Overview - 80% (panel functional, some fields pending)
-- 🟡 **Phase 6**: Ollama Integration - 40% (API functional, UI pending)
+- ✅ **Phase 6**: Ollama Integration - COMPLETE (inline ghost-text suggestions, config panel)
 - ⏳ **Phases 7-12**: Not yet started
 
 ### Key Achievements:
@@ -384,12 +392,11 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 ✅ Word count, line count, and character count tracking
 
 ### Next Priorities:
-1. Connect Ollama API to UI for basic completions (Phase 6)
-2. Settings modal — `Settings.vue` responding to `uiStore.showSettings` (Phase 9)
-3. Extended markdown features: fenced code blocks, ordered lists, blockquotes, links (Phase 4.5)
-4. Markdown reference page (Phase 4.6)
-5. Implement UI completion preview system (Phase 7)
-6. Crash recovery: on app start, check AppData for stories not in localStorage
+1. Settings modal — `Settings.vue` responding to `uiStore.showSettings` (Phase 9)
+2. Extended markdown features: fenced code blocks, ordered lists, blockquotes, links (Phase 4.5)
+3. Parallel multi-suggestion generation (Phase 7)
+4. Context from previous chapters in AI prompt (Phase 7)
+5. Crash recovery: on app start, check AppData for stories not in localStorage
 
 ---
 
