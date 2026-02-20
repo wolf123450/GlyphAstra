@@ -37,6 +37,11 @@
   --transition-fast: 150ms ease-in-out;
   --transition-normal: 300ms ease-in-out;
 
+  /* Editor settings — overridden dynamically by settingsStore */
+  --editor-font-size: 14px;
+  --editor-line-height: 1.6;
+  --editor-font-family: 'Fira Code', 'Courier New', monospace;
+
   /* Status Badge Colors - Light Mode */
   --status-draft-bg: #e8f4f8;
   --status-draft-fg: #0277bd;

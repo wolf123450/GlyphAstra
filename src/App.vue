@@ -5,6 +5,7 @@
     <Overview />
     <AIPanel />
     <ExportPanel />
+    <Settings />
     <Notification />
   </div>
 </template>
@@ -16,9 +17,11 @@ import Editor from '@/components/Editor.vue'
 import Overview from '@/components/Overview.vue'
 import AIPanel from '@/components/AIPanel.vue'
 import ExportPanel from '@/components/ExportPanel.vue'
+import Settings from '@/components/Settings.vue'
 import Notification from '@/components/Notification.vue'
 import { useUIStore } from '@/stores/uiStore'
 import { useStoryStore } from '@/stores/storyStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { initializeKeyboardShortcuts, registerDefaultShortcuts } from '@/utils/keyboard'
 import { storageManager } from '@/utils/storage'
 
@@ -26,6 +29,10 @@ const LAST_STORY_KEY = 'blockbreaker_last_story'
 
 const uiStore = useUIStore()
 const storyStore = useStoryStore()
+const settingsStore = useSettingsStore()
+
+// Apply persisted theme immediately
+uiStore.setTheme(settingsStore.settings.theme)
 
 // Persist the last-open story ID so we can reload it on restart
 watch(() => storyStore.currentStoryId, (id) => {
