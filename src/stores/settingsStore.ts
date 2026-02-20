@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { ref, watch } from "vue";
 
 export interface UserSettings {
   theme: "dark" | "light";
@@ -17,13 +17,15 @@ export interface UserSettings {
   keyboardShortcuts: Record<string, string>;
 }
 
+const STORAGE_KEY = 'blockbreaker_settings'
+
 const defaultSettings: UserSettings = {
   theme: "dark",
   fontSize: 14,
   fontFamily: "Fira Code, monospace",
   lineHeight: 1.6,
   tabWidth: 2,
-  autoSaveInterval: 10000, // 10 seconds
+  autoSaveInterval: 10000,
   defaultCompletionStyle: "mystical",
   defaultCompletionLength: "paragraph",
   defaultCompletionCount: 3,
@@ -39,8 +41,33 @@ const defaultSettings: UserSettings = {
   },
 };
 
+function loadFromStorage(): UserSettings {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) return { ...defaultSettings, ...JSON.parse(raw) }
+  } catch {}
+  return { ...defaultSettings }
+}
+
+/**
+ * Apply editor-related settings as CSS variables on :root so the editor
+ * picks them up without needing props drilling.
+ */
+function applyCSSVars(s: UserSettings) {
+  const root = document.documentElement
+  root.style.setProperty('--editor-font-size', `${s.fontSize}px`)
+  root.style.setProperty('--editor-line-height', String(s.lineHeight))
+  root.style.setProperty('--editor-font-family', s.fontFamily)
+}
+
 export const useSettingsStore = defineStore("settings", () => {
-  const settings = ref<UserSettings>({ ...defaultSettings });
+  const settings = ref<UserSettings>(loadFromStorage());
+
+  // Persist + apply on every change
+  watch(settings, (val) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(val))
+    applyCSSVars(val)
+  }, { deep: true, immediate: true })
 
   const updateSetting = <K extends keyof UserSettings>(
     key: K,
@@ -62,9 +89,7 @@ export const useSettingsStore = defineStore("settings", () => {
   };
 
   return {
-    // State
     settings,
-    // Methods
     updateSetting,
     updateKeyboardShortcut,
     resetToDefaults,

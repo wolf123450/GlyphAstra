@@ -408,9 +408,9 @@ const onInput = (event: InputEvent) => {
   background-color: transparent;
   color: var(--text-primary);
   caret-color: var(--accent-color);
-  font-family: 'Fira Code', 'Courier New', monospace;
-  font-size: 14px;
-  line-height: 1.6;
+  font-family: var(--editor-font-family, 'Fira Code', 'Courier New', monospace);
+  font-size: var(--editor-font-size, 14px);
+  line-height: var(--editor-line-height, 1.6);
   resize: none;
   overflow-y: auto;
   white-space: pre-wrap;

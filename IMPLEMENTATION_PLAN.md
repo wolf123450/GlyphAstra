@@ -178,15 +178,16 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 - [ ] Trigger inline edit mode when clicking text
 - [ ] Edit text without switching to edit mode
 
-### 4.5 Extended Markdown Features ⏳ NOT STARTED
-- [ ] Fenced code blocks (```lang\n...\n```) with syntax class on outer span
-- [ ] Ordered lists (1. item) with correct numbering and nesting
-- [ ] Blockquotes (> text) with visual left-bar style
-- [ ] Horizontal rules (--- / ***)
-- [ ] Links ([text](url)) — display as clickable in preview mode
-- [ ] Images (![alt](url)) — display in preview mode
+### 4.5 Extended Markdown Features ✅ COMPLETE
+- [x] Fenced code blocks (```lang\n...\n```) — multi-line token, lang label, monospace block
+- [x] Ordered lists (1. item) with correct numbering, nesting, inline formatting
+- [x] Blockquotes (> text) with visual left-bar, nested levels (>>)
+- [x] Horizontal rules (--- / ***)
+- [x] Inline links ([text](url)) — rendered clickable in preview; Ctrl+Click in seamless
+- [x] External links open in system browser via plugin-opener (never inside WebView)
+- [x] Internal chapter:// links navigate within the app
+- [ ] Images (![alt](url))
 - [ ] Tables (pipe syntax)
-- [ ] Nested blockquotes
 
 ### 4.6 Markdown Reference Page ⏳ NOT STARTED
 - [ ] Dedicated panel or modal showing all supported markdown syntax
@@ -314,17 +315,21 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 
 ---
 
-## Phase 9: Settings & Customization (Week 20) ⏳ NOT STARTED
+## Phase 9: Settings & Customization ✅ COMPLETE
 
-**Note:** The ⚙ button in the sidebar and `Ctrl+,` shortcut both call `uiStore.toggleSettings()` which already flips `showSettings`, but no panel/modal renders in response. The `settingsStore` has the full data model. A `Settings.vue` modal component needs to be created and wired to `uiStore.showSettings`.
-
-- [ ] **Settings modal component** (`Settings.vue`) — reads/writes from `settingsStore`
-- [ ] Editor settings (font size, line height, tab width)
-- [ ] Theme customization
-- [ ] Keyboard shortcut customization
-- [ ] Auto-save interval settings
-- [ ] AI settings (default model, style, parameters)
+- [x] **Settings modal component** (`Settings.vue`) — full overlay modal with 5 tabs
+- [x] Editor settings (font size, font family, line height, tab width)
+- [x] Auto-save interval settings (Off / 5s / 10s / 30s / 1min / 5min)
+- [x] AI settings (default style, suggestion length, temperature, context window size)
+- [x] Theme customization (dark / light toggle)
+- [x] Keyboard shortcuts reference table
+- [x] All settings persisted to `localStorage` via `settingsStore`
+- [x] Font settings applied as `--editor-font-size`, `--editor-line-height`, `--editor-font-family` CSS variables
+- [x] Persisted theme restored on startup
+- [x] `Ctrl+,` and ⚙ button both open the modal
+- [ ] Keyboard shortcut customization (UI only, editing coming later)
 - [ ] Custom prompt templates
+- [ ] **Custom UI theme colors** — let users override individual CSS color variables (accent, background, text) for both dark and light mode; saved per-theme in `settingsStore`; a color-picker grid in the Appearance tab with a "Reset colors" button
 
 ---
 
@@ -409,7 +414,7 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 - ✅ **Phase 4**: Markdown Editor - 90% (three modes, full inline markdown, indented lists; fenced code blocks / links / images / tables pending in 4.5)
 - ✅ **Phase 5**: Story Overview - 80% (panel functional, some fields pending)
 - ✅ **Phase 6**: Ollama Integration - COMPLETE (inline ghost-text suggestions, config panel)
-- ⏳ **Phases 7-12**: Not yet started
+- ✅ **Phase 9**: Settings & Customization - COMPLETE (Settings.vue modal, all settings persisted)
 
 ### Key Achievements:
 ✅ Full Vue.js + Tauri desktop application framework
