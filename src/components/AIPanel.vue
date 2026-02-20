@@ -26,18 +26,39 @@
         </div>
       </section>
 
-      <!-- Style -->
+      <!-- Writing Profiles -->
       <section class="ai-section">
-        <div class="sec-label">Writing style</div>
-        <div class="style-pills">
-          <button
-            v-for="s in styles"
-            :key="s.name"
-            class="pill"
-            :class="{ active: selectedStyle === s.name }"
-            @click="selectedStyle = s.name; aiStore.setCurrentStyle(s.name)"
-            :title="s.description"
-          >{{ s.name }}</button>
+        <div class="sec-label-row">
+          <span class="sec-label">Writing profile</span>
+          <div class="sec-label-actions">
+            <button class="btn-icon" @click="showPromptPreview = true" title="View current AI prompt">⊙</button>
+            <button class="btn-icon" @click="openNewProfile" title="New custom profile">＋</button>
+          </div>
+        </div>
+
+        <div class="profile-pills">
+          <div
+            v-for="p in styles"
+            :key="p.name"
+            class="profile-pill-row"
+            :class="{ active: selectedStyle === p.name }"
+          >
+            <button
+              class="pill"
+              :class="{ active: selectedStyle === p.name, custom: p.isCustom }"
+              @click="selectProfile(p.name)"
+              :title="p.description"
+            >{{ p.name }}</button>
+            <button
+              class="pill-action-btn"
+              @click="openEditProfile(p.name)"
+              :title="p.isCustom ? 'Edit profile' : 'View profile instructions'"
+            >{{ p.isCustom ? '✎' : '⊙' }}</button>
+          </div>
+        </div>
+
+        <div v-if="activeProfile" class="profile-description">
+          {{ activeProfile.description }}
         </div>
       </section>
 
@@ -67,6 +88,18 @@
       </section>
 
     </div>
+
+    <!-- Modals -->
+    <WritingProfileEditor
+      :show="showProfileEditor"
+      :profile-name="editingProfileName"
+      @close="showProfileEditor = false"
+      @saved="onProfileSaved"
+    />
+    <PromptPreview
+      :show="showPromptPreview"
+      @close="showPromptPreview = false"
+    />
   </aside>
 </template>
 
@@ -75,6 +108,8 @@ import { computed, ref, onMounted } from 'vue'
 import { useUIStore } from '@/stores/uiStore'
 import { useAIStore } from '@/stores/aiStore'
 import { ollamaClient } from '@/api/ollama'
+import WritingProfileEditor from './WritingProfileEditor.vue'
+import PromptPreview from './PromptPreview.vue'
 
 const uiStore = useUIStore()
 const aiStore = useAIStore()
@@ -87,6 +122,12 @@ const checking      = ref(false)
 const modelList     = ref<string[]>([])
 const selectedModel = ref(aiStore.currentModel)
 const selectedStyle = ref(aiStore.currentStyle)
+
+const showProfileEditor  = ref(false)
+const editingProfileName = ref<string | null>(null)
+const showPromptPreview  = ref(false)
+
+const activeProfile = computed(() => aiStore.getStyle(selectedStyle.value))
 
 const lengthOptions = [
   { label: 'Phrase',     tokens: 30 },
@@ -109,6 +150,26 @@ const checkConn = async () => {
   } finally {
     checking.value = false
   }
+}
+
+const selectProfile = (name: string) => {
+  selectedStyle.value = name
+  aiStore.setCurrentStyle(name)
+}
+
+const openNewProfile = () => {
+  editingProfileName.value = null
+  showProfileEditor.value = true
+}
+
+const openEditProfile = (name: string) => {
+  editingProfileName.value = name
+  showProfileEditor.value = true
+}
+
+const onProfileSaved = (name: string) => {
+  // Switch to the newly saved profile
+  selectProfile(name)
 }
 
 const closePanel = () => uiStore.setActivePanel('editor')
@@ -182,7 +243,7 @@ onMounted(() => { checkConn() })
 }
 
 /* pills */
-.style-pills, .length-options { display: flex; flex-wrap: wrap; gap: 4px; }
+.length-options { display: flex; flex-wrap: wrap; gap: 4px; }
 .pill {
   padding: 3px 10px; font-size: 12px;
   border: 1px solid var(--border-color); border-radius: 20px;
@@ -191,6 +252,42 @@ onMounted(() => { checkConn() })
 }
 .pill:hover { border-color: var(--accent-color); color: var(--accent-color); }
 .pill.active { background: var(--accent-color); border-color: var(--accent-color); color: #fff; }
+.pill.custom { border-style: dashed; }
+
+/* writing profile list */
+.sec-label-row {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.sec-label-actions { display: flex; gap: 2px; }
+.btn-icon {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-tertiary); font-size: 14px;
+  padding: 2px 5px; border-radius: 3px; line-height: 1;
+  transition: color 0.15s;
+}
+.btn-icon:hover { color: var(--accent-color); }
+
+.profile-pills { display: flex; flex-direction: column; gap: 3px; }
+.profile-pill-row {
+  display: flex; align-items: center; gap: 4px;
+}
+.profile-pill-row .pill { flex: 1; text-align: left; border-radius: 6px; font-size: 12px; }
+.pill-action-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-tertiary); font-size: 12px; padding: 3px 5px;
+  border-radius: 4px; line-height: 1; flex-shrink: 0;
+  opacity: 0;
+  transition: color 0.15s, opacity 0.15s;
+}
+.profile-pill-row:hover .pill-action-btn,
+.profile-pill-row.active .pill-action-btn { opacity: 1; }
+.pill-action-btn:hover { color: var(--accent-color); }
+
+.profile-description {
+  font-size: 11px; color: var(--text-tertiary);
+  font-style: italic; line-height: 1.4;
+  padding: 2px 2px 0;
+}
 
 /* kbd hint */
 .hint-section { gap: 6px; }
