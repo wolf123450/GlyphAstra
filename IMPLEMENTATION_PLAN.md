@@ -303,7 +303,7 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 - [ ] Suggestion history (re-trigger to see different set)
 - [ ] Keyboard shortcut customization for AI triggers
 
-### 7.x Writing Profiles & AI Instruction Redesign ⏳ NOT STARTED
+### 7.x Writing Profiles & AI Instruction Redesign ✅ COMPLETE
 
 **Background / problem:**
 The current five "style" pills (mystical, sci-fi, romance, fantasy, noir) describe *genres*, not *writing style*. They inject a single sentence like `Style: Write in a sci-fi style with advanced technology and futuristic concepts.` into the prompt. This conflates story genre (setting/world-building) with stylistic voice (how the prose sounds), and gives writers no visibility into or control over what is actually sent to the model.
@@ -349,35 +349,38 @@ The current `prompt` field on `AIStyle` becomes a multi-sentence instruction blo
 #### Implementation tasks
 
 **`aiStore.ts`:**
-- [ ] Rename `AIStyle` interface to `WritingProfile`; add `isCustom?: boolean`
-- [ ] Replace the five genre-preset `styles` with the five style-oriented profiles above
-- [ ] Add `addCustomProfile(p: WritingProfile)`, `updateProfile(name, updates)`, `deleteProfile(name)` actions
-- [ ] Persist `currentStyle` + custom profiles to `localStorage` (key `blockbreaker_writing_profiles`)
+- [x] Rename `AIStyle` interface to `WritingProfile`; add `isCustom?: boolean` (backward-compat alias `AIStyle = WritingProfile` kept)
+- [x] Replace the five genre-preset `styles` with the five style-oriented profiles above
+- [x] Add `addCustomProfile(p: WritingProfile)`, `updateProfile(name, updates)`, `deleteProfile(name)` actions
+- [x] Persist `currentStyle` + custom profiles to `localStorage` (key `blockbreaker_writing_profiles`)
 
 **`useAISuggestion.ts` → `buildPrompt()`:**
-- [ ] Change profile injection from the single-line `Style: ${style.prompt}.` to a multi-sentence block under a `Writing style instructions:` header
-- [ ] Keep `Genre:` from story metadata separate so prose style and genre remain orthogonal
-- [ ] Expose `buildPrompt()` or add a `getLastPrompt()` getter so the UI can show a preview
+- [x] Change profile injection from the single-line `Style: ${style.prompt}.` to a multi-sentence block under a `Writing style instructions:` header
+- [x] Keep `Genre:` from story metadata separate so prose style and genre remain orthogonal
+- [x] Expose `buildPrompt()` and add `getLastPrompt()` getter so the UI can show a preview
 
 **`AIPanel.vue`:**
-- [ ] Replace the current hard-coded pill row with a dynamic pill list driven by `aiStore.styles`
-- [ ] Add a **"View prompt"** button (`⊙`) that opens a read-only modal showing the full prompt as it would be sent
-- [ ] Add a **"+ New profile"** button that opens the profile editor
+- [x] Replace the current hard-coded pill row with a dynamic pill list driven by `aiStore.styles`
+- [x] Add a **"View prompt"** button (`⊙`) that opens `PromptPreview.vue`
+- [x] Add a **"+ New profile"** button that opens `WritingProfileEditor.vue`
+- [x] Per-profile `⊙` / `✎` button shows profile instructions or opens edit modal
 
 **Profile editor modal (`WritingProfileEditor.vue`):**
-- [ ] Fields: **Name** (text), **Description** (short subtitle shown on pill), **Prompt instructions** (multi-line textarea — the actual text injected into the model prompt)
-- [ ] Live character/token estimate below the textarea
-- [ ] Optional guided sliders for common dimensions (Prose density, Pacing, Sentence rhythm) that auto-generate a starting prompt block the user can then freely edit
-- [ ] Save / Cancel / Delete buttons (Delete only available for custom profiles)
+- [x] Fields: **Name** (text), **Description** (short subtitle shown on pill), **Prompt instructions** (multi-line textarea)
+- [x] Live character/token estimate below the textarea
+- [x] Quick-starter pill buttons append common style phrases to the instructions field
+- [x] Save / Cancel / Delete buttons (Delete only available for custom profiles)
+- [x] Built-in profiles open in read-only view mode
 
 **Settings → AI tab:**
 - [ ] Default writing profile selector (replaces `defaultCompletionStyle`)
 - [ ] Link to manage profiles (opens profile editor)
 
 **Prompt preview modal (`PromptPreview.vue`):**
-- [ ] Shows the complete prompt string as it would be sent: system context, story metadata, writing profile block, `=== TEXT ALREADY WRITTEN ===` section, continuation marker
-- [ ] Read-only, monospace, scrollable
-- [ ] "Copy to clipboard" button for sharing/debugging
+- [x] Shows the complete prompt string as it would be sent: system context, story metadata, writing profile block, `=== TEXT ALREADY WRITTEN ===` section, continuation marker
+- [x] Colour-coded sections (system / meta / style / context / continuation marker)
+- [x] Read-only, monospace, scrollable; context section capped at 180px with its own scroll
+- [x] "Copy to clipboard" button; ⟳ Refresh builds a fresh prompt from current editor content
 
 ---
 

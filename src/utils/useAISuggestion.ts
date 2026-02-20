@@ -54,6 +54,7 @@ export function useAISuggestion() {
   const currentIndex   = ref(0)
   const consumed       = ref(0)   // chars typed-through from the active suggestion
   const isGenerating   = ref(false)
+  const lastPrompt     = ref('')   // exposed for PromptPreview
 
   const isActive          = computed(() => suggestions.value.length > 0 || isGenerating.value)
   const currentSuggestion = computed(() => suggestions.value[currentIndex.value] ?? '')
@@ -85,7 +86,7 @@ export function useAISuggestion() {
 
   const buildPrompt = (textBefore: string): string => {
     const meta   = storyStore.metadata
-    const style  = aiStore.getStyle(aiStore.currentStyle)
+    const profile = aiStore.getStyle(aiStore.currentStyle)
     const tokens = aiStore.suggestionTokens
     const ctx    = textBefore.slice(-CONTEXT_CHARS)
 
@@ -96,7 +97,9 @@ export function useAISuggestion() {
     if (meta.title) lines.push(`Story title: "${meta.title}".`)
     if (meta.genre) lines.push(`Genre: ${meta.genre}.`)
     if (meta.tone)  lines.push(`Tone: ${meta.tone}.`)
-    if (style)      lines.push(`Style: ${style.prompt}.`)
+    if (profile) {
+      lines.push('', `Writing style instructions: ${profile.prompt}`)
+    }
 
     lines.push(
       '',
@@ -107,6 +110,9 @@ export function useAISuggestion() {
 
     return lines.join('\n')
   }
+
+  /** Returns the last prompt sent to the model (for the prompt preview UI). */
+  const getLastPrompt = () => lastPrompt.value
 
   // ─── Public API ────────────────────────────────────────────────────────────
 
@@ -127,6 +133,7 @@ export function useAISuggestion() {
     isGenerating.value = true
 
     const prompt = buildPrompt(textBefore)
+    lastPrompt.value = prompt
     const tokens = aiStore.suggestionTokens
     const stop   = stopSequences(tokens)
 
@@ -256,5 +263,7 @@ export function useAISuggestion() {
     acceptFull,
     tryMatchChar,
     clear,
+    buildPrompt,
+    getLastPrompt,
   }
 }
