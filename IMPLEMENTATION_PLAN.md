@@ -328,15 +328,48 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 
 ---
 
-## Phase 10: Export & Data Management (Week 21-22) ⏳ NOT STARTED
+## Phase 10: Export & Data Management ⏳ IN PROGRESS
 
-- [ ] Export to Markdown (single chapter or full story)
-- [ ] Export to PDF with formatting
-- [ ] Export to DOCX with styling
-- [ ] Manual backup creation
-- [ ] Automatic backup scheduling
-- [ ] Import Markdown files
-- [ ] Version history display
+### 10.1 Markdown Export ✅
+- [x] Export entire story as single `.md` file (chapters concatenated with `## Chapter Name` headers)
+- [x] Export single current chapter as standalone `.md` file
+- [x] Native save dialog (Tauri `plugin-dialog`) defaults filename to story/chapter title
+- [x] `tauri-plugin-dialog` Rust plugin registered; `dialog:allow-save` capability added
+
+### 10.2 HTML Export (Print → PDF) ✅
+- [x] Export story as a self-contained styled `.html` file
+- [x] Story metadata (title, genre, tone) in header section
+- [x] Each chapter separated with `<h2>` heading
+- [x] Print-ready CSS with `@media print { h2 { page-break-before: always } }`
+- [x] Reuses `markdownRenderer.renderMarkdown(..., 'preview')` for body content
+- [x] Export can be opened in browser and printed to PDF
+
+### 10.3 DOCX Export ✅
+- [x] Uses `docx` npm package (pure-JS, no Rust required)
+- [x] Title page paragraph + one `HEADING_1` per chapter
+- [x] Chapter body split on blank lines → individual `Paragraph` objects
+- [x] Inline markdown stripped to plain text
+- [x] Binary write via `writeFile(Uint8Array)` + `fs:allow-home-write-recursive`
+
+### 10.4 Markdown Import ✅
+- [x] Open file dialog (`.md`, `.txt`) via `plugin-dialog`
+- [x] File read via `readTextFile` (absolute path) + `fs:allow-home-read-recursive`
+- [x] First `# Heading` in file used as chapter name; falls back to filename
+- [x] Imported content becomes a new chapter in the current story
+- [x] `setCurrentChapter` auto-switches to the new chapter
+
+### 10.5 Backup & Restore ⏳ NOT STARTED
+- [ ] "Export backup" — copies entire story JSON + chapter files to user-chosen folder
+- [ ] "Import backup" — loads a backup folder as a new story project
+- [ ] Auto-backup on close or timer (Phase 11)
+
+### Technical Notes
+- `plugin-dialog` Rust crate added to `Cargo.toml`, registered in `lib.rs`
+- Capabilities: `dialog:allow-open`, `dialog:allow-save`, `fs:allow-home-read-recursive`, `fs:allow-home-write-recursive`
+- `filesystem.ts` extended with `writeAbsoluteFile(path, content)`, `readAbsoluteFile(path)`, `writeBinaryAbsolute(path, data: Uint8Array)`
+- `uiStore.activePanel` extended with `'export'` type
+- `ExportPanel.vue` shown as right panel (same architecture as `AIPanel.vue`)
+- Export button `⬡` added to editor header
 
 ---
 

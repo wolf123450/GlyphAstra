@@ -9,6 +9,7 @@
 import {
   readTextFile,
   writeTextFile,
+  writeFile,
   mkdir,
   readDir,
   exists,
@@ -124,12 +125,15 @@ export async function openFileDialog(): Promise<string | null> {
 }
 
 /**
- * Save file dialog.
+ * Save file dialog. Accepts optional custom filters (defaults to Markdown/Text).
  */
-export async function saveFileDialog(filename: string): Promise<string | null> {
+export async function saveFileDialog(
+  filename: string,
+  filters?: Array<{ name: string; extensions: string[] }>
+): Promise<string | null> {
   try {
     const selected = await save({
-      filters: [
+      filters: filters ?? [
         { name: "Markdown", extensions: ["md"] },
         { name: "Text", extensions: ["txt"] },
       ],
@@ -140,4 +144,40 @@ export async function saveFileDialog(filename: string): Promise<string | null> {
     console.error("[FS] Error saving file dialog:", error);
     return null;
   }
+}
+
+/**
+ * Write a text file to an absolute path (e.g. one returned by saveFileDialog).
+ * Requires fs:allow-home-write-recursive capability.
+ */
+export async function writeAbsoluteFile(
+  absolutePath: string,
+  content: string
+): Promise<void> {
+  await writeTextFile(absolutePath, content);
+}
+
+/**
+ * Read a text file from an absolute path.
+ * Requires fs:allow-home-read-recursive capability.
+ */
+export async function readAbsoluteFile(
+  absolutePath: string
+): Promise<string | null> {
+  try {
+    return await readTextFile(absolutePath);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Write binary data to an absolute path (used for DOCX export).
+ * Requires fs:allow-home-write-recursive capability.
+ */
+export async function writeBinaryAbsolute(
+  absolutePath: string,
+  data: Uint8Array
+): Promise<void> {
+  await writeFile(absolutePath, data);
 }

@@ -1,18 +1,52 @@
 <template>
-  <div ref="previewDiv" class="editor-preview"></div>
+  <div ref="previewDiv" class="editor-preview" @click.capture="handleLinkClick"></div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, computed, nextTick } from 'vue'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { tokenizeMarkdown } from '@/utils/seamlessRenderer'
 
 interface Props {
   content: string
 }
 
+interface Emits {
+  'navigate-chapter': [id: string]
+}
+
 const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
 
 const previewDiv = ref<HTMLDivElement | null>(null)
+
+/**
+ * Intercept all <a> clicks inside the preview.
+ * - External URLs (http/https) open in the system browser via plugin-opener.
+ * - Internal chapter:// links emit navigate-chapter so the editor can switch chapters.
+ * - Everything else is blocked (no navigation inside the Tauri WebView).
+ */
+const handleLinkClick = (event: MouseEvent) => {
+  const anchor = (event.target as HTMLElement).closest('a')
+  if (!anchor) return
+
+  event.preventDefault()
+  event.stopPropagation()
+
+  const href = anchor.getAttribute('href') ?? ''
+
+  if (href.startsWith('chapter://')) {
+    const chapterId = href.slice('chapter://'.length)
+    emit('navigate-chapter', chapterId)
+    return
+  }
+
+  if (href.startsWith('http://') || href.startsWith('https://')) {
+    openUrl(href).catch(console.error)
+    return
+  }
+  // All other hrefs (relative paths, etc.) are silently ignored
+}
 
 const tokens = computed(() => {
   return tokenizeMarkdown(props.content)

@@ -5,7 +5,7 @@
       class="editor-input"
       contenteditable="plaintext-only"
       @input="onInput"
-      @click="onCursorActivity"
+      @click="handleEditorClick"
       @keydown="handleKeydown"
       @keyup="onKeyup"
       @mouseup="onCursorActivity"
@@ -17,6 +17,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { tokenizeMarkdown } from '@/utils/seamlessRenderer'
 import {
   buildStructuredHTML,
@@ -47,6 +48,8 @@ interface Emits {
   'next-suggestion':   []
   'prev-suggestion':   []
   'type-char':         [char: string]
+  // Link navigation
+  'navigate-chapter':  [id: string]
 }
 
 const props = defineProps<Props>()
@@ -181,6 +184,29 @@ watch(
 
 // ─── Cursor tracking events ────────────────────────────────────────
 
+/**
+ * Handle Ctrl+click on a rendered link token.
+ * External URLs open in the system browser; chapter:// links navigate within the app.
+ */
+const handleEditorClick = (event: MouseEvent) => {
+  if (event.ctrlKey || event.metaKey) {
+    const target = event.target as HTMLElement
+    const linkSpan = target.closest<HTMLElement>('.token-link.rendered')
+    if (linkSpan) {
+      const url = linkSpan.getAttribute('data-url') ?? ''
+      if (url.startsWith('chapter://')) {
+        emit('navigate-chapter', url.slice('chapter://'.length))
+        return
+      }
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        openUrl(url).catch(console.error)
+        return
+      }
+    }
+  }
+  onCursorActivity()
+}
+
 const onCursorActivity = () => {
   if (isUpdatingDOM) return
   const pos = livePos()
@@ -194,6 +220,9 @@ const onCursorActivity = () => {
 }
 
 const onKeyup = (e: KeyboardEvent) => {
+  // ↑/↓ are handled in keydown when a suggestion is active — don't let
+  // keyup trigger onCursorActivity (which would dismiss the suggestion).
+  if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && hasSuggestion.value) return
   if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(e.key)) {
     onCursorActivity()
   }
@@ -447,6 +476,78 @@ const onInput = (event: InputEvent) => {
 .editor-input :deep(.token-list.rendered[data-indent="2"] > .content) { margin-left: 3em; }
 .editor-input :deep(.token-list.rendered[data-indent="3"] > .content) { margin-left: 4.5em; }
 .editor-input :deep(.token-list.rendered[data-indent="4"] > .content) { margin-left: 6em; }
+
+/* ── Rendered: horizontal rule ──────────────────────────── */
+.editor-input :deep(.token-hr.rendered .marker) { display: none; }
+.editor-input :deep(.token-hr.rendered) {
+  display: block;
+  border-top: 2px solid var(--border-color);
+  margin: 0.8em 0;
+}
+
+/* ── Rendered: blockquote ───────────────────────────────── */
+.editor-input :deep(.token-blockquote.rendered .marker) { display: none; }
+.editor-input :deep(.token-blockquote.rendered) {
+  display: block;
+  border-left: 3px solid var(--accent-color);
+  padding-left: 0.9em;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+.editor-input :deep(.token-blockquote.rendered[data-level="2"]) { margin-left: 1.2em; }
+.editor-input :deep(.token-blockquote.rendered[data-level="3"]) { margin-left: 2.4em; }
+
+/* ── Rendered: ordered list ─────────────────────────────── */
+.editor-input :deep(.token-ordered.rendered .marker) { display: none; }
+.editor-input :deep(.token-ordered.rendered > .content) { position: relative; padding-left: 1.8em; }
+.editor-input :deep(.token-ordered.rendered > .content::before) {
+  content: attr(data-order) '.';
+  position: absolute;
+  left: 0;
+  color: var(--accent-color);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.editor-input :deep(.token-ordered.rendered[data-indent="1"] > .content) { margin-left: 1.5em; }
+.editor-input :deep(.token-ordered.rendered[data-indent="2"] > .content) { margin-left: 3em; }
+.editor-input :deep(.token-ordered.rendered[data-indent="3"] > .content) { margin-left: 4.5em; }
+
+/* ── Rendered: fenced code block ────────────────────────── */
+.editor-input :deep(.token-fenced.rendered) {
+  display: block;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.6em 0.8em;
+  margin: 0.4em 0;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 0.88em;
+  overflow-x: auto;
+}
+.editor-input :deep(.token-fenced.rendered .marker) { display: none; }
+.editor-input :deep(.token-fenced.rendered .lang-label) {
+  display: block;
+  font-size: 0.75em;
+  color: var(--text-tertiary);
+  margin-bottom: 0.3em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.editor-input :deep(.token-fenced.rendered .content pre) {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-primary);
+}
+
+/* ── Rendered: inline link ──────────────────────────────── */
+.editor-input :deep(.token-link.rendered .marker) { display: none; }
+.editor-input :deep(.token-link.rendered .content) {
+  color: var(--accent-color);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* ── Source mode: show raw markdown ─────────────────────── */
 .editor-input :deep(.token.source .marker) {
   display: inline !important;
@@ -474,7 +575,12 @@ const onInput = (event: InputEvent) => {
 .editor-input :deep(.token-italic.source),
 .editor-input :deep(.token-strikethrough.source),
 .editor-input :deep(.token-code.source),
-.editor-input :deep(.token-list.source) {
+.editor-input :deep(.token-list.source),
+.editor-input :deep(.token-hr.source),
+.editor-input :deep(.token-blockquote.source),
+.editor-input :deep(.token-ordered.source),
+.editor-input :deep(.token-fenced.source),
+.editor-input :deep(.token-link.source) {
   font-weight: normal !important;
   font-style: normal !important;
   text-decoration: none !important;
@@ -482,6 +588,11 @@ const onInput = (event: InputEvent) => {
   padding: 0 !important;
   border-radius: 0 !important;
   font-size: 1em !important;
+  border: none !important;
+  border-left: none !important;
+  color: inherit !important;
+  display: inline !important;
+  margin: 0 !important;
 }
 
 /* ── Inline AI ghost text (injected directly into the contenteditable) ── */

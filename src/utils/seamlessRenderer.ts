@@ -7,13 +7,17 @@ export type RenderMode = 'markdown' | 'seamless' | 'preview'
 
 export interface Token {
   type: 'text' | 'header' | 'bold' | 'italic' | 'code' | 'strikethrough' | 'listItem'
+      | 'fencedCode' | 'orderedList' | 'blockquote' | 'hr' | 'link'
   start: number
   end: number
-  level?: number // for headers
-  indent?: number // for list items: 0 = top-level, 1+ = nested (2 spaces per level)
-  content: string // raw content including markers
+  level?: number   // for headers (1-6) and blockquotes (nesting depth)
+  indent?: number  // for list items: 0 = top-level, 1+ = nested (2 spaces per level)
+  order?: number   // for orderedList: the numeric counter (1, 2, 3 …)
+  language?: string // for fencedCode: language tag after the opening ```
+  url?: string     // for link: the href in [text](url)
+  content: string  // raw content including markers
   rendered: string // HTML rendering
-  text: string // plain text for cursor positioning
+  text: string     // plain text for cursor positioning
   isMarkdownSyntax?: boolean // true for markers like **, #, etc
 }
 
@@ -77,6 +81,117 @@ export function tokenizeMarkdown(content: string): Token[] {
       continue
     }
 
+    // Check for horizontal rule (--- / *** / ___)
+    const hrMatch = stripped.match(/^(---+|\*\*\*+|___+)\s*$/)
+    if (hrMatch) {
+      const start = lineStartPos
+      const end = start + line.length
+
+      tokens.push({
+        type: 'hr',
+        start,
+        end,
+        content: line,
+        text: '',
+        rendered: '<hr>',
+      })
+
+      lineStartPos += line.length + 1
+      continue
+    }
+
+    // Check for blockquote (> text, supports nested >>)
+    const bqMatch = stripped.match(/^(>+)\s?(.*)$/)
+    if (bqMatch) {
+      const level = bqMatch[1].length
+      const text = bqMatch[2]
+      const start = lineStartPos
+      const end = start + line.length
+
+      tokens.push({
+        type: 'blockquote',
+        level,
+        start,
+        end,
+        content: line,
+        text: text,
+        rendered: `<blockquote>${escapeHtml(text)}</blockquote>`,
+      })
+
+      lineStartPos += line.length + 1
+      continue
+    }
+
+    // Check for ordered list (1. item, 2. item …)
+    const olMatch = stripped.match(/^(\s*)(\d+)\.\s+(.*)$/)
+    if (olMatch) {
+      const text = olMatch[3]
+      const order = parseInt(olMatch[2], 10)
+      const indent = Math.floor(olMatch[1].length / 2)
+      const start = lineStartPos
+      const end = start + line.length
+
+      tokens.push({
+        type: 'orderedList',
+        order,
+        indent,
+        start,
+        end,
+        content: line,
+        text: text,
+        rendered: `<ol start="${order}"><li>${escapeHtml(text)}</li></ol>`,
+      })
+
+      lineStartPos += line.length + 1
+      continue
+    }
+
+    // Check for fenced code block (```lang …  ```)
+    const fenceMatch = stripped.match(/^```(\w*)$/)
+    if (fenceMatch) {
+      const language = fenceMatch[1] || ''
+      const fenceStart = lineStartPos
+      // pos tracks char position as we consume body lines
+      let pos = lineStartPos + line.length + 1 // after opening line's \n
+      const bodyLines: string[] = []
+      let closingLineEnd = -1
+
+      lineIdx++
+      while (lineIdx < lines.length) {
+        const nextLine = lines[lineIdx]
+        const nextStripped = nextLine.endsWith('\r') ? nextLine.slice(0, -1) : nextLine
+        if (nextStripped === '```') {
+          closingLineEnd = pos + nextLine.length
+          lineIdx++ // consumed; compensated below before continue
+          break
+        }
+        bodyLines.push(nextStripped)
+        pos += nextLine.length + 1
+        lineIdx++
+      }
+
+      // The for-loop will do lineIdx++ after continue, so pull back by 1
+      lineIdx--
+
+      const fenceEnd = closingLineEnd >= 0 ? closingLineEnd : pos - 1
+      lineStartPos = fenceEnd + 1 // start of next line after closing ```
+
+      const bodyText = bodyLines.join('\n')
+      const rawContent = content.substring(fenceStart, fenceEnd)
+
+      tokens.push({
+        type: 'fencedCode',
+        language,
+        start: fenceStart,
+        end: fenceEnd,
+        content: rawContent,
+        text: bodyText,
+        rendered: `<pre><code${language ? ` class="language-${escapeHtml(language)}"` : ''}>${escapeHtml(bodyText)}</code></pre>`,
+      })
+
+      continue
+    }
+
     // Parse inline formatting within the line (use stripped to avoid \r mismatches)
     let col = 0
     let currentLineStart = lineStartPos
@@ -84,6 +199,28 @@ export function tokenizeMarkdown(content: string): Token[] {
     while (col < stripped.length) {
       // Try to match patterns at current position
       const remaining = stripped.substring(col)
+
+      // Check for inline link ([text](url))
+      const linkMatch = remaining.match(/^\[([^\]]+)\]\(([^)]+)\)/)
+      if (linkMatch) {
+        const linkText = linkMatch[1]
+        const url = linkMatch[2]
+        const start = currentLineStart + col
+        const end = start + linkMatch[0].length
+
+        tokens.push({
+          type: 'link',
+          url,
+          start,
+          end,
+          content: linkMatch[0],
+          text: linkText,
+          rendered: `<a href="${escapeHtml(url)}">${escapeHtml(linkText)}</a>`,
+        })
+
+        col += linkMatch[0].length
+        continue
+      }
 
       // Check for bold (**text**)
       const boldMatch = remaining.match(/^\*\*(.*?)\*\*/)

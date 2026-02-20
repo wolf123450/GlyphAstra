@@ -55,6 +55,14 @@
         >
           ✦
         </button>
+        <button
+          class="action-btn"
+          :class="{ active: isExportOpen }"
+          @click="toggleExport"
+          title="Export / Import"
+        >
+          ⬡
+        </button>
       </div>
     </div>
 
@@ -76,9 +84,8 @@
         @next-suggestion="onNextSuggestion"
         @prev-suggestion="onPrevSuggestion"
         @type-char="onTypeChar"
+        @navigate-chapter="navigateToChapter"
       />
-
-      <!-- Markdown Mode -->
       <EditorMarkdown
         v-else-if="renderMode === 'markdown' && currentChapter"
         :content="content"
@@ -100,6 +107,7 @@
       <EditorPreview
         v-else-if="renderMode === 'preview' && currentChapter"
         :content="content"
+        @navigate-chapter="navigateToChapter"
       />
 
       <!-- No chapter selected -->
@@ -156,17 +164,24 @@ const toggleAI = () => {
   uiStore.setActivePanel(isAIOpen.value ? 'editor' : 'ai')
 }
 
+const isExportOpen = computed(() => uiStore.activePanel === 'export')
+const toggleExport = () => {
+  uiStore.setActivePanel(isExportOpen.value ? 'editor' : 'export')
+}
+
 // ─── AI inline suggestions ─────────────────────────────────────────────────
 const ai = useAISuggestion()
 
 const onTriggerAI = () => {
-  const pos = editorStore.cursorPosition
-  ai.trigger(editorStore.content.slice(0, pos))
+  ai.trigger(content.value.slice(0, cursorPosition.value))
 }
 
 const onAcceptSuggestion = () => {
   const text = ai.acceptFull()
-  if (text) editorStore.insertAtCursor(text)
+  if (!text) return
+  const pos = cursorPosition.value
+  content.value = content.value.slice(0, pos) + text + content.value.slice(pos)
+  cursorPosition.value = pos + text.length
 }
 
 const onDismissSuggestion = () => ai.clear()
@@ -176,6 +191,23 @@ const onTypeChar          = (char: string) => ai.tryMatchChar(char)
 
 // Dismiss suggestion when chapter changes
 watch(() => storyStore.currentChapterId, () => ai.clear())
+
+/**
+ * Navigate to a chapter referenced by a chapter:// link.
+ * Tries by id first, then falls back to matching by name (case-insensitive).
+ */
+const navigateToChapter = (idOrName: string) => {
+  const byId = storyStore.getChapterById(idOrName)
+  if (byId) {
+    storyStore.setCurrentChapter(byId.id)
+    return
+  }
+  // Fall back: match by chapter name
+  const byName = storyStore.chapters.find(
+    (ch) => ch.name.toLowerCase() === idOrName.toLowerCase()
+  )
+  if (byName) storyStore.setCurrentChapter(byName.id)
+}
 
 const renderMode = ref<RenderMode>('seamless')
 const cursorPosition = ref(0)

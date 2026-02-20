@@ -489,3 +489,159 @@ describe('findTokenSpan', () => {
     cleanup(div)
   })
 })
+
+// ─── Phase 4 token cursor round-trips ──────────────────────────────
+
+describe('cursor round-trip — hr', () => {
+  it('round-trips every position in a standalone hr', () => {
+    const content = '---'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
+    cleanup(div)
+  })
+
+  it('round-trips every position when hr is surrounded by text', () => {
+    const content = 'before\n---\nafter'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
+    cleanup(div)
+  })
+})
+
+describe('cursor round-trip — blockquote', () => {
+  it('round-trips every position in a simple blockquote', () => {
+    const content = '> hello world'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
+    cleanup(div)
+  })
+
+  it('round-trips every position in a multi-line doc with blockquote', () => {
+    const content = 'intro\n> quote text\noutro'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
+    cleanup(div)
+  })
+
+  it('blockquote with inline bold: every position round-trips', () => {
+    const content = '> **important** note'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
+    cleanup(div)
+  })
+})
+
+describe('cursor round-trip — orderedList', () => {
+  it('round-trips every position in a single ordered list item', () => {
+    const content = '1. first item'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
+    cleanup(div)
+  })
+
+  it('round-trips every position in multiple ordered list items', () => {
+    const content = '1. alpha\n2. beta\n3. gamma'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
+    cleanup(div)
+  })
+
+  it('ordered list with inline formatting: every position round-trips', () => {
+    const content = '1. **bold** start\n2. plain end'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
+    cleanup(div)
+  })
+})
+
+describe('cursor round-trip — fencedCode', () => {
+  it('round-trips every position in a no-language fence', () => {
+    const content = '```\nhello\n```'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
+    cleanup(div)
+  })
+
+  it('round-trips every position in a language-tagged fence', () => {
+    const content = '```js\nconsole.log(1)\n```'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
+    cleanup(div)
+  })
+
+  it('round-trips every position in a multi-line body fence', () => {
+    const content = '```\nline one\nline two\n```'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
+    cleanup(div)
+  })
+
+  it('round-trips every position when fence is surrounded by text', () => {
+    const content = 'before\n```py\nprint(x)\n```\nafter'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
+    cleanup(div)
+  })
+
+  it('empty fence body round-trips', () => {
+    const content = '```\n```'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
+    cleanup(div)
+  })
+})
+
+describe('cursor round-trip — link', () => {
+  it('round-trips every position in a standalone link', () => {
+    const content = '[click here](https://example.com)'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
+    cleanup(div)
+  })
+
+  it('round-trips every position in text with an embedded link', () => {
+    const content = 'Go to [home](/) now'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
+    cleanup(div)
+  })
+
+  it('round-trips every position in link followed by bold', () => {
+    const content = '[a](b) **bold**'
+    const div = makeContainer(content)
+    for (let p = 0; p <= content.length; p++) {
+      expect(getCursorOffset(div, placeAt(div, p))).toBe(p)
+    }
+    cleanup(div)
+  })
+})
