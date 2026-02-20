@@ -303,16 +303,98 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 - [ ] Suggestion history (re-trigger to see different set)
 - [ ] Keyboard shortcut customization for AI triggers
 
+### 7.x Writing Profiles & AI Instruction Redesign ⏳ NOT STARTED
+
+**Background / problem:**
+The current five "style" pills (mystical, sci-fi, romance, fantasy, noir) describe *genres*, not *writing style*. They inject a single sentence like `Style: Write in a sci-fi style with advanced technology and futuristic concepts.` into the prompt. This conflates story genre (setting/world-building) with stylistic voice (how the prose sounds), and gives writers no visibility into or control over what is actually sent to the model.
+
+**Goals:**
+1. Rename the concept from "style" to **"Writing Profile"** throughout the UI.
+2. Redesign the built-in presets around genuine prose-style dimensions, not genre themes.
+3. Let users create, edit, and delete custom writing profiles.
+4. Show the user the **full prompt preview** before/during generation.
+
+#### Writing dimensions (the style axes that actually matter)
+
+A writing profile should describe how the prose is written, independent of what genre the story is set in. Relevant dimensions include:
+
+| Dimension | Low end | High end | Example prompt fragment |
+|---|---|---|---|
+| **Prose density** | Spare, minimalist | Lush, ornate | "Use spare, unadorned sentences — show don't tell." vs "Use rich, sensory prose with layered description." |
+| **Sensory focus** | Abstract / intellectual | Grounded in senses | "Anchor every scene in at least two physical senses (touch, sound, smell)." |
+| **Sentence rhythm** | Short, punchy, staccato | Long, flowing, syntactically complex | "Favour short declarative sentences and sentence fragments for impact." |
+| **Pacing** | Fast-paced, lean | Slow, contemplative | "Keep the prose moving — cut any sentence that doesn't earn its place." |
+| **Reading level / audience** | Simple, accessible (YA / commercial) | Dense, literary | "Write for an adult literary audience comfortable with complex vocabulary." |
+| **Perspective interiority** | External / cinematic | Deep interiority | "Stay close to the POV character's inner voice; thoughts blend with narration." |
+| **Dialogue style** | Sparse, only essential | Rich, character-revealing | "Dialogue should carry subtext; characters rarely say exactly what they mean." |
+
+A profile doesn't need all dimensions — a few well-chosen sentences that capture a real author's voice or a target style are more useful than a long checklist.
+
+#### Built-in profiles to replace the current genre pills
+
+Replace the five genre pills with style-oriented profiles. Story genre continues to come from story metadata (already injected as `Genre: ${meta.genre}`), so profiles should not duplicate it.
+
+Proposed replacements:
+
+| Profile name | What it describes |
+|---|---|
+| **Lean & Direct** | Hemingway-inspired: short sentences, no adverbs, iceberg subtext, grounded in action and dialogue. |
+| **Lush & Lyrical** | Rich sensory description, musicality in sentence rhythm, metaphor-heavy, slows down for emotional beats. |
+| **Deep POV** | Tight third-person intimacy; free indirect discourse; thoughts and narration blur; characters notice things that reveal their psychology. |
+| **Commercial Thriller** | Fast chapter breaks; short sentences under tension; clear cause-and-effect; forward momentum above all. |
+| **Literary / Experimental** | Non-linear structure welcome; ambiguity valued; language as subject; image and symbol carry meaning. |
+
+The current `prompt` field on `AIStyle` becomes a multi-sentence instruction block rather than one line.
+
+#### Implementation tasks
+
+**`aiStore.ts`:**
+- [ ] Rename `AIStyle` interface to `WritingProfile`; add `isCustom?: boolean`
+- [ ] Replace the five genre-preset `styles` with the five style-oriented profiles above
+- [ ] Add `addCustomProfile(p: WritingProfile)`, `updateProfile(name, updates)`, `deleteProfile(name)` actions
+- [ ] Persist `currentStyle` + custom profiles to `localStorage` (key `blockbreaker_writing_profiles`)
+
+**`useAISuggestion.ts` → `buildPrompt()`:**
+- [ ] Change profile injection from the single-line `Style: ${style.prompt}.` to a multi-sentence block under a `Writing style instructions:` header
+- [ ] Keep `Genre:` from story metadata separate so prose style and genre remain orthogonal
+- [ ] Expose `buildPrompt()` or add a `getLastPrompt()` getter so the UI can show a preview
+
+**`AIPanel.vue`:**
+- [ ] Replace the current hard-coded pill row with a dynamic pill list driven by `aiStore.styles`
+- [ ] Add a **"View prompt"** button (`⊙`) that opens a read-only modal showing the full prompt as it would be sent
+- [ ] Add a **"+ New profile"** button that opens the profile editor
+
+**Profile editor modal (`WritingProfileEditor.vue`):**
+- [ ] Fields: **Name** (text), **Description** (short subtitle shown on pill), **Prompt instructions** (multi-line textarea — the actual text injected into the model prompt)
+- [ ] Live character/token estimate below the textarea
+- [ ] Optional guided sliders for common dimensions (Prose density, Pacing, Sentence rhythm) that auto-generate a starting prompt block the user can then freely edit
+- [ ] Save / Cancel / Delete buttons (Delete only available for custom profiles)
+
+**Settings → AI tab:**
+- [ ] Default writing profile selector (replaces `defaultCompletionStyle`)
+- [ ] Link to manage profiles (opens profile editor)
+
+**Prompt preview modal (`PromptPreview.vue`):**
+- [ ] Shows the complete prompt string as it would be sent: system context, story metadata, writing profile block, `=== TEXT ALREADY WRITTEN ===` section, continuation marker
+- [ ] Read-only, monospace, scrollable
+- [ ] "Copy to clipboard" button for sharing/debugging
+
 ---
 
-## Phase 8: Search & Navigation Features (Week 18-19) ⏳ NOT STARTED
+## Phase 8: Search & Navigation Features (Week 18-19) ✅ MOSTLY COMPLETE
 
-- [ ] Full-text search across chapters
-- [ ] Search results with context snippets
-- [ ] Advanced search filters (chapter, character, setting, date range)
-- [ ] Regex support
-- [ ] Quick access to recent chapters
-- [ ] Table of contents view
+- [x] Full-text search across all chapters' content (case-insensitive, live as you type)
+- [x] Search results with highlighted context snippets (±80 chars around each match, up to 3 per chapter)
+- [x] Table of contents view when search is empty (chapter list with word count + status)
+- [x] Keyboard navigation: ↑/↓ to move between results, Enter to navigate, Esc to close
+- [x] `Ctrl+F` opens/closes the panel (via `uiStore.toggleSearchPanel()`)
+- [x] Live editor content used for currently-open chapter (shows unsaved changes)
+- [x] Click chapter heading or snippet to navigate to that chapter
+- [ ] **Regex mode** — toggle button (e.g. `.*` pill) in the search input row; when active, interprets the query as a JavaScript regular expression; invalid regex shows an inline error instead of results; affects snippet highlighting
+- [ ] **Case-sensitive mode** — toggle button (`Aa` pill) in the search input row; when off (default) search is case-insensitive; when on, exact case is required; applies to both plain-text and regex searches
+- [ ] **Search & Replace** — expandable replace row below the search input (toggle with a `⇄` button); replace field accepts plain text; "Replace" button swaps the focused match in its chapter; "Replace All" replaces every match across all chapters and saves each affected chapter; undo via the editor's existing content state
+- [ ] Advanced search filters (chapter, character, date range)
+- [ ] Result count badge in sidebar / status bar
 
 ---
 

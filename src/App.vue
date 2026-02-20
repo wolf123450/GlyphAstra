@@ -6,6 +6,7 @@
     <AIPanel />
     <ExportPanel />
     <Settings />
+    <SearchPanel />
     <Notification />
   </div>
 </template>
@@ -18,6 +19,7 @@ import Overview from '@/components/Overview.vue'
 import AIPanel from '@/components/AIPanel.vue'
 import ExportPanel from '@/components/ExportPanel.vue'
 import Settings from '@/components/Settings.vue'
+import SearchPanel from '@/components/SearchPanel.vue'
 import Notification from '@/components/Notification.vue'
 import { useUIStore } from '@/stores/uiStore'
 import { useStoryStore } from '@/stores/storyStore'
@@ -74,7 +76,7 @@ onMounted(async () => {
   registerDefaultShortcuts({
     'new-chapter': () => {},
     'save': () => {},
-    'search': () => {},
+    'search': () => { uiStore.toggleSearchPanel() },
     'settings': () => { uiStore.toggleSettings() },
     'toggle-mode': () => {
       const modes = ['editor', 'preview', 'overview'] as const
