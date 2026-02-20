@@ -19,9 +19,9 @@ const esc = (t: string) =>
  * walks up to the enclosing token span.
  */
 export function renderInlineContent(rawText: string): string {
-  // Split on bold (**), strikethrough (~~), italic (*), code (`) in that order.
+  // Split on bold (**), strikethrough (~~), italic (*), inline code (`), link ([text](url))
   // Bold must precede italic so ** is not consumed as two *.
-  const parts = rawText.split(/(\*\*.*?\*\*|~~.*?~~|\*.*?\*|`.*?`)/)
+  const parts = rawText.split(/(\*\*.*?\*\*|~~.*?~~|\*.*?\*|`.*?`|\[[^\]]+\]\([^)]+\))/)
   return parts.map(part => {
     const bold = part.match(/^\*\*(.*?)\*\*$/)
     if (bold) return `<span class="token token-bold rendered"><span class="marker">**</span><span class="content">${esc(bold[1])}</span><span class="marker">**</span></span>`
@@ -31,6 +31,8 @@ export function renderInlineContent(rawText: string): string {
     if (italic) return `<span class="token token-italic rendered"><span class="marker">*</span><span class="content">${esc(italic[1])}</span><span class="marker">*</span></span>`
     const code = part.match(/^`(.*?)`$/)
     if (code) return `<span class="token token-code rendered"><span class="marker">\`</span><span class="content">${esc(code[1])}</span><span class="marker">\`</span></span>`
+    const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+    if (link) return `<span class="token token-link rendered"><span class="marker">[</span><span class="content">${esc(link[1])}</span><span class="marker">](${esc(link[2])})</span></span>`
     return esc(part)
   }).join('')
 }
@@ -71,6 +73,40 @@ export function buildStructuredHTML(tokens: Token[], content: string): string {
       // the DOM and CursorOffset counting stays accurate.
       const spaces = '  '.repeat(indent)
       html += `<span class="token token-list rendered" data-start="${token.start}" data-end="${token.end}" data-indent="${indent}"><span class="marker">${esc(spaces)}- </span><span class="content">${renderInlineContent(token.text)}</span></span>`
+    } else if (token.type === 'hr') {
+      html += `<span class="token token-hr rendered" data-start="${token.start}" data-end="${token.end}"><span class="marker">${esc(token.content)}</span></span>`
+    } else if (token.type === 'blockquote') {
+      const level = token.level ?? 1
+      const prefix = '>'.repeat(level) + ' '
+      html += `<span class="token token-blockquote rendered" data-start="${token.start}" data-end="${token.end}" data-level="${level}"><span class="marker">${esc(prefix)}</span><span class="content">${renderInlineContent(token.text)}</span></span>`
+    } else if (token.type === 'orderedList') {
+      const order = token.order ?? 1
+      const indent = token.indent ?? 0
+      const spaces = '  '.repeat(indent)
+      html += `<span class="token token-ordered rendered" data-start="${token.start}" data-end="${token.end}" data-order="${order}" data-indent="${indent}"><span class="marker">${esc(spaces)}${order}. </span><span class="content" data-order="${order}">${renderInlineContent(token.text)}</span></span>`
+    } else if (token.type === 'fencedCode') {
+      const lang = token.language ?? ''
+      // Split raw content into opening fence line, body lines, closing fence line.
+      const rawLines = token.content.split('\n')
+      const openFence = rawLines[0] ?? ('```' + lang)
+      const closeFence = rawLines[rawLines.length - 1] ?? '```'
+      const bodyLines = rawLines.slice(1, rawLines.length - 1)
+      // ALL source characters must appear as text nodes so countTextUpTo stays
+      // accurate. Include the '\n' after the opening fence in its marker span,
+      // and append '\n' to the body when it is non-empty (the newline before the
+      // closing fence). The lang-label is purely decorative — mark it data-ghost
+      // so countTextUpTo skips it.
+      const bodyText = bodyLines.length > 0 ? bodyLines.join('\n') + '\n' : ''
+      const langLabel = lang ? `<span class="lang-label" data-ghost="true">${esc(lang)}</span>` : ''
+      html += `<span class="token token-fenced rendered" data-start="${token.start}" data-end="${token.end}">`
+        + `<span class="marker fence-open">${esc(openFence + '\n')}</span>`
+        + langLabel
+        + `<span class="content"><pre>${esc(bodyText)}</pre></span>`
+        + `<span class="marker fence-close">${esc(closeFence)}</span>`
+        + `</span>`
+    } else if (token.type === 'link') {
+      const url = token.url ?? ''
+      html += `<span class="token token-link rendered" data-start="${token.start}" data-end="${token.end}" data-url="${esc(url)}"><span class="marker">[</span><span class="content">${esc(token.text)}</span><span class="marker">](${esc(url)})</span></span>`
     }
 
     lastEnd = token.end
@@ -191,6 +227,9 @@ export function setCursorPosition(
 
   const walk = (n: Node): boolean => {
     if (found) return true
+    // Mirror the countTextUpTo logic: skip ghost overlays so the position
+    // arithmetic stays consistent between setCursorPosition and getCursorOffset.
+    if (n instanceof HTMLElement && n.hasAttribute('data-ghost')) return false
     if (n.nodeType === Node.TEXT_NODE) {
       const len = n.textContent?.length ?? 0
       if (charCount + len >= offset) {

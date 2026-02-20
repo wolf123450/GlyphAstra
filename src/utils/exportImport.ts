@@ -1,0 +1,261 @@
+/**
+ * Export & Import utilities
+ *
+ * Supports:
+ *   exportStoryToMarkdown  — single .md file, chapters separated by ## headings
+ *   exportChapterToMarkdown — current chapter as standalone .md
+ *   exportStoryToHTML       — self-contained styled .html (print → PDF)
+ *   exportStoryToDocx       — Word .docx via the `docx` npm package
+ *   importMarkdownAsChapter — open a .md/.txt file, return {name, content}
+ *
+ * All file dialogs use Tauri plugin-dialog; all writes use Tauri plugin-fs.
+ * Capabilities required: dialog:allow-open, dialog:allow-save,
+ *   fs:allow-home-read-recursive, fs:allow-home-write-recursive.
+ */
+
+import { save, open } from '@tauri-apps/plugin-dialog'
+import { writeTextFile, readTextFile, writeFile } from '@tauri-apps/plugin-fs'
+import {
+  Document, Packer, Paragraph, TextRun,
+  HeadingLevel, AlignmentType,
+} from 'docx'
+import { renderMarkdown } from './markdownRenderer'
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ExportChapter {
+  name: string
+  content: string
+  order: number
+}
+
+export interface ExportMeta {
+  title: string
+  genre?: string
+  tone?: string
+  summary?: string
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function safeFilename(name: string): string {
+  return name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '').trim() || 'export'
+}
+
+function escHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+// ── Markdown Export ───────────────────────────────────────────────────────────
+
+function buildMarkdownDoc(meta: ExportMeta, chapters: ExportChapter[]): string {
+  const lines: string[] = [`# ${meta.title}`, '']
+  if (meta.genre) lines.push(`**Genre:** ${meta.genre}  `)
+  if (meta.tone)  lines.push(`**Tone:** ${meta.tone}  `)
+  if (meta.summary) lines.push('', meta.summary)
+  lines.push('', '---', '')
+  for (const ch of [...chapters].sort((a, b) => a.order - b.order)) {
+    lines.push(`## ${ch.name}`, '', ch.content.trim(), '', '---', '')
+  }
+  return lines.join('\n')
+}
+
+export async function exportStoryToMarkdown(
+  meta: ExportMeta,
+  chapters: ExportChapter[]
+): Promise<boolean> {
+  const path = await save({
+    title: 'Export story as Markdown',
+    defaultPath: `${safeFilename(meta.title)}.md`,
+    filters: [{ name: 'Markdown', extensions: ['md'] }],
+  })
+  if (!path) return false
+  await writeTextFile(path, buildMarkdownDoc(meta, chapters))
+  return true
+}
+
+export async function exportChapterToMarkdown(
+  chapterName: string,
+  content: string
+): Promise<boolean> {
+  const path = await save({
+    title: 'Export chapter as Markdown',
+    defaultPath: `${safeFilename(chapterName)}.md`,
+    filters: [{ name: 'Markdown', extensions: ['md'] }],
+  })
+  if (!path) return false
+  await writeTextFile(path, `# ${chapterName}\n\n${content.trim()}\n`)
+  return true
+}
+
+// ── HTML Export ───────────────────────────────────────────────────────────────
+
+const HTML_STYLE = `
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    max-width: 720px; margin: 0 auto; padding: 60px 40px;
+    color: #1a1a1a; line-height: 1.85; font-size: 17px;
+  }
+  h1 { font-size: 2.4em; text-align: center; margin-bottom: 0.15em; }
+  .story-meta { text-align: center; color: #666; font-style: italic; margin-bottom: 3.5em; font-size: 0.95em; }
+  h2 { font-size: 1.4em; margin-top: 4em; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; color: #333; }
+  p, li { margin: 0.9em 0; }
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+  code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: monospace; font-size: 0.9em; }
+  blockquote { border-left: 3px solid #ccc; padding-left: 1.2em; color: #555; margin: 1.5em 0; }
+  ul { padding-left: 1.6em; }
+  hr { border: none; border-top: 1px solid #e0e0e0; margin: 3em 0; }
+  @media print {
+    h2 { page-break-before: always; }
+    h1 { page-break-before: avoid; }
+    .story-meta { page-break-after: always; }
+  }
+`
+
+export async function exportStoryToHTML(
+  meta: ExportMeta,
+  chapters: ExportChapter[]
+): Promise<boolean> {
+  const path = await save({
+    title: 'Export story as HTML',
+    defaultPath: `${safeFilename(meta.title)}.html`,
+    filters: [{ name: 'HTML File', extensions: ['html'] }],
+  })
+  if (!path) return false
+
+  const metaParts = [meta.genre, meta.tone].filter(Boolean)
+  const wc = chapters.reduce(
+    (n, c) => n + c.content.split(/\s+/).filter(Boolean).length, 0
+  )
+  const sorted = [...chapters].sort((a, b) => a.order - b.order)
+
+  const body = sorted
+    .map(ch =>
+      `<h2>${escHtml(ch.name)}</h2>\n${renderMarkdown(ch.content, 0, 'preview')}`
+    )
+    .join('\n<hr>\n')
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escHtml(meta.title)}</title>
+  <style>${HTML_STYLE}</style>
+</head>
+<body>
+  <h1>${escHtml(meta.title)}</h1>
+  <div class="story-meta">${
+    metaParts.length ? escHtml(metaParts.join(' · ')) + ' · ' : ''
+  }${wc.toLocaleString()} words</div>
+  ${body}
+</body>
+</html>`
+
+  await writeTextFile(path, html)
+  return true
+}
+
+// ── DOCX Export ───────────────────────────────────────────────────────────────
+
+/** Strip markdown markers to plain text for DOCX body paragraphs. */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/~~(.*?)~~/g, '$1')
+    .replace(/`(.*?)`/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^[-*]\s+/gm, '  • ')
+}
+
+export async function exportStoryToDocx(
+  meta: ExportMeta,
+  chapters: ExportChapter[]
+): Promise<boolean> {
+  const path = await save({
+    title: 'Export story as Word Document',
+    defaultPath: `${safeFilename(meta.title)}.docx`,
+    filters: [{ name: 'Word Document', extensions: ['docx'] }],
+  })
+  if (!path) return false
+
+  const children: Paragraph[] = []
+
+  // Title
+  children.push(
+    new Paragraph({
+      text: meta.title,
+      heading: HeadingLevel.TITLE,
+      alignment: AlignmentType.CENTER,
+    })
+  )
+
+  // Subtitle / meta line
+  const metaLine = [meta.genre, meta.tone].filter(Boolean).join(' · ')
+  if (metaLine) {
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: metaLine, italics: true, color: '666666' })],
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 480 },
+      })
+    )
+  }
+
+  // Chapters
+  const sorted = [...chapters].sort((a, b) => a.order - b.order)
+  for (const ch of sorted) {
+    children.push(
+      new Paragraph({ text: ch.name, heading: HeadingLevel.HEADING_1, pageBreakBefore: children.length > 2 })
+    )
+    const cleaned = stripMarkdown(ch.content)
+    for (const block of cleaned.split(/\n\n+/)) {
+      const line = block.replace(/\n/g, ' ').trim()
+      if (line) {
+        children.push(new Paragraph({ children: [new TextRun({ text: line })] }))
+      }
+    }
+  }
+
+  const doc = new Document({ sections: [{ children }] })
+  const blob = await Packer.toBlob(doc)
+  const arrayBuffer = await blob.arrayBuffer()
+  await writeFile(path, new Uint8Array(arrayBuffer))
+  return true
+}
+
+// ── Import ────────────────────────────────────────────────────────────────────
+
+export async function importMarkdownAsChapter(): Promise<{
+  name: string
+  content: string
+} | null> {
+  const selected = await open({
+    title: 'Import Markdown File',
+    multiple: false,
+    filters: [
+      { name: 'Markdown', extensions: ['md'] },
+      { name: 'Text', extensions: ['txt'] },
+    ],
+  })
+  if (!selected || typeof selected !== 'string') return null
+
+  const raw = await readTextFile(selected)
+
+  // Use first # heading as chapter name, fall back to filename
+  const headingMatch = raw.match(/^#\s+(.+)$/m)
+  const fileName =
+    selected.split(/[/\\]/).pop()?.replace(/\.(md|txt)$/i, '') ??
+    'Imported Chapter'
+  const name = headingMatch ? headingMatch[1].trim() : fileName
+
+  // Strip the heading line itself if used as name
+  const content = headingMatch
+    ? raw.replace(/^#\s+.+\n?/, '').trimStart()
+    : raw
+
+  return { name, content }
+}

@@ -4,6 +4,7 @@
     <Editor />
     <Overview />
     <AIPanel />
+    <ExportPanel />
     <Notification />
   </div>
 </template>
@@ -14,6 +15,7 @@ import Sidebar from '@/components/Sidebar.vue'
 import Editor from '@/components/Editor.vue'
 import Overview from '@/components/Overview.vue'
 import AIPanel from '@/components/AIPanel.vue'
+import ExportPanel from '@/components/ExportPanel.vue'
 import Notification from '@/components/Notification.vue'
 import { useUIStore } from '@/stores/uiStore'
 import { useStoryStore } from '@/stores/storyStore'
@@ -69,7 +71,9 @@ onMounted(async () => {
     'settings': () => { uiStore.toggleSettings() },
     'toggle-mode': () => {
       const modes = ['editor', 'preview', 'overview'] as const
-      const currentModeIndex = modes.indexOf(uiStore.activePanel)
+      const panel = uiStore.activePanel
+      const inModes = modes.includes(panel as typeof modes[number])
+      const currentModeIndex = inModes ? modes.indexOf(panel as typeof modes[number]) : -1
       const nextMode = modes[(currentModeIndex + 1) % modes.length]
       uiStore.setActivePanel(nextMode)
     },

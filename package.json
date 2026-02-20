@@ -18,11 +18,13 @@
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-fs": "^2.4.5",
     "@tauri-apps/plugin-opener": "^2",
+    "docx": "^9.5.3",
     "pinia": "^3.0.4",
     "vue": "^3.5.13"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
+    "@types/node": "^25.3.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vitest/ui": "^4.0.18",
     "@vue/test-utils": "^2.4.6",
