@@ -189,11 +189,12 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 - [ ] Images (![alt](url))
 - [ ] Tables (pipe syntax)
 
-### 4.6 Markdown Reference Page ⏳ NOT STARTED
-- [ ] Dedicated panel or modal showing all supported markdown syntax
-- [ ] Each entry: syntax example + rendered result side-by-side
-- [ ] Grouped by category (headings, emphasis, lists, code, etc.)
-- [ ] Accessible from editor header (? button)
+### 4.6 Markdown Reference Page ✅ COMPLETE
+- [x] Dedicated modal (`MarkdownReference.vue`) showing all supported markdown syntax
+- [x] Each entry: syntax example (code) + rendered result side-by-side
+- [x] Grouped by category: Headings, Text Formatting, Lists, Blockquotes, Fenced Code, Links, Horizontal Rules, Combinations
+- [x] Accessible from editor header (? button; also has Escape to close)
+- [x] Teleport to body, backdrop click to close, matches app theme (CSS vars)
 
 **Current Status:**
 - ✅ Markdown editor with three modes operational

@@ -63,6 +63,14 @@
         >
           ⬡
         </button>
+        <button
+          class="action-btn"
+          :class="{ active: showMarkdownRef }"
+          @click="showMarkdownRef = true"
+          title="Markdown Reference"
+        >
+          ?
+        </button>
       </div>
     </div>
 
@@ -133,6 +141,8 @@
       </span>
     </div>
   </div>
+
+  <MarkdownReference :show="showMarkdownRef" @close="showMarkdownRef = false" />
 </template>
 
 <script setup lang="ts">
@@ -146,6 +156,7 @@ import type { RenderMode } from '@/utils/seamlessRenderer'
 import EditorSeamless from './EditorSeamless.vue'
 import EditorMarkdown from './EditorMarkdown.vue'
 import EditorPreview from './EditorPreview.vue'
+import MarkdownReference from './MarkdownReference.vue'
 
 const storyStore = useStoryStore()
 const editorStore = useEditorStore()
@@ -168,6 +179,8 @@ const isExportOpen = computed(() => uiStore.activePanel === 'export')
 const toggleExport = () => {
   uiStore.setActivePanel(isExportOpen.value ? 'editor' : 'export')
 }
+
+const showMarkdownRef = ref(false)
 
 // ─── AI inline suggestions ─────────────────────────────────────────────────
 const ai = useAISuggestion()
