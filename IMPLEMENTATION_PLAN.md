@@ -113,9 +113,9 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 - [x] Story metadata management (title, description, genre, tone, narrative voice)
 - [x] Basic folder and chapter CRUD operations
 - [x] Load existing story projects from disk via `fileStorage.listProjects()`
-- [ ] **Delete story** — button in the story list (with confirmation dialog) that removes the story from disk and localStorage and refreshes the list
-- [ ] **Story list sorting** — sort by last-modified date descending (then by created date, then alphabetically) so identically-named stories never appear in random order
-- [ ] **Story list timestamps** — show both date *and* time (e.g. `Feb 22, 2026 · 4:32 PM`) instead of date-only for created/last-modified labels
+- [x] **Delete story** — button in the story list (with confirmation dialog) that removes the story from disk and localStorage and refreshes the list
+- [x] **Story list sorting** — sort by last-modified date descending (then by creation timestamp embedded in story ID as stable tiebreaker)
+- [x] **Story list timestamps** — show both date *and* time (e.g. `Feb 22, 2026 · 4:32 PM`) instead of date-only for created/last-modified labels
 
 ### 3.3 Chapter Operations ✅
 - [x] Create new chapters programmatically
@@ -261,7 +261,7 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 - [x] List available local models via API
 - [x] Model selection dropdown in AI panel
 - [x] Model caching in aiStore
-- [ ] **Persist selected model** — save `currentModel` to `localStorage`; on startup, after the model list is fetched, auto-select the persisted model if it is still available, otherwise fall back to the first available model and notify the user
+- [x] **Persist selected model** — save `currentModel` to `localStorage`; on startup, after the model list is fetched, auto-select the persisted model if it is still available, otherwise fall back to the first available model and notify the user
 
 ### 6.3 Inline Suggestion System ✅
 - [x] `useAISuggestion.ts` composable — manages up to 3 suggestions, consumed index, cycling
@@ -854,15 +854,13 @@ Higher-level metadata for multi-book series — builds on 17.1.
 ✅ 149 unit tests (Vitest)
 
 ### Next Priorities:
-1. **Phase 3.2 backlog** — Delete story, story list sorting by date, timestamps with time
-2. **Phase 6.2 bugfix** — Persist selected AI model across sessions
-3. **Phase 14** — Help & Onboarding (demo story, onboarding tour)
-4. **Phase 12.3** — Session Undo/Redo
-5. **Phase 12.7** — Chapter custom numbering & labels
-6. **Phase 11.x** — Icon library evaluation & overhaul
-7. **Phase 16** — Cloud AI model integration (OpenAI, Anthropic, Google)
-8. **Phase 17** — Story library & series management
-9. **Phase 11** — Performance & Polish
+1. **Phase 14** — Help & Onboarding (demo story, onboarding tour)
+2. **Phase 12.3** — Session Undo/Redo
+3. **Phase 12.7** — Chapter custom numbering & labels
+4. **Phase 11.x** — Icon library evaluation & overhaul
+5. **Phase 16** — Cloud AI model integration (OpenAI, Anthropic, Google)
+6. **Phase 17** — Story library & series management
+7. **Phase 11** — Performance & Polish
 
 ---
 

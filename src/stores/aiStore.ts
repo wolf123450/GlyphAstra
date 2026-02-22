@@ -109,9 +109,11 @@ function saveCustomProfiles(profiles: WritingProfile[]) {
   localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(custom));
 }
 
+const MODEL_STORAGE_KEY = 'blockbreaker_current_model'
+
 export const useAIStore = defineStore("ai", () => {
   const models = ref<OllamaModel[]>([]);
-  const currentModel = ref<string>("llama2");
+  const currentModel = ref<string>(localStorage.getItem(MODEL_STORAGE_KEY) ?? 'llama2');
   const currentStyle = ref<string>("Lean & Direct");
   const suggestionTokens = ref<number>(80); // ~sentence length
   const isConnected = ref<boolean>(false);
@@ -135,6 +137,7 @@ export const useAIStore = defineStore("ai", () => {
 
   const setCurrentModel = (model: string) => {
     currentModel.value = model;
+    localStorage.setItem(MODEL_STORAGE_KEY, model);
   };
 
   const setCurrentStyle = (style: string) => {

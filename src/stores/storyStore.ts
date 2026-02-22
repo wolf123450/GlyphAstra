@@ -5,6 +5,7 @@ import { serializeStory } from "@/utils/storyManager";
 import {
   saveStory as fsSaveStory,
   loadStory as fsLoadStory,
+  deleteStory as fsDeleteStory,
 } from "@/utils/fileStorage";
 import type { BackupFile } from "@/utils/backupRestore";
 
@@ -275,6 +276,27 @@ export const useStoryStore = defineStore("story", () => {
   };
 
   /**
+   * Permanently delete a story from all storage layers.
+   * If the deleted story is currently open, clears in-memory state so the
+   * caller can immediately switch to another story or create a new one.
+   * Returns true if at least one storage layer succeeded.
+   */
+  const deleteStory = async (storyId: string): Promise<boolean> => {
+    const [fsResult, lsResult] = await Promise.allSettled([
+      fsDeleteStory(storyId),
+      storageManager.deleteStory(storyId),
+    ]);
+    const success =
+      (fsResult.status === 'fulfilled' && fsResult.value) ||
+      (lsResult.status === 'fulfilled' && lsResult.value);
+    // If this was the active story, reset in-memory state
+    if (currentStoryId.value === storyId) {
+      clearStory();
+    }
+    return success;
+  };
+
+  /**
    * Reorder chapters by providing a new array of chapter IDs.
    * Chapters not in newOrder are appended at the end (safety net).
    */
@@ -344,5 +366,6 @@ export const useStoryStore = defineStore("story", () => {
     clearStory,
     reorderChapters,
     restoreFromBackup,
+    deleteStory,
   };
 });
