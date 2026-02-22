@@ -575,15 +575,18 @@ The current `prompt` field on `AIStyle` becomes a multi-sentence instruction blo
 
 ---
 
-## Phase 12: Chapter Management ⏳ NOT STARTED
+## Phase 12: Chapter Management 🟡 IN PROGRESS
 
 Substantial standalone features grouped to avoid fragmented implementation.
 
-### 12.1 Drag-to-Reorder Chapters
-- [ ] Drag handle on each sidebar chapter row
-- [ ] Visual drop indicator between chapters
-- [ ] `storyStore.reorderChapters()` action updates chapter order
-- [ ] Consider `@vueuse/core` `useSortable` or `SortableJS`
+### 12.1 Drag-to-Reorder Chapters ✅ COMPLETE
+- [x] Drag handle (&#x28FF;) on each sidebar chapter row (visible when search is inactive)
+- [x] Visual drop indicator (glowing accent line) between chapters
+- [x] `storyStore.reorderChapters(newOrder: string[])` action updates chapter order and saves
+- [x] Native pointer-events (mousedown/mousemove/mouseup) — avoids WebView2 HTML5 DnD restrictions
+- [x] Drag disabled automatically when search filter is active
+- [x] Dragged chapter dims (`.is-dragging`) while repositioning
+- [x] `dataTransfer.setData` set for Firefox compatibility
 
 ### 12.2 Chapter Version History & Timeline
 - [ ] Store diffs (or snapshots) of chapter content on each save (up to a configurable limit)
@@ -708,7 +711,7 @@ Substantial standalone features grouped to avoid fragmented implementation.
 - ✅ **Phase 9**: Settings & Customization - COMPLETE (5-tab modal, all settings persisted, custom theme colors)
 - 🟡 **Phase 10**: Export & Data Management - 95% (MD/HTML/DOCX/import/backup/restore done; auto-backup timer pending)
 - ⏳ **Phase 11**: Performance & Polish - NOT STARTED
-- ⏳ **Phase 12**: Chapter Management - NOT STARTED
+- 🟡 **Phase 12**: Chapter Management - IN PROGRESS (12.1 drag-to-reorder done; 12.2–12.6 not started)
 - ⏳ **Phase 13**: Advanced Features - NOT STARTED
 - ⏳ **Phase 14**: Help & Onboarding - NOT STARTED
 - ⏳ **Phase 15**: Extensions - NOT STARTED
@@ -723,7 +726,8 @@ Substantial standalone features grouped to avoid fragmented implementation.
 ✅ AI context architecture: layered prompt stack, token budget, chapter summaries, context tag filtering
 ✅ Chapter Metadata Editor (title, status, type, context tags, AI summary management)
 ✅ Full-text search panel with regex, case-sensitive, and search & replace
-✅ Export: Markdown, HTML, DOCX; Import: Markdown; Backup & Restore (full-fidelity .json backups preserving AI metadata)
+✅ Drag-to-reorder chapters via native HTML5 DnD (no extra dependencies)
+✅ Export: Markdown, HTML, DOCX; Import: Markdown; Backup & Restore
 ✅ Settings: font, autosave, AI, custom theme colors (per dark/light), spellcheck toggle
 ✅ Character and metadata management
 ✅ Keyboard shortcut system with defaults registered
@@ -734,7 +738,7 @@ Substantial standalone features grouped to avoid fragmented implementation.
 ✅ 149 unit tests (Vitest)
 
 ### Next Priorities:
-1. **Phase 12.1** — Drag-to-reorder chapters
+1. **Phase 12.6** — Inline chapter title editing
 2. **Phase 14** — Help & Onboarding (demo story, onboarding tour)
 3. **Phase 11** — Performance & Polish
 

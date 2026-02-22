@@ -51,22 +51,31 @@
       </div>
 
       <!-- Chapters Tree -->
-      <div class="chapters-tree">
+      <div
+        class="chapters-tree"
+        ref="treeRef"
+        :class="{ 'is-reordering': dragChapterId !== null }"
+      >
         <div v-if="chapters.length === 0" class="empty-state">
           <p>No chapters yet</p>
           <p class="text-muted">Create your first chapter to get started</p>
         </div>
-        <div v-else>
-          <chapter-item
-            v-for="chapter in filteredChapters"
-            :key="chapter.id"
-            :chapter="chapter"
-            :is-active="chapter.id === currentChapterId"
-            @select="selectChapter"
-            @delete="deleteChapter"
-            @edit-meta="openChapterMeta"
-          />
-        </div>
+        <template v-else>
+          <template v-for="(chapter, index) in filteredChapters" :key="chapter.id">
+            <div class="drop-zone" :class="{ 'drop-active': dropIndex === index }" />
+            <chapter-item
+              :chapter="chapter"
+              :is-active="chapter.id === currentChapterId"
+              :draggable="!searchQuery"
+              :class="{ 'is-dragging': chapter.id === dragChapterId }"
+              @select="selectChapter"
+              @delete="deleteChapter"
+              @edit-meta="openChapterMeta"
+              @handle-down="onHandleDown"
+            />
+          </template>
+          <div class="drop-zone" :class="{ 'drop-active': dropIndex === filteredChapters.length }" />
+        </template>
       </div>
     </div>
 
@@ -196,6 +205,60 @@ const filteredChapters = computed(() => {
     ch.name.toLowerCase().includes(searchQuery.value.toLowerCase())
   )
 })
+
+// ─── Pointer-based drag-to-reorder ─────────────────────────────────────────────────────
+const treeRef       = ref<HTMLElement | null>(null)
+const dragChapterId = ref<string | null>(null)
+const dropIndex     = ref<number | null>(null)
+
+const getDropIndex = (clientY: number): number => {
+  if (!treeRef.value) return 0
+  const items = [...treeRef.value.querySelectorAll('[data-chapter-id]')] as HTMLElement[]
+  let idx = filteredChapters.value.length
+  for (let i = 0; i < items.length; i++) {
+    const rect = items[i].getBoundingClientRect()
+    if (clientY < rect.top + rect.height / 2) { idx = i; break }
+  }
+  return idx
+}
+
+const onHandleDown = (id: string, e: MouseEvent) => {
+  if (searchQuery.value) return
+  dragChapterId.value = id
+  dropIndex.value = getDropIndex(e.clientY)
+  document.body.style.cursor = 'grabbing'
+  document.body.style.userSelect = 'none'
+
+  const onMove = (me: MouseEvent) => {
+    dropIndex.value = getDropIndex(me.clientY)
+  }
+
+  const onUp = () => {
+    window.removeEventListener('mousemove', onMove)
+    window.removeEventListener('mouseup', onUp)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+    if (dragChapterId.value !== null && dropIndex.value !== null) {
+      const id = dragChapterId.value
+      const allChapters = storyStore.chapters
+      const fromIndex = allChapters.findIndex(ch => ch.id === id)
+      if (fromIndex !== -1) {
+        const newOrder = allChapters.map(ch => ch.id)
+        newOrder.splice(fromIndex, 1)
+        const target = dropIndex.value > fromIndex ? dropIndex.value - 1 : dropIndex.value
+        newOrder.splice(target, 0, id)
+        storyStore.reorderChapters(newOrder)
+        storyStore.saveStory()
+      }
+    }
+    dragChapterId.value = null
+    dropIndex.value = null
+  }
+
+  window.addEventListener('mousemove', onMove)
+  window.addEventListener('mouseup', onUp)
+}
+// ────────────────────────────────────────────────────────────────────────────
 
 const toggleSidebar = () => {
   uiStore.toggleSidebar()
@@ -483,6 +546,26 @@ const toggleTheme = () => {
   flex: 1;
   overflow-y: auto;
   padding: var(--spacing-sm);
+}
+.chapters-tree.is-reordering {
+  cursor: grabbing;
+}
+
+.drop-zone {
+  height: 0;
+  border-radius: 2px;
+  transition: height 0.1s, background 0.1s, margin 0.1s;
+  pointer-events: none;
+}
+.drop-zone.drop-active {
+  height: 3px;
+  background: var(--accent-color);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent-color) 60%, transparent);
+  margin: 2px 0;
+}
+
+:deep(.is-dragging) {
+  opacity: 0.35;
 }
 
 .empty-state {
