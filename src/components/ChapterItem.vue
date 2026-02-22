@@ -13,7 +13,25 @@
     >&#x28FF;</span>
     <div class="chapter-content">
       <div class="chapter-name-row">
-        <span class="chapter-name">{{ chapter.name }}</span>
+        <input
+          v-if="isEditingTitle"
+          ref="titleInput"
+          v-model="editTitleValue"
+          class="chapter-name-input"
+          @blur="commitRename"
+          @keydown.enter="commitRename"
+          @keydown.esc="cancelRename"
+          @click.stop
+        />
+        <span
+          v-else
+          class="chapter-name"
+          title="Click to rename"
+          @click.stop="startRename"
+        >
+          {{ chapter.name }}
+          <span class="edit-icon">✎</span>
+        </span>
         <span v-if="chapter.isPlotOutline" class="badge badge-outline" title="Plot outline — injected into every AI prompt">▸ Outline</span>
       </div>
       <div class="chapter-meta">
@@ -37,6 +55,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref, nextTick } from 'vue'
 import type { Chapter } from '@/stores/storyStore'
 
 interface Props {
@@ -50,10 +69,40 @@ interface Emits {
   (e: 'delete', id: string): void
   (e: 'edit-meta', id: string): void
   (e: 'handle-down', id: string, event: MouseEvent): void
+  (e: 'rename', id: string, newName: string): void
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+const isEditingTitle = ref(false)
+const editTitleValue = ref('')
+const titleInput = ref<HTMLInputElement | null>(null)
+
+const startRename = () => {
+  selectSelf()
+  isEditingTitle.value = true
+  editTitleValue.value = props.chapter.name
+  nextTick(() => {
+    if (titleInput.value) {
+      titleInput.value.focus()
+      titleInput.value.select()
+    }
+  })
+}
+
+const commitRename = () => {
+  if (!isEditingTitle.value) return
+  const trimmed = editTitleValue.value.trim()
+  if (trimmed && trimmed !== props.chapter.name) {
+    emit('rename', props.chapter.id, trimmed)
+  }
+  isEditingTitle.value = false
+}
+
+const cancelRename = () => {
+  isEditingTitle.value = false
+}
 
 const selectSelf = () => {
   emit('select', props.chapter.id)
@@ -133,6 +182,44 @@ const onHandleDown = (e: MouseEvent) => {
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1; min-width: 0;
+  cursor: text;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.edit-icon {
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  color: var(--text-tertiary);
+}
+
+.chapter-name:hover .edit-icon {
+  opacity: 1;
+}
+
+.chapter-item.active .edit-icon {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.chapter-name-input {
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-color);
+  border-radius: 3px;
+  padding: 0 4px;
+  margin: -1px -5px;
+  outline: none;
+}
+
+.chapter-item.active .chapter-name-input {
+  color: var(--text-primary);
 }
 
 .badge {

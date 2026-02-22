@@ -613,14 +613,14 @@ Substantial standalone features grouped to avoid fragmented implementation.
 - [ ] Manual translation entry
 - [ ] Language selector in editor header when translations exist
 
-### 12.6 Inline Chapter Title Editing
+### 12.6 Inline Chapter Title Editing ✅ COMPLETE
 > Currently renaming is only available through the Chapter Metadata Editor (≡ → Title field).
-- [ ] Mouseover on a chapter name in the sidebar reveals an edit (✎) indicator icon.
-- [ ] Single-click on a chapter name in the sidebar activates an in-place `<input>` replacing the title text
-- [ ] `Escape` cancels and restores the original name; `Enter` or blur commits via `storyStore.updateChapter()`
-- [ ] Input auto-selects all text on activation for fast replacement
-- [ ] No rename occurs if the trimmed value is empty or unchanged
-- [ ] Visual affordance: cursor changes to `text` on hover over the title span
+- [x] Mouseover on a chapter name in the sidebar reveals an edit (✎) indicator icon.
+- [x] Single-click on a chapter name in the sidebar activates an in-place `<input>` replacing the title text
+- [x] `Escape` cancels and restores the original name; `Enter` or blur commits via `storyStore.updateChapter()`
+- [x] Input auto-selects all text on activation for fast replacement
+- [x] No rename occurs if the trimmed value is empty or unchanged
+- [x] Visual affordance: cursor changes to `text` on hover over the title span
 
 ---
 
@@ -711,7 +711,7 @@ Substantial standalone features grouped to avoid fragmented implementation.
 - ✅ **Phase 9**: Settings & Customization - COMPLETE (5-tab modal, all settings persisted, custom theme colors)
 - 🟡 **Phase 10**: Export & Data Management - 95% (MD/HTML/DOCX/import/backup/restore done; auto-backup timer pending)
 - ⏳ **Phase 11**: Performance & Polish - NOT STARTED
-- 🟡 **Phase 12**: Chapter Management - IN PROGRESS (12.1 drag-to-reorder done; 12.2–12.6 not started)
+- 🟡 **Phase 12**: Chapter Management - IN PROGRESS (12.1 drag-to-reorder done; 12.6 inline title editing done; 12.2–12.5 not started)
 - ⏳ **Phase 13**: Advanced Features - NOT STARTED
 - ⏳ **Phase 14**: Help & Onboarding - NOT STARTED
 - ⏳ **Phase 15**: Extensions - NOT STARTED
@@ -727,6 +727,7 @@ Substantial standalone features grouped to avoid fragmented implementation.
 ✅ Chapter Metadata Editor (title, status, type, context tags, AI summary management)
 ✅ Full-text search panel with regex, case-sensitive, and search & replace
 ✅ Drag-to-reorder chapters via native HTML5 DnD (no extra dependencies)
+✅ Inline chapter title editing in sidebar
 ✅ Export: Markdown, HTML, DOCX; Import: Markdown; Backup & Restore
 ✅ Settings: font, autosave, AI, custom theme colors (per dark/light), spellcheck toggle
 ✅ Character and metadata management
@@ -738,9 +739,9 @@ Substantial standalone features grouped to avoid fragmented implementation.
 ✅ 149 unit tests (Vitest)
 
 ### Next Priorities:
-1. **Phase 12.6** — Inline chapter title editing
-2. **Phase 14** — Help & Onboarding (demo story, onboarding tour)
-3. **Phase 11** — Performance & Polish
+1. **Phase 14** — Help & Onboarding (demo story, onboarding tour)
+2. **Phase 11** — Performance & Polish
+3. **Phase 12.2** — Chapter Version History & Timeline
 
 ---
 
