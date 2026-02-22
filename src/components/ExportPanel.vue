@@ -65,6 +65,27 @@
         </div>
       </section>
 
+      <!-- Backup & Restore -->
+      <section class="ex-section">
+        <div class="sec-label">Backup &amp; Restore</div>
+        <div class="btn-col">
+          <button class="ex-btn" @click="doBackup" :disabled="busy">
+            <span class="ex-icon">💾</span>
+            <span class="ex-info">
+              <span class="ex-name">Export backup</span>
+              <span class="ex-desc">Full story + AI data to .json</span>
+            </span>
+          </button>
+          <button class="ex-btn" @click="doRestoreBackup" :disabled="busy">
+            <span class="ex-icon">📂</span>
+            <span class="ex-info">
+              <span class="ex-name">Restore backup</span>
+              <span class="ex-desc">Load a .json backup as new story</span>
+            </span>
+          </button>
+        </div>
+      </section>
+
       <!-- Status -->
       <div v-if="status" class="status-msg" :class="statusType">{{ status }}</div>
       <div v-if="busy" class="status-msg info">Working…</div>
@@ -87,6 +108,7 @@ import {
   type ExportChapter,
   type ExportMeta,
 } from '@/utils/exportImport'
+import { exportBackup, importBackup } from '@/utils/backupRestore'
 
 const uiStore     = useUIStore()
 const storyStore  = useStoryStore()
@@ -171,6 +193,43 @@ const doImport = async () => {
   } catch (e) {
     console.error('[Import]', e)
     setStatus(`Import failed: ${e instanceof Error ? e.message : String(e)}`, 'err')
+  } finally {
+    busy.value = false
+  }
+}
+
+const doBackup = async () => {
+  busy.value = true
+  status.value = ''
+  try {
+    const ok = await exportBackup(
+      storyStore.currentStoryId ?? 'unknown',
+      storyStore.metadata,
+      storyStore.chapters,
+      storyStore.characters,
+    )
+    if (ok) setStatus('Backup saved.', 'ok')
+    else     setStatus('Backup cancelled.', 'info')
+  } catch (e) {
+    console.error('[Backup]', e)
+    setStatus(`Backup failed: ${e instanceof Error ? e.message : String(e)}`, 'err')
+  } finally {
+    busy.value = false
+  }
+}
+
+const doRestoreBackup = async () => {
+  busy.value = true
+  status.value = ''
+  try {
+    const backup = await importBackup()
+    if (!backup) { setStatus('Restore cancelled.', 'info'); return }
+    const newId = storyStore.restoreFromBackup(backup)
+    await storyStore.saveStory(newId)
+    setStatus(`Restored "${backup.metadata.title}".`, 'ok')
+  } catch (e) {
+    console.error('[Restore]', e)
+    setStatus(`Restore failed: ${e instanceof Error ? e.message : String(e)}`, 'err')
   } finally {
     busy.value = false
   }
