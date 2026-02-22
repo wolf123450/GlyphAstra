@@ -79,7 +79,7 @@
                       <span
                         v-for="(seg, j) in line.segments"
                         :key="j"
-                        :class="{ 'diff-char': seg.changed }"
+                        :class="{ 'diff-char': seg.changed, 'diff-marker': seg.marker }"
                       >{{ seg.text }}</span>
                     </template>
                     <template v-else>{{ line.text === '' ? '\u00a0' : line.text }}</template>
@@ -105,6 +105,7 @@ import { useStoryStore } from '@/stores/storyStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { getHistory, type HistoryEntry } from '@/utils/historyManager'
 import { renderMarkdown } from '@/utils/markdownRenderer'
+import { computeLineDiff, pairDelAdd, type DiffLine } from '@/utils/diffEngine'
 
 interface Props {
   show: boolean
@@ -166,132 +167,23 @@ const hasPrevious = computed(() => {
   return idx < entries.value.length - 1
 })
 
-const diffTarget = computed<string>(() => {
-  if (diffMode.value === 'current') return editorStore.content
-  if (diffMode.value === 'previous') {
-    if (!selectedEntry.value) return ''
-    const idx = entries.value.indexOf(selectedEntry.value)
-    const prev = entries.value[idx + 1]
-    return prev ? prev.content : ''
-  }
-  return ''
-})
-
-// ─── Line-level LCS diff ─────────────────────────────────────────────────────
-type InlineSegment = { changed: boolean; text: string }
-type DiffLine = { type: 'same' | 'add' | 'del'; text: string; segments?: InlineSegment[] }
-
-function computeLineDiff(snapshotText: string, currentText: string): DiffLine[] {
-  const a = snapshotText.split('\n')
-  const b = currentText.split('\n')
-  const m = a.length
-  const n = b.length
-
-  // Guard against very large texts for perf (fall back to two-block diff)
-  if (m * n > 120_000) {
-    return [
-      { type: 'del', text: '— snapshot (too large for inline diff) —' },
-      { type: 'add', text: '— current (too large for inline diff) —' },
-    ]
-  }
-
-  // LCS DP table
-  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0))
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      dp[i][j] = a[i - 1] === b[j - 1]
-        ? dp[i - 1][j - 1] + 1
-        : Math.max(dp[i - 1][j], dp[i][j - 1])
-    }
-  }
-
-  // Backtrace
-  const result: DiffLine[] = []
-  let i = m, j = n
-  while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
-      result.unshift({ type: 'same', text: a[i - 1] })
-      i--; j--
-    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      result.unshift({ type: 'add', text: b[j - 1] })     // added in current
-      j--
-    } else {
-      result.unshift({ type: 'del', text: a[i - 1] })     // removed from snapshot
-      i--
-    }
-  }
-  return result
-}
-
-// ─── Char-level LCS helpers ──────────────────────────────────────────────────
-function computeCharLCS(a: string, b: string): number[][] {
-  const m = a.length, n = b.length
-  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0))
-  for (let i = 1; i <= m; i++)
-    for (let j = 1; j <= n; j++)
-      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1])
-  return dp
-}
-
-/** Produce inline segments for `text` where chars NOT in LCS with `other` are marked changed. */
-function charSegments(text: string, other: string): InlineSegment[] {
-  if (!text) return [{ changed: false, text: '' }]
-  if (!other || text.length * other.length > 80_000) return [{ changed: true, text }]
-
-  const dp = computeCharLCS(text, other)
-  const changed: boolean[] = new Array(text.length).fill(true)
-  let i = text.length, j = other.length
-  while (i > 0 && j > 0) {
-    if (text[i - 1] === other[j - 1]) {
-      changed[i - 1] = false
-      i--; j--
-    } else if (dp[i - 1][j] >= dp[i][j - 1]) {
-      i--
-    } else {
-      j--
-    }
-  }
-
-  const segs: InlineSegment[] = []
-  let cur: InlineSegment = { changed: changed[0] ?? false, text: text[0] ?? '' }
-  for (let k = 1; k < text.length; k++) {
-    if (changed[k] === cur.changed) {
-      cur.text += text[k]
-    } else {
-      segs.push(cur)
-      cur = { changed: changed[k], text: text[k] }
-    }
-  }
-  if (cur.text !== undefined) segs.push(cur)
-  return segs
-}
-
-/** Scan pairs of adjacent del+add lines and attach char-level segments to each. */
-function pairDelAdd(lines: DiffLine[]): DiffLine[] {
-  const out: DiffLine[] = []
-  let i = 0
-  while (i < lines.length) {
-    if (
-      lines[i].type === 'del' &&
-      i + 1 < lines.length &&
-      lines[i + 1].type === 'add'
-    ) {
-      const delLine = lines[i]
-      const addLine = lines[i + 1]
-      out.push({ ...delLine, segments: charSegments(delLine.text, addLine.text) })
-      out.push({ ...addLine, segments: charSegments(addLine.text, delLine.text) })
-      i += 2
-    } else {
-      out.push(lines[i])
-      i++
-    }
-  }
-  return out
-}
-
 const diffLines = computed<DiffLine[]>(() => {
   if (diffMode.value === 'none' || !selectedEntry.value) return []
-  return pairDelAdd(computeLineDiff(selectedEntry.value.content, diffTarget.value))
+  let base: string
+  let comparison: string
+  if (diffMode.value === 'current') {
+    // Show what changed from the snapshot up to now: snapshot = base, editor = new
+    base       = selectedEntry.value.content
+    comparison = editorStore.content
+  } else {
+    // Show what changed from the previous snapshot to this one
+    const idx  = entries.value.indexOf(selectedEntry.value)
+    const prev = entries.value[idx + 1]
+    if (!prev) return []
+    base       = prev.content                    // older = base (del = removed)
+    comparison = selectedEntry.value.content     // newer = comparison (add = added)
+  }
+  return pairDelAdd(computeLineDiff(base, comparison))
 })
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -603,25 +495,38 @@ function restore() {
   word-break: break-word;
 }
 .diff-line.same { color: var(--text-secondary); }
-.diff-line.del  {
-  background: color-mix(in srgb, var(--error-color) 12%, transparent);
-  color: var(--error-color);
-}
-.diff-line.add  {
-  background: color-mix(in srgb, var(--success-color) 10%, transparent);
-  color: var(--success-color);
-}
 
-/* Inline character-level highlight — stronger than the line background */
+/* Line background tint — no global text color override; chars handle their own color */
+.diff-line.del  { background: color-mix(in srgb, var(--error-color) 10%, transparent); }
+.diff-line.add  { background: color-mix(in srgb, var(--success-color) 8%, transparent); }
+
+/* Unchanged chars within a modified line — muted so changed chars stand out */
+.diff-line.del span:not(.diff-char) { color: color-mix(in srgb, var(--error-color) 55%, var(--text-secondary)); }
+.diff-line.add span:not(.diff-char) { color: color-mix(in srgb, var(--success-color) 55%, var(--text-secondary)); }
+
+/* Inline character-level highlight — full color + stronger background */
 .diff-line.del .diff-char {
-  background: color-mix(in srgb, var(--error-color) 38%, transparent);
+  background: color-mix(in srgb, var(--error-color) 40%, transparent);
+  color: var(--error-color);
   border-radius: 2px;
   padding: 0 1px;
 }
 .diff-line.add .diff-char {
-  background: color-mix(in srgb, var(--success-color) 32%, transparent);
+  background: color-mix(in srgb, var(--success-color) 35%, transparent);
+  color: var(--success-color);
   border-radius: 2px;
   padding: 0 1px;
+}
+
+/* Zero-width deletion-point marker on the add line */
+.diff-line.add .diff-marker {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  vertical-align: middle;
+  border-radius: 1px;
+  background: var(--success-color);
+  padding: 0;
 }
 
 /* Footer */
