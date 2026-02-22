@@ -275,6 +275,24 @@ export const useStoryStore = defineStore("story", () => {
   };
 
   /**
+   * Reorder chapters by providing a new array of chapter IDs.
+   * Chapters not in newOrder are appended at the end (safety net).
+   */
+  const reorderChapters = (newOrder: string[]) => {
+    const idToChapter = new Map(chapters.value.map(ch => [ch.id, ch]))
+    const reordered = newOrder
+      .map(id => idToChapter.get(id))
+      .filter((ch): ch is Chapter => Boolean(ch))
+    // Append any chapters missing from newOrder
+    const reorderedIds = new Set(newOrder)
+    for (const ch of chapters.value) {
+      if (!reorderedIds.has(ch.id)) reordered.push(ch)
+    }
+    chapters.value = reordered
+    metadata.value.lastModified = new Date().toISOString()
+  };
+
+  /**
    * Restore full story state from a backup file.
    * Assigns a fresh story ID so the restored copy never overwrites an
    * existing project.  Caller should follow up with saveStory(newId) to
@@ -324,6 +342,7 @@ export const useStoryStore = defineStore("story", () => {
     loadStory,
     createNewStory,
     clearStory,
+    reorderChapters,
     restoreFromBackup,
   };
 });

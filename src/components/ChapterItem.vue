@@ -1,5 +1,16 @@
 <template>
-  <div class="chapter-item" :class="{ active: isActive }" @click="selectSelf">
+  <div
+    class="chapter-item"
+    :class="{ active: isActive }"
+    :data-chapter-id="chapter.id"
+    @click="selectSelf"
+  >
+    <span
+      v-if="draggable"
+      class="drag-handle"
+      title="Drag to reorder"
+      @mousedown.stop.prevent="onHandleDown"
+    >&#x28FF;</span>
     <div class="chapter-content">
       <div class="chapter-name-row">
         <span class="chapter-name">{{ chapter.name }}</span>
@@ -31,12 +42,14 @@ import type { Chapter } from '@/stores/storyStore'
 interface Props {
   chapter: Chapter
   isActive: boolean
+  draggable?: boolean
 }
 
 interface Emits {
   (e: 'select', id: string): void
   (e: 'delete', id: string): void
   (e: 'edit-meta', id: string): void
+  (e: 'handle-down', id: string, event: MouseEvent): void
 }
 
 const props = defineProps<Props>()
@@ -53,6 +66,10 @@ const deleteThis = () => {
 const openMeta = () => {
   emit('edit-meta', props.chapter.id)
 }
+
+const onHandleDown = (e: MouseEvent) => {
+  emit('handle-down', props.chapter.id, e)
+}
 </script>
 
 <style scoped>
@@ -67,6 +84,25 @@ const openMeta = () => {
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--transition-fast);
+}
+
+.drag-handle {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  font-size: 16px;
+  line-height: 1;
+  padding-right: 6px;
+  opacity: 0.35;
+  cursor: grab;
+  user-select: none;
+  transition: opacity var(--transition-fast);
+}
+.chapter-item:hover .drag-handle {
+  opacity: 0.7;
+}
+.chapter-item.active .drag-handle {
+  color: white;
+  opacity: 0.5;
 }
 
 .chapter-item:hover {
