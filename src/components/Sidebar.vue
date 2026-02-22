@@ -19,20 +19,59 @@
         <div v-if="showStoryPicker" class="story-picker">
           <button class="story-new-btn" @click="createAndSwitchStory">⊕ New Story</button>
           <div class="story-list">
-            <button
+            <div
               v-for="proj in savedProjects"
               :key="proj.id"
               class="story-item"
               :class="{ active: proj.id === storyStore.currentStoryId }"
-              @click="switchToStory(proj.id)"
             >
-              <span class="story-item-name">{{ proj.name }}</span>
-              <span class="story-item-date">{{ formatDate(proj.lastModified) }}</span>
-            </button>
+              <button class="story-item-info" @click="switchToStory(proj.id)">
+                <span class="story-item-name">{{ proj.name }}</span>
+                <span class="story-item-date">{{ formatDate(proj.lastModified) }}</span>
+              </button>
+              <button
+                class="story-item-delete"
+                title="Delete story"
+                @click.stop="requestDeleteStory(proj.id, proj.name)"
+              >×</button>
+            </div>
             <div v-if="savedProjects.length === 0" class="story-item-empty">No saved stories</div>
           </div>
         </div>
       </div>
+
+      <!-- Delete-story confirmation modal -->
+      <Teleport to="body">
+        <div v-if="pendingDelete" class="delete-confirm-backdrop" @click.self="pendingDelete = null">
+          <div class="delete-confirm-modal">
+            <p class="delete-confirm-title">Delete story?</p>
+            <p class="delete-confirm-body">
+              “{{ pendingDelete.name }}” and all its chapters will be permanently removed.
+              This cannot be undone.
+            </p>
+            <div class="delete-confirm-actions">
+              <button class="delete-confirm-cancel" @click="pendingDelete = null">Cancel</button>
+              <button class="delete-confirm-ok" @click="executeDeleteStory">Delete</button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
+      <!-- Chapter delete confirmation modal -->
+      <Teleport to="body">
+        <div v-if="pendingChapterDelete" class="delete-confirm-backdrop" @click.self="pendingChapterDelete = null">
+          <div class="delete-confirm-modal">
+            <p class="delete-confirm-title">Delete chapter?</p>
+            <p class="delete-confirm-body">
+              “{{ pendingChapterDelete.name }}” will be permanently deleted and cannot be recovered.
+            </p>
+            <div class="delete-confirm-actions">
+              <button class="delete-confirm-cancel" @click="pendingChapterDelete = null">Cancel</button>
+              <button class="delete-confirm-ok" @click="executeDeleteChapter">Delete</button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
 
       <!-- New Chapter Button -->
       <button class="btn-sidebar-action" @click="createNewChapter" title="Create new chapter (Ctrl+N)">
@@ -131,15 +170,56 @@ const savedProjects = computed(() => {
   const liveTitle = storyStore.metadata.title
   return [...projects]
     .map((p) => p.id === currentId ? { ...p, name: liveTitle || p.name } : p)
-    .sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime())
+    .sort((a, b) => {
+      // Primary: most recently modified first
+      const mDiff = new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
+      if (mDiff !== 0) return mDiff
+      // Tiebreaker: creation time embedded in story ID (story-{timestamp}-{random})
+      const createdB = parseInt(b.id.split('-')[1] ?? '0') || 0
+      const createdA = parseInt(a.id.split('-')[1] ?? '0') || 0
+      return createdB - createdA
+    })
 })
 
 const formatDate = (iso: string) => {
   try {
-    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    const d = new Date(iso)
+    const datePart = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    const timePart = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+    return `${datePart} · ${timePart}`
   } catch {
     return ''
   }
+}
+
+const pendingDelete = ref<{ id: string; name: string } | null>(null)
+
+const requestDeleteStory = (id: string, name: string) => {
+  pendingDelete.value = { id, name }
+}
+
+const executeDeleteStory = async () => {
+  if (!pendingDelete.value) return
+  const { id } = pendingDelete.value
+  pendingDelete.value = null
+  const wasCurrent = id === storyStore.currentStoryId
+  await storyStore.deleteStory(id)
+  // After deletion the projects list no longer contains the deleted story
+  const remaining = storageManager.getProjectsList()
+  if (wasCurrent) {
+    if (remaining.length > 0) {
+      const sorted = [...remaining].sort(
+        (a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
+      )
+      await storyStore.loadStory(sorted[0].id)
+      if (!storyStore.currentChapterId && storyStore.chapters.length > 0) {
+        storyStore.setCurrentChapter(storyStore.chapters[0].id)
+      }
+    } else {
+      storyStore.createNewStory('My Story')
+    }
+  }
+  showStoryPicker.value = remaining.length > 0
 }
 
 const switchToStory = async (id: string) => {
@@ -294,12 +374,20 @@ const renameChapter = (id: string, newName: string) => {
   storyStore.saveStory()
 }
 
+const pendingChapterDelete = ref<{ id: string; name: string } | null>(null)
+
 const deleteChapter = (id: string) => {
-  if (confirm('Are you sure you want to delete this chapter?')) {
-    storyStore.deleteChapter(id)
-    if (currentChapterId.value === id) {
-      storyStore.setCurrentChapter(null)
-    }
+  const chapter = storyStore.chapters.find(ch => ch.id === id)
+  pendingChapterDelete.value = { id, name: chapter?.name ?? 'this chapter' }
+}
+
+const executeDeleteChapter = () => {
+  if (!pendingChapterDelete.value) return
+  const { id } = pendingChapterDelete.value
+  pendingChapterDelete.value = null
+  storyStore.deleteChapter(id)
+  if (currentChapterId.value === id) {
+    storyStore.setCurrentChapter(null)
   }
 }
 
@@ -384,13 +472,9 @@ const toggleTheme = () => {
 .story-item {
   width: 100%;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: var(--spacing-sm) var(--spacing-lg);
+  flex-direction: row;
+  align-items: center;
   background: transparent;
-  border: none;
-  cursor: pointer;
-  text-align: left;
 }
 
 .story-item:hover {
@@ -399,6 +483,19 @@ const toggleTheme = () => {
 
 .story-item.active {
   background-color: color-mix(in srgb, var(--accent-color) 15%, transparent);
+}
+
+.story-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
 }
 
 .story-item-name {
@@ -413,6 +510,103 @@ const toggleTheme = () => {
 .story-item-date {
   font-size: 11px;
   color: var(--text-tertiary);
+}
+
+.story-item-delete {
+  flex-shrink: 0;
+  padding: 0 var(--spacing-md);
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
+.story-item:hover .story-item-delete {
+  opacity: 1;
+}
+
+.story-item-delete:hover {
+  color: var(--error-color) !important;
+}
+
+/* ── Delete-story confirmation modal ───────────────────────── */
+.delete-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.delete-confirm-modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  max-width: 340px;
+  width: 90%;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.delete-confirm-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.delete-confirm-body {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.delete-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+.delete-confirm-cancel {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.delete-confirm-cancel:hover {
+  background: var(--bg-tertiary);
+}
+
+.delete-confirm-ok {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--error-color);
+  border: none;
+  border-radius: var(--radius-md);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.delete-confirm-ok:hover {
+  filter: brightness(1.15);
 }
 
 .story-item-empty {
