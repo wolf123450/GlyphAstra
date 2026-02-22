@@ -543,15 +543,19 @@ The current `prompt` field on `AIStyle` becomes a multi-sentence instruction blo
 - [x] Imported content becomes a new chapter in the current story
 - [x] `setCurrentChapter` auto-switches to the new chapter
 
-### 10.5 Backup & Restore ⏳ NOT STARTED
-- [ ] "Export backup" — copies entire story JSON + chapter files to user-chosen folder
-- [ ] "Import backup" — loads a backup folder as a new story project
+### 10.5 Backup & Restore ✅ COMPLETE
+- [x] "Export backup" — serializes full story state (metadata + all chapters with AI metadata + characters) to a user-chosen `.json` file via save dialog
+- [x] "Restore backup" — opens a `.json` backup, creates a fresh story ID, fully restores all chapter fields (including AI summaries/tags), auto-saves to disk
+- [x] `src/utils/backupRestore.ts` — `BackupFile` interface, `exportBackup()`, `importBackup()`
+- [x] `storyStore.restoreFromBackup(backup)` — sets full store state, returns new story ID
+- [x] Backup & Restore section added to `ExportPanel.vue`
 - [ ] Auto-backup on close or timer (Phase 11)
 
 ### Technical Notes
 - `plugin-dialog` Rust crate added to `Cargo.toml`, registered in `lib.rs`
 - Capabilities: `dialog:allow-open`, `dialog:allow-save`, `fs:allow-home-read-recursive`, `fs:allow-home-write-recursive`
 - `filesystem.ts` extended with `writeAbsoluteFile(path, content)`, `readAbsoluteFile(path)`, `writeBinaryAbsolute(path, data: Uint8Array)`
+- `backupRestore.ts` — uses `writeAbsoluteFile` + `readAbsoluteFile`; backup format v1 includes all `Chapter` fields (AI metadata preserved)
 - `uiStore.activePanel` extended with `'export'` type
 - `ExportPanel.vue` shown as right panel (same architecture as `AIPanel.vue`)
 - Export button `⬡` added to editor header
@@ -567,7 +571,7 @@ The current `prompt` field on `AIStyle` becomes a multi-sentence instruction blo
 - [ ] UI polish and animations
 - [ ] Loading states and transitions
 - [ ] Accessibility (WCAG compliance)
-- ✅ Unit and integration test suite (Vitest, 109 tests across seamlessRenderer, editorCursor, CRLF tokenisation)
+- ✅ Unit and integration test suite (Vitest, 149 tests across seamlessRenderer, editorCursor, CRLF tokenisation)
 
 ---
 
@@ -702,7 +706,7 @@ Substantial standalone features grouped to avoid fragmented implementation.
 - ✅ **Phase 7**: Advanced AI - 90% (writing profiles, context builder, summaries, chapter metadata editor done; parallel suggestions pending)
 - 🟡 **Phase 8**: Search - 90% (full-text search, TOC, replace, regex, case-sensitive done; badge + advanced filters pending)
 - ✅ **Phase 9**: Settings & Customization - COMPLETE (5-tab modal, all settings persisted, custom theme colors)
-- 🟡 **Phase 10**: Export & Data Management - 80% (MD/HTML/DOCX/import done; backup/restore pending)
+- 🟡 **Phase 10**: Export & Data Management - 95% (MD/HTML/DOCX/import/backup/restore done; auto-backup timer pending)
 - ⏳ **Phase 11**: Performance & Polish - NOT STARTED
 - ⏳ **Phase 12**: Chapter Management - NOT STARTED
 - ⏳ **Phase 13**: Advanced Features - NOT STARTED
@@ -719,7 +723,7 @@ Substantial standalone features grouped to avoid fragmented implementation.
 ✅ AI context architecture: layered prompt stack, token budget, chapter summaries, context tag filtering
 ✅ Chapter Metadata Editor (title, status, type, context tags, AI summary management)
 ✅ Full-text search panel with regex, case-sensitive, and search & replace
-✅ Export: Markdown, HTML, DOCX; Import: Markdown
+✅ Export: Markdown, HTML, DOCX; Import: Markdown; Backup & Restore (full-fidelity .json backups preserving AI metadata)
 ✅ Settings: font, autosave, AI, custom theme colors (per dark/light), spellcheck toggle
 ✅ Character and metadata management
 ✅ Keyboard shortcut system with defaults registered
@@ -730,10 +734,9 @@ Substantial standalone features grouped to avoid fragmented implementation.
 ✅ 149 unit tests (Vitest)
 
 ### Next Priorities:
-1. **Phase 10.5** — Backup & restore
-2. **Phase 12.1** — Drag-to-reorder chapters
-3. **Phase 14** — Help & Onboarding (demo story, onboarding tour)
-4. **Phase 11** — Performance & Polish
+1. **Phase 12.1** — Drag-to-reorder chapters
+2. **Phase 14** — Help & Onboarding (demo story, onboarding tour)
+3. **Phase 11** — Performance & Polish
 
 ---
 

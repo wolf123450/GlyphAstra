@@ -6,6 +6,7 @@ import {
   saveStory as fsSaveStory,
   loadStory as fsLoadStory,
 } from "@/utils/fileStorage";
+import type { BackupFile } from "@/utils/backupRestore";
 
 export interface Chapter {
   id: string;
@@ -273,6 +274,27 @@ export const useStoryStore = defineStore("story", () => {
     currentStoryId.value = null;
   };
 
+  /**
+   * Restore full story state from a backup file.
+   * Assigns a fresh story ID so the restored copy never overwrites an
+   * existing project.  Caller should follow up with saveStory(newId) to
+   * persist the restored data.
+   * Returns the new story ID.
+   */
+  const restoreFromBackup = (backup: BackupFile): string => {
+    const newId = `story-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+    metadata.value = {
+      ...backup.metadata,
+      lastModified: new Date().toISOString(),
+    }
+    // Preserve all chapter fields (including AI metadata)
+    chapters.value = backup.chapters.map((ch) => ({ ...ch }))
+    characters.value = backup.characters.map((c) => ({ ...c }))
+    currentChapterId.value = backup.chapters[0]?.id ?? null
+    currentStoryId.value = newId
+    return newId
+  };
+
   return {
     // State
     metadata,
@@ -302,5 +324,6 @@ export const useStoryStore = defineStore("story", () => {
     loadStory,
     createNewStory,
     clearStory,
+    restoreFromBackup,
   };
 });
