@@ -4,6 +4,7 @@
       ref="editorInput"
       class="editor-input"
       contenteditable="plaintext-only"
+      :spellcheck="settingsStore.settings.spellCheck"
       @input="onInput"
       @click="handleEditorClick"
       @keydown="handleKeydown"
@@ -18,6 +19,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
 import { openUrl } from '@tauri-apps/plugin-opener'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { tokenizeMarkdown } from '@/utils/seamlessRenderer'
 import {
   buildStructuredHTML,
@@ -54,6 +56,7 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+const settingsStore = useSettingsStore()
 
 const editorInput = ref<HTMLDivElement | null>(null)
 let selectionStart = 0
