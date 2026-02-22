@@ -85,6 +85,17 @@
               </div>
             </div>
 
+            <div class="setting-row">
+              <label class="setting-label">Spell check</label>
+              <div class="setting-control">
+                <div class="pill-group">
+                  <button class="pill" :class="{ active: settings.spellCheck }" @click="update('spellCheck', true)">On</button>
+                  <button class="pill" :class="{ active: !settings.spellCheck }" @click="update('spellCheck', false)">Off</button>
+                </div>
+              </div>
+              <p class="setting-hint inline-hint">When on, right-click any underlined word to add it to your system dictionary.</p>
+            </div>
+
             <div class="setting-preview">
               <span class="preview-label">Preview</span>
               <div
@@ -206,7 +217,38 @@
                 </div>
               </div>
             </div>
-          </div>
+            <!-- Color overrides -->
+            <div class="color-section">
+              <div class="color-section-header">
+                <span class="color-section-title">Custom colors <span class="color-theme-badge">{{ settings.theme }}</span></span>
+                <button
+                  v-if="hasColorOverrides()"
+                  class="reset-colors-btn"
+                  @click="resetColors"
+                  title="Reset to theme defaults"
+                >Reset</button>
+              </div>
+              <div class="color-grid">
+                <div v-for="c in colorMeta" :key="c.varName" class="color-row">
+                  <label class="color-label">{{ c.label }}</label>
+                  <div class="color-swatch-wrap">
+                    <input
+                      type="color"
+                      class="color-swatch"
+                      :value="getColorValue(c.varName)"
+                      @input="setColorValue(c.varName, ($event.target as HTMLInputElement).value)"
+                      :title="c.varName"
+                    />
+                    <span
+                      v-if="settings.themeColors?.[settings.theme]?.[c.varName]"
+                      class="color-override-dot"
+                      title="Customised"
+                    ></span>
+                  </div>
+                </div>
+              </div>
+              <p class="setting-hint">Overrides apply to the currently selected theme only.</p>
+            </div>          </div>
 
           <!-- ── Keyboard Shortcuts ─────────────────────────────── -->
           <div v-if="activeTab === 'shortcuts'" class="tab-content">
@@ -238,7 +280,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useUIStore } from '@/stores/uiStore'
-import { useSettingsStore } from '@/stores/settingsStore'
+import { useSettingsStore, CUSTOMIZABLE_VARS, type CustomizableVar } from '@/stores/settingsStore'
 
 const uiStore = useUIStore()
 const settingsStore = useSettingsStore()
@@ -278,6 +320,35 @@ function update<K extends keyof typeof settings>(key: K, value: (typeof settings
 function setTheme(theme: 'dark' | 'light') {
   settingsStore.updateSetting('theme', theme)
   uiStore.setTheme(theme)
+}
+
+// ── Color overrides ─────────────────────────────────────────────────────────
+const colorMeta: { varName: CustomizableVar; label: string }[] = [
+  { varName: '--accent-color', label: 'Accent' },
+  { varName: '--bg-primary',   label: 'Background' },
+  { varName: '--bg-secondary', label: 'Panel BG' },
+  { varName: '--text-primary', label: 'Text' },
+  { varName: '--border-color', label: 'Border' },
+]
+
+function getColorValue(varName: CustomizableVar): string {
+  const override = settings.themeColors?.[settings.theme]?.[varName]
+  if (override) return override
+  // Fall back to the computed value from the stylesheet
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
+}
+
+function setColorValue(varName: CustomizableVar, value: string) {
+  settingsStore.updateThemeColor(settings.theme, varName, value)
+}
+
+function hasColorOverrides(): boolean {
+  const overrides = settings.themeColors?.[settings.theme] ?? {}
+  return CUSTOMIZABLE_VARS.some((v) => !!overrides[v])
+}
+
+function resetColors() {
+  settingsStore.resetThemeColors(settings.theme)
 }
 
 function resetDefaults() {
@@ -563,4 +634,90 @@ input[type="range"] {
   color: #fff;
 }
 .footer-btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+
+/* ── Color overrides section ───────────────────────── */
+.color-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+}
+.color-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.color-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.color-theme-badge {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  background: color-mix(in srgb, var(--accent-color) 15%, transparent);
+  color: var(--accent-color);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+.reset-colors-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-muted, var(--text-secondary));
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 8px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.reset-colors-btn:hover { color: var(--error-color); border-color: var(--error-color); }
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+.color-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.color-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+}
+.color-swatch-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.color-swatch {
+  width: 36px;
+  height: 28px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  cursor: pointer;
+  padding: 2px;
+  background: none;
+}
+.color-swatch::-webkit-color-swatch-wrapper { padding: 0; }
+.color-swatch::-webkit-color-swatch { border-radius: 3px; border: none; }
+.color-override-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 7px;
+  height: 7px;
+  background: var(--accent-color);
+  border-radius: 50%;
+  pointer-events: none;
+}
 </style>

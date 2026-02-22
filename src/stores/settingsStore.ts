@@ -1,12 +1,28 @@
 import { defineStore } from "pinia";
 import { ref, watch } from "vue";
 
+export const CUSTOMIZABLE_VARS = [
+  '--accent-color',
+  '--bg-primary',
+  '--bg-secondary',
+  '--text-primary',
+  '--border-color',
+] as const
+
+export type CustomizableVar = typeof CUSTOMIZABLE_VARS[number]
+
+export type ThemeColorOverrides = {
+  dark:  Partial<Record<CustomizableVar, string>>
+  light: Partial<Record<CustomizableVar, string>>
+}
+
 export interface UserSettings {
   theme: "dark" | "light";
   fontSize: number;
   fontFamily: string;
   lineHeight: number;
   tabWidth: number;
+  spellCheck: boolean;
   autoSaveInterval: number;
   defaultCompletionStyle: string;
   defaultCompletionLength: string;
@@ -15,6 +31,7 @@ export interface UserSettings {
   contextWindowSize: number;
   responseTemperature: number;
   keyboardShortcuts: Record<string, string>;
+  themeColors: ThemeColorOverrides;
 }
 
 const STORAGE_KEY = 'blockbreaker_settings'
@@ -25,6 +42,7 @@ const defaultSettings: UserSettings = {
   fontFamily: "Fira Code, monospace",
   lineHeight: 1.6,
   tabWidth: 2,
+  spellCheck: true,
   autoSaveInterval: 10000,
   defaultCompletionStyle: "mystical",
   defaultCompletionLength: "paragraph",
@@ -39,6 +57,7 @@ const defaultSettings: UserSettings = {
     settings: "ctrl+,",
     "toggle-mode": "tab",
   },
+  themeColors: { dark: {}, light: {} },
 };
 
 function loadFromStorage(): UserSettings {
@@ -58,6 +77,16 @@ function applyCSSVars(s: UserSettings) {
   root.style.setProperty('--editor-font-size', `${s.fontSize}px`)
   root.style.setProperty('--editor-line-height', String(s.lineHeight))
   root.style.setProperty('--editor-font-family', s.fontFamily)
+  // Apply per-theme color overrides; remove property to fall back to stylesheet when not set
+  const overrides = s.themeColors?.[s.theme] ?? {}
+  for (const v of CUSTOMIZABLE_VARS) {
+    const val = overrides[v]
+    if (val) {
+      root.style.setProperty(v, val)
+    } else {
+      root.style.removeProperty(v)
+    }
+  }
 }
 
 export const useSettingsStore = defineStore("settings", () => {
@@ -80,8 +109,16 @@ export const useSettingsStore = defineStore("settings", () => {
     settings.value.keyboardShortcuts[action] = shortcut;
   };
 
+  const updateThemeColor = (theme: 'dark' | 'light', varName: CustomizableVar, value: string) => {
+    settings.value.themeColors[theme][varName] = value
+  }
+
+  const resetThemeColors = (theme: 'dark' | 'light') => {
+    settings.value.themeColors[theme] = {}
+  }
+
   const resetToDefaults = () => {
-    settings.value = { ...defaultSettings };
+    settings.value = { ...defaultSettings, themeColors: { dark: {}, light: {} } };
   };
 
   const getSetting = <K extends keyof UserSettings>(key: K): UserSettings[K] => {
@@ -92,6 +129,8 @@ export const useSettingsStore = defineStore("settings", () => {
     settings,
     updateSetting,
     updateKeyboardShortcut,
+    updateThemeColor,
+    resetThemeColors,
     resetToDefaults,
     getSetting,
   };
