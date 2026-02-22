@@ -147,6 +147,13 @@
         :title="currentChapter.summary ? 'AI summary available — click to edit chapter properties' : 'No summary yet — click to open chapter properties'"
         @click="openChapterMeta"
       >&#x2299; {{ currentChapter.summary ? 'Summary' : 'No summary' }}</button>
+      <!-- Version history -->
+      <button
+        v-if="currentChapter"
+        class="status-item status-history-btn"
+        :title="'Version history'"
+        @click="showHistory = true"
+      >&#x23F1; History</button>
     </div>
   </div>
 
@@ -155,6 +162,10 @@
     :show="showChapterMeta"
     :chapter-id="metaChapterId"
     @close="showChapterMeta = false"
+  />
+  <ChapterHistory
+    :show="showHistory"
+    @close="showHistory = false"
   />
 </template>
 
@@ -171,6 +182,8 @@ import EditorMarkdown from './EditorMarkdown.vue'
 import EditorPreview from './EditorPreview.vue'
 import MarkdownReference from './MarkdownReference.vue'
 import ChapterMeta from './ChapterMeta.vue'
+import ChapterHistory from './ChapterHistory.vue'
+import { captureSnapshot } from '@/utils/historyManager'
 
 const storyStore = useStoryStore()
 const editorStore = useEditorStore()
@@ -198,6 +211,7 @@ const showMarkdownRef = ref(false)
 
 const showChapterMeta = ref(false)
 const metaChapterId   = ref<string | null>(null)
+const showHistory     = ref(false)
 
 const openChapterMeta = () => {
   const id = storyStore.currentChapterId
@@ -323,6 +337,12 @@ const saveChapter = async () => {
     const saved = await storyStore.saveStory()
     if (saved) {
       editorStore.markAsSaved()
+      // Capture a history snapshot (no-ops if change is too small)
+      await captureSnapshot(
+        storyStore.currentStoryId,
+        currentChapter.value,
+        content.value,
+      )
     }
   }
 }
@@ -460,4 +480,11 @@ const saveChapter = async () => {
 .status-summary-btn:hover { color: var(--accent-color); }
 .status-summary-btn.has-summary { color: var(--accent-color); opacity: 0.75; }
 .status-summary-btn.has-summary:hover { opacity: 1; }
+
+.status-history-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; color: var(--text-tertiary); padding: 0;
+  font-family: inherit; transition: color var(--transition-fast);
+}
+.status-history-btn:hover { color: var(--accent-color); }
 </style>

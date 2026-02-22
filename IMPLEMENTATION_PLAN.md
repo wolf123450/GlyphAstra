@@ -588,12 +588,19 @@ Substantial standalone features grouped to avoid fragmented implementation.
 - [x] Dragged chapter dims (`.is-dragging`) while repositioning
 - [x] `dataTransfer.setData` set for Firefox compatibility
 
-### 12.2 Chapter Version History & Timeline
-- [ ] Store diffs (or snapshots) of chapter content on each save (up to a configurable limit)
-- [ ] Timeline slider UI: drag to travel back/forward through edit history
-- [ ] **Age heatmap view**: colour text by how recently it was written/modified (recently written = bright, older = faded); alternately highlight frequently-changed text
-- [ ] Diff view: side-by-side or inline comparison between any two history points
-- [ ] Restore from a history point
+### 12.2 Chapter Version History & Timeline ✅ MOSTLY COMPLETE
+- [x] Snapshot-based history captured on every successful save (50-char delta or 60s elapsed threshold)
+- [x] Max 20 snapshots per chapter, oldest pruned first; persisted to `stories/{storyId}/history/{chapterId}.json`
+- [x] `src/utils/historyManager.ts` — `captureSnapshot()`, `getHistory()`, `evictCache()`; in-memory cache prevents redundant disk reads
+- [x] `src/components/ChapterHistory.vue` — modal with:
+  - Scrollable snapshot list (most recent first; datetime + word count per entry)
+  - Full Markdown preview of selected snapshot
+  - Line-level LCS diff view vs current editor content (added lines green, removed red)
+  - "Restore this version" button replaces current editor content
+- [x] Editor status bar “⏱ History” button opens the modal
+- [x] Snapshot capture hooked into `saveChapter()` in `Editor.vue` (after successful save)
+- [ ] **Age heatmap view** — colour live text by recency: recently written = bright, older = faded (deferred, complex)
+- [ ] Timeline slider UI for visual browsing
 
 ### 12.3 Session Undo / Redo
 - [ ] Persistent undo/redo stack beyond the browser's native `contenteditable` history
@@ -711,7 +718,7 @@ Substantial standalone features grouped to avoid fragmented implementation.
 - ✅ **Phase 9**: Settings & Customization - COMPLETE (5-tab modal, all settings persisted, custom theme colors)
 - 🟡 **Phase 10**: Export & Data Management - 95% (MD/HTML/DOCX/import/backup/restore done; auto-backup timer pending)
 - ⏳ **Phase 11**: Performance & Polish - NOT STARTED
-- 🟡 **Phase 12**: Chapter Management - IN PROGRESS (12.1 drag-to-reorder done; 12.6 inline title editing done; 12.2–12.5 not started)
+- 🟡 **Phase 12**: Chapter Management - IN PROGRESS (12.1 drag-to-reorder, 12.2 version history, 12.6 inline title editing done; 12.3–12.5 not started)
 - ⏳ **Phase 13**: Advanced Features - NOT STARTED
 - ⏳ **Phase 14**: Help & Onboarding - NOT STARTED
 - ⏳ **Phase 15**: Extensions - NOT STARTED
@@ -726,7 +733,8 @@ Substantial standalone features grouped to avoid fragmented implementation.
 ✅ AI context architecture: layered prompt stack, token budget, chapter summaries, context tag filtering
 ✅ Chapter Metadata Editor (title, status, type, context tags, AI summary management)
 ✅ Full-text search panel with regex, case-sensitive, and search & replace
-✅ Drag-to-reorder chapters via native HTML5 DnD (no extra dependencies)
+✅ Chapter version history (snapshots, Markdown preview, line-level diff, restore)
+✅ Drag-to-reorder chapters via native pointer events
 ✅ Inline chapter title editing in sidebar
 ✅ Export: Markdown, HTML, DOCX; Import: Markdown; Backup & Restore
 ✅ Settings: font, autosave, AI, custom theme colors (per dark/light), spellcheck toggle
@@ -740,8 +748,8 @@ Substantial standalone features grouped to avoid fragmented implementation.
 
 ### Next Priorities:
 1. **Phase 14** — Help & Onboarding (demo story, onboarding tour)
-2. **Phase 11** — Performance & Polish
-3. **Phase 12.2** — Chapter Version History & Timeline
+2. **Phase 12.3** — Session Undo/Redo
+3. **Phase 11** — Performance & Polish
 
 ---
 
