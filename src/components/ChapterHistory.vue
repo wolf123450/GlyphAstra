@@ -44,33 +44,46 @@
             </div>
             <template v-else>
               <div class="preview-toolbar">
-                <label class="diff-toggle">
-                  <input type="checkbox" v-model="showDiff" />
-                  <span>Compare with current</span>
-                </label>
+                <div class="diff-mode-group">
+                  <button class="diff-mode-btn" :class="{ active: diffMode === 'none' }"     @click="diffMode = 'none'">
+                    <span class="dmb-glyph">◈</span><span class="dmb-label">Preview</span>
+                  </button>
+                  <button class="diff-mode-btn" :class="{ active: diffMode === 'current' }"  @click="diffMode = 'current'">
+                    <span class="dmb-glyph">⇔</span><span class="dmb-label">vs&nbsp;Current</span>
+                  </button>
+                  <button class="diff-mode-btn" :class="{ active: diffMode === 'previous', disabled: !hasPrevious }" @click="diffMode = 'previous'" :disabled="!hasPrevious">
+                    <span class="dmb-glyph">⇦</span><span class="dmb-label">vs&nbsp;Previous</span>
+                  </button>
+                </div>
                 <span class="snapshot-age">{{ formatDateFull(selectedEntry.savedAt) }}</span>
-                <button
-                  class="btn-restore"
-                  @click="restore"
-                >↩ Restore</button>
+                <button class="btn-restore" @click="restore">↩ Restore</button>
               </div>
               <div class="preview-scroll">
                 <div
-                  v-if="!showDiff"
+                  v-if="diffMode === 'none'"
                   class="preview-content markdown-body"
                   v-html="renderedSnapshot"
                 />
                 <div v-else class="diff-view">
                   <div class="diff-legend">
-                    <span class="legend-del">■ removed since snapshot</span>
-                    <span class="legend-add">■ added since snapshot</span>
+                    <span class="legend-del">■ removed</span>
+                    <span class="legend-add">■ added</span>
                   </div>
                   <div
                     v-for="(line, i) in diffLines"
                     :key="i"
                     class="diff-line"
                     :class="line.type"
-                  >{{ line.text === '' ? '\u00a0' : line.text }}</div>
+                  >
+                    <template v-if="line.segments && line.segments.length">
+                      <span
+                        v-for="(seg, j) in line.segments"
+                        :key="j"
+                        :class="{ 'diff-char': seg.changed }"
+                      >{{ seg.text }}</span>
+                    </template>
+                    <template v-else>{{ line.text === '' ? '\u00a0' : line.text }}</template>
+                  </div>
                 </div>
               </div>
             </template>
@@ -103,20 +116,27 @@ defineEmits<{ (e: 'close'): void }>()
 const storyStore  = useStoryStore()
 const editorStore = useEditorStore()
 
-const entries      = ref<HistoryEntry[]>([])
-const loading      = ref(false)
+const entries       = ref<HistoryEntry[]>([])
+const loading       = ref(false)
 const selectedEntry = ref<HistoryEntry | null>(null)
-const showDiff     = ref(false)
-const restoredMsg  = ref('')
+const diffMode      = ref<'none' | 'current' | 'previous'>('none')
+const restoredMsg   = ref('')
 
 const chapterName = computed(() => storyStore.currentChapter?.name ?? 'Unknown')
+
+// ─── When the selection changes, disable 'previous' mode if already at last ─
+watch(selectedEntry, () => {
+  if (diffMode.value === 'previous' && !hasPrevious.value) {
+    diffMode.value = 'current'
+  }
+})
 
 // ─── Load history when modal opens ───────────────────────────────────────────
 watch(() => props.show, async (visible) => {
   if (!visible) {
     // Reset state on close
     selectedEntry.value = null
-    showDiff.value      = false
+    diffMode.value      = 'none'
     restoredMsg.value   = ''
     return
   }
@@ -139,8 +159,27 @@ const renderedSnapshot = computed(() => {
   return renderMarkdown(selectedEntry.value.content, 0, 'preview')
 })
 
+// ─── hasPrevious + diffTarget ───────────────────────────────────────────────
+const hasPrevious = computed(() => {
+  if (!selectedEntry.value) return false
+  const idx = entries.value.indexOf(selectedEntry.value)
+  return idx < entries.value.length - 1
+})
+
+const diffTarget = computed<string>(() => {
+  if (diffMode.value === 'current') return editorStore.content
+  if (diffMode.value === 'previous') {
+    if (!selectedEntry.value) return ''
+    const idx = entries.value.indexOf(selectedEntry.value)
+    const prev = entries.value[idx + 1]
+    return prev ? prev.content : ''
+  }
+  return ''
+})
+
 // ─── Line-level LCS diff ─────────────────────────────────────────────────────
-type DiffLine = { type: 'same' | 'add' | 'del'; text: string }
+type InlineSegment = { changed: boolean; text: string }
+type DiffLine = { type: 'same' | 'add' | 'del'; text: string; segments?: InlineSegment[] }
 
 function computeLineDiff(snapshotText: string, currentText: string): DiffLine[] {
   const a = snapshotText.split('\n')
@@ -184,9 +223,75 @@ function computeLineDiff(snapshotText: string, currentText: string): DiffLine[] 
   return result
 }
 
+// ─── Char-level LCS helpers ──────────────────────────────────────────────────
+function computeCharLCS(a: string, b: string): number[][] {
+  const m = a.length, n = b.length
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0))
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1])
+  return dp
+}
+
+/** Produce inline segments for `text` where chars NOT in LCS with `other` are marked changed. */
+function charSegments(text: string, other: string): InlineSegment[] {
+  if (!text) return [{ changed: false, text: '' }]
+  if (!other || text.length * other.length > 80_000) return [{ changed: true, text }]
+
+  const dp = computeCharLCS(text, other)
+  const changed: boolean[] = new Array(text.length).fill(true)
+  let i = text.length, j = other.length
+  while (i > 0 && j > 0) {
+    if (text[i - 1] === other[j - 1]) {
+      changed[i - 1] = false
+      i--; j--
+    } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+      i--
+    } else {
+      j--
+    }
+  }
+
+  const segs: InlineSegment[] = []
+  let cur: InlineSegment = { changed: changed[0] ?? false, text: text[0] ?? '' }
+  for (let k = 1; k < text.length; k++) {
+    if (changed[k] === cur.changed) {
+      cur.text += text[k]
+    } else {
+      segs.push(cur)
+      cur = { changed: changed[k], text: text[k] }
+    }
+  }
+  if (cur.text !== undefined) segs.push(cur)
+  return segs
+}
+
+/** Scan pairs of adjacent del+add lines and attach char-level segments to each. */
+function pairDelAdd(lines: DiffLine[]): DiffLine[] {
+  const out: DiffLine[] = []
+  let i = 0
+  while (i < lines.length) {
+    if (
+      lines[i].type === 'del' &&
+      i + 1 < lines.length &&
+      lines[i + 1].type === 'add'
+    ) {
+      const delLine = lines[i]
+      const addLine = lines[i + 1]
+      out.push({ ...delLine, segments: charSegments(delLine.text, addLine.text) })
+      out.push({ ...addLine, segments: charSegments(addLine.text, delLine.text) })
+      i += 2
+    } else {
+      out.push(lines[i])
+      i++
+    }
+  }
+  return out
+}
+
 const diffLines = computed<DiffLine[]>(() => {
-  if (!selectedEntry.value) return []
-  return computeLineDiff(selectedEntry.value.content, editorStore.content)
+  if (diffMode.value === 'none' || !selectedEntry.value) return []
+  return pairDelAdd(computeLineDiff(selectedEntry.value.content, diffTarget.value))
 })
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -382,23 +487,56 @@ function restore() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px var(--spacing-lg);
+  padding: 6px var(--spacing-lg);
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-secondary);
   flex-shrink: 0;
   gap: var(--spacing-md);
 }
 
-.diff-toggle {
+/* Segmented diff-mode button group — mirrors editor mode-btn style */
+.diff-mode-group {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--text-secondary);
+  gap: 2px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.diff-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius-md) - 1px);
   cursor: pointer;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  transition: all var(--transition-fast);
   user-select: none;
 }
-.diff-toggle input { cursor: pointer; accent-color: var(--accent-color); }
+.diff-mode-btn:hover:not(:disabled) {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.diff-mode-btn.active {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: white;
+}
+.diff-mode-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.dmb-glyph { font-size: 13px; line-height: 1; }
+.dmb-label { font-size: 11px; font-weight: 500; }
 
 .snapshot-age {
   font-size: 11px;
@@ -466,12 +604,24 @@ function restore() {
 }
 .diff-line.same { color: var(--text-secondary); }
 .diff-line.del  {
-  background: color-mix(in srgb, var(--error-color) 14%, transparent);
+  background: color-mix(in srgb, var(--error-color) 12%, transparent);
   color: var(--error-color);
 }
 .diff-line.add  {
-  background: color-mix(in srgb, var(--success-color) 12%, transparent);
+  background: color-mix(in srgb, var(--success-color) 10%, transparent);
   color: var(--success-color);
+}
+
+/* Inline character-level highlight — stronger than the line background */
+.diff-line.del .diff-char {
+  background: color-mix(in srgb, var(--error-color) 38%, transparent);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.diff-line.add .diff-char {
+  background: color-mix(in srgb, var(--success-color) 32%, transparent);
+  border-radius: 2px;
+  padding: 0 1px;
 }
 
 /* Footer */
