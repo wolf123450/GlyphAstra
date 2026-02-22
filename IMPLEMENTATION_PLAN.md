@@ -113,6 +113,9 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 - [x] Story metadata management (title, description, genre, tone, narrative voice)
 - [x] Basic folder and chapter CRUD operations
 - [x] Load existing story projects from disk via `fileStorage.listProjects()`
+- [ ] **Delete story** — button in the story list (with confirmation dialog) that removes the story from disk and localStorage and refreshes the list
+- [ ] **Story list sorting** — sort by last-modified date descending (then by created date, then alphabetically) so identically-named stories never appear in random order
+- [ ] **Story list timestamps** — show both date *and* time (e.g. `Feb 22, 2026 · 4:32 PM`) instead of date-only for created/last-modified labels
 
 ### 3.3 Chapter Operations ✅
 - [x] Create new chapters programmatically
@@ -185,7 +188,8 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 - [x] Horizontal rules (--- / ***)
 - [x] Inline links ([text](url)) — rendered clickable in preview; Ctrl+Click in seamless
 - [x] External links open in system browser via plugin-opener (never inside WebView)
-- [x] Internal chapter:// links navigate within the app
+- [x] Internal `chapter://` links navigate within the app
+- [ ] Internal `story://` links open another story in the library from within chapter text (e.g. `[See Book 2](story://story-id)`) — see Phase 17.1
 - [ ] Images (![alt](url))
 - [ ] Tables (pipe syntax)
 
@@ -257,6 +261,7 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 - [x] List available local models via API
 - [x] Model selection dropdown in AI panel
 - [x] Model caching in aiStore
+- [ ] **Persist selected model** — save `currentModel` to `localStorage`; on startup, after the model list is fetched, auto-select the persisted model if it is still available, otherwise fall back to the first available model and notify the user
 
 ### 6.3 Inline Suggestion System ✅
 - [x] `useAISuggestion.ts` composable — manages up to 3 suggestions, consumed index, cycling
@@ -573,6 +578,22 @@ The current `prompt` field on `AIStyle` becomes a multi-sentence instruction blo
 - [ ] Accessibility (WCAG compliance)
 - ✅ Unit and integration test suite (Vitest, 149 tests across seamlessRenderer, editorCursor, CRLF tokenisation)
 
+### 11.x Icon Library Overhaul ⏳ NOT STARTED
+
+**Problem:** Several current icons are unsatisfying — the circled `+` for new chapters, sidebar expand/collapse arrows, export/import icon, save icon, settings gear, and the app icon itself. Unicode glyphs are limited and inconsistent across platforms.
+
+**Approach:**
+- Evaluate an SVG icon library: leading candidates are **Phosphor Icons** (MIT, 1,200+ icons, Vue/web component support, consistent weight/style) and **Material Design Icons** (community fork, 7,000+ icons, slightly heavier).
+- Both support the current black-and-white glyph aesthetic while offering much more variety than Unicode.
+- Before committing to specific icon changes, generate an in app preview grid of candidate icons from each library for user review and selection.
+
+**Scope:**
+- [ ] Select icon library and install (e.g. `phosphor-vue` or inline SVG sprites)
+- [ ] Preview candidate replacements for: new-chapter button, sidebar collapse/expand, export, import, save, settings, and app icon — present options to user before committing
+- [ ] Replace icons across Sidebar, Editor header, ExportPanel, Settings modal
+- [ ] Design new app icon (`.ico` / `.icns` / `.png` set) matching chosen aesthetic
+- [ ] Ensure icons respect the current CSS `--text-primary` / `--accent-color` variables so they work in both dark and light themes
+
 ---
 
 ## Phase 12: Chapter Management 🟡 IN PROGRESS
@@ -620,6 +641,17 @@ Substantial standalone features grouped to avoid fragmented implementation.
 - [ ] Manual translation entry
 - [ ] Language selector in editor header when translations exist
 
+### 12.7 Chapter Numbering & Custom Labels ⏳ NOT STARTED
+
+Authors frequently use non-numeric chapter identifiers — prologues, epilogues, interludes, parts, and unnumbered literary chapters. Auto-numbering by position is not sufficient.
+
+- [ ] Add `chapterLabel?: string` to the `Chapter` type — a freeform override for the display number/title prefix (e.g. `"Prologue"`, `"Interlude I"`, `"Chapter 4"`, `"Part Two"`)
+- [ ] When `chapterLabel` is set it is shown in the sidebar and in export headings instead of the auto-incremented number
+- [ ] When `chapterLabel` is empty the chapter falls back to auto-numbering that skips chapters whose label explicitly opts out of numbering (e.g. a `"Prologue"` label implies no number)
+- [ ] `chapterLabel` is editable in the **Chapter Metadata Editor** (Phase 7.y)
+- [ ] Export (MD, HTML, DOCX) uses `chapterLabel` when present; falls back to `chapterTitle` only
+- [ ] Chapter type pills in the metadata editor (Normal / Plot Outline / Prologue / Epilogue / Interlude / etc.) can pre-populate `chapterLabel` as a convenience
+
 ### 12.6 Inline Chapter Title Editing ✅ COMPLETE
 > Currently renaming is only available through the Chapter Metadata Editor (≡ → Title field).
 - [x] Mouseover on a chapter name in the sidebar reveals an edit (✎) indicator icon.
@@ -635,6 +667,79 @@ Substantial standalone features grouped to avoid fragmented implementation.
 
 - [ ] Analytics and insights
 - [ ] Community features
+
+---
+
+## Phase 16: Cloud AI Model Integration ⏳ NOT STARTED
+
+**Context:** Ollama covers local models well, but many users will want to use hosted cloud models (OpenAI, Anthropic, Google) — especially for higher-quality suggestions or when a machine is underpowered for local inference. This is a **BYO API key** integration; BlockBreaker will never proxy or hold user keys server-side.
+
+### 16.1 Architecture
+- [ ] Abstract the current Ollama client behind a `ModelProvider` interface:
+  ```
+  interface ModelProvider {
+    id: string                                  // 'ollama' | 'openai' | 'anthropic' | 'google'
+    name: string
+    isAvailable(): Promise<boolean>
+    listModels(): Promise<ModelInfo[]>
+    streamCompletion(prompt: string, opts: CompletionOptions): AsyncIterable<string>
+  }
+  ```
+- [ ] `aiStore` holds the active provider ID + per-provider API key (keys stored in encrypted localStorage or Tauri's `stronghold` plugin)
+- [ ] The AI panel model selector groups models by provider
+
+### 16.2 Provider Implementations
+- [ ] **OpenAI** — `POST /v1/chat/completions` with `stream: true`; supported models: `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`, `gpt-3.5-turbo`
+- [ ] **Anthropic (Claude)** — Messages API with streaming; supported models: `claude-opus-4`, `claude-sonnet-4`, `claude-haiku-3`
+- [ ] **Google (Gemini)** — `generateContentStream`; supported models: `gemini-2.0-flash`, `gemini-1.5-pro`, `gemini-2.5-pro`
+- [ ] Each provider implementation lives in `src/api/providers/{name}.ts`
+
+### 16.3 Settings UI
+- [ ] New **AI Providers** section in Settings → AI tab
+- [ ] Per-provider row: enable toggle, API key input (masked, paste-friendly), "Test connection" button, status indicator
+- [ ] API keys never logged anywhere; connection test uses the cheapest available model (e.g. a 1-token completion)
+- [ ] Warning banner: *"Your API key is stored locally on this device only and is never sent to any BlockBreaker server."*
+- [ ] When a cloud provider is enabled and connected, its models appear in the model selector alongside (or instead of) local Ollama models
+
+### 16.4 Context & Cost Considerations
+- [ ] Cloud providers use the same `contextBuilder.ts` pipeline as Ollama
+- [ ] Show an estimated **token count** for the assembled prompt in the Prompt Preview modal so users can reason about cost
+- [ ] Per-provider token limits enforced (e.g. 128K for GPT-4o, 200K for Claude); `contextBuilder` respects the active model's limit
+- [ ] Optional: running session cost estimator in editor status bar (tokens used × known pricing)
+
+---
+
+## Phase 17: Story Library & Series Management ⏳ NOT STARTED
+
+Support for multi-book series, sequels, and cross-story references — useful for authors working on a universe with multiple books.
+
+### 17.1 In-Markdown Story Links (Primary Feature)
+
+Mirrors the existing `chapter://` link scheme, but for navigating between stories in the library.
+
+- [ ] **`story://` URL scheme** — `[Link text](story://story-id)` in any chapter opens that story in the app. Also support `story://story-id/chapter-id` to land on a specific chapter.
+- [ ] `markdownRenderer.ts` recognises the `story://` scheme and routes it through the app router instead of the system browser (same pattern as `chapter://`)
+- [ ] In seamless mode, `Ctrl+Click` on a `story://` link navigates to that story (consistent with `chapter://` behaviour)
+- [ ] The **Insert Link** helper (if/when added) offers an autocomplete picker for stories and their chapters alongside the existing chapter picker
+- [ ] Story titles are resolved at render time from the story library so the rendered link label can fall back to the story title when the href is an opaque ID
+- [ ] Broken `story://` links (story no longer exists) render with a visual error indicator (`class="link-broken"`) rather than silently going nowhere
+
+### 17.2 Story Metadata Linking (Series Management)
+
+Higher-level metadata for multi-book series — builds on 17.1.
+- [ ] Add `linkedStoryIds: string[]` to story metadata — a list of other story IDs in the library this story is connected to
+- [ ] Links are symmetric: linking Story A → B automatically adds B → A
+- [ ] **Link type tags** per link: `sequel`, `prequel`, `companion`, `same-universe`, `alternate-timeline` (free text allowed too)
+- [ ] Linked stories shown in a **Series** panel in the Story Overview sidebar section
+- [ ] Clicking a linked story switches to that story (story breadcrumb in title bar)
+- [ ] Optionally pull character profiles from linked stories into the AI context so the model is aware of shared characters
+- [ ] `contextBuilder.ts` option: `includeLinkedCharacters?: boolean` — injects a `Shared characters:` block from linked stories
+- [ ] Characters can be flagged `sharedAcrossSeries: true` in the character profile to be included automatically
+
+### 17.3 Series Overview
+- [ ] Dedicated **Series** view (accessible from the sidebar footer or Stories page) showing all stories in a linked cluster with reading-order arrows
+- [ ] Drag-to-reorder reading order within a series
+- [ ] Total series word count and per-book progress bars
 
 ---
 
@@ -701,10 +806,10 @@ Substantial standalone features grouped to avoid fragmented implementation.
 
 ## OVERALL PROGRESS SUMMARY
 
-**Total Phases:** 15 (6 months planned + extensions)
+**Total Phases:** 17 (6 months planned + extensions)
 **Completed Phases:** 1-2 (~40% core framework done)
 **Partially Completed:** 3-7, 9-10 (most features implemented, some sub-items pending)
-**Not Started:** 12-13 (chapter management, advanced features)
+**Not Started:** 11-17 (polish, chapter management, advanced features, cloud AI, series management)
 
 ### Current Implementation Status:
 - ✅ **Phase 1**: Foundation - COMPLETE
@@ -717,11 +822,13 @@ Substantial standalone features grouped to avoid fragmented implementation.
 - 🟡 **Phase 8**: Search - 90% (full-text search, TOC, replace, regex, case-sensitive done; badge + advanced filters pending)
 - ✅ **Phase 9**: Settings & Customization - COMPLETE (5-tab modal, all settings persisted, custom theme colors)
 - 🟡 **Phase 10**: Export & Data Management - 95% (MD/HTML/DOCX/import/backup/restore done; auto-backup timer pending)
-- ⏳ **Phase 11**: Performance & Polish - NOT STARTED
-- 🟡 **Phase 12**: Chapter Management - IN PROGRESS (12.1 drag-to-reorder, 12.2 version history, 12.6 inline title editing done; 12.3–12.5 not started)
+- ⏳ **Phase 11**: Performance & Polish - NOT STARTED (icon overhaul planned)
+- 🟡 **Phase 12**: Chapter Management - IN PROGRESS (12.1 drag-to-reorder, 12.2 version history, 12.6 inline title editing done; 12.3–12.5, 12.7 not started)
 - ⏳ **Phase 13**: Advanced Features - NOT STARTED
 - ⏳ **Phase 14**: Help & Onboarding - NOT STARTED
 - ⏳ **Phase 15**: Extensions - NOT STARTED
+- ⏳ **Phase 16**: Cloud AI Integration - NOT STARTED
+- ⏳ **Phase 17**: Story Library & Series Management - NOT STARTED
 
 ### Key Achievements:
 ✅ Full Vue.js + Tauri desktop application framework
@@ -747,9 +854,15 @@ Substantial standalone features grouped to avoid fragmented implementation.
 ✅ 149 unit tests (Vitest)
 
 ### Next Priorities:
-1. **Phase 14** — Help & Onboarding (demo story, onboarding tour)
-2. **Phase 12.3** — Session Undo/Redo
-3. **Phase 11** — Performance & Polish
+1. **Phase 3.2 backlog** — Delete story, story list sorting by date, timestamps with time
+2. **Phase 6.2 bugfix** — Persist selected AI model across sessions
+3. **Phase 14** — Help & Onboarding (demo story, onboarding tour)
+4. **Phase 12.3** — Session Undo/Redo
+5. **Phase 12.7** — Chapter custom numbering & labels
+6. **Phase 11.x** — Icon library evaluation & overhaul
+7. **Phase 16** — Cloud AI model integration (OpenAI, Anthropic, Google)
+8. **Phase 17** — Story library & series management
+9. **Phase 11** — Performance & Polish
 
 ---
 
