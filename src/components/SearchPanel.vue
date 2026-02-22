@@ -15,6 +15,52 @@
             spellcheck="false"
           />
           <button v-if="query" class="clear-btn" @click="query = ''" title="Clear">✕</button>
+          <button
+            class="mode-btn"
+            :class="{ active: caseSensitive }"
+            @click="caseSensitive = !caseSensitive"
+            title="Case sensitive (Alt+C)"
+          >Aa</button>
+          <button
+            class="mode-btn"
+            :class="{ active: regexMode }"
+            @click="regexMode = !regexMode"
+            title="Regex mode (Alt+R)"
+          >.*</button>
+          <button
+            class="mode-btn"
+            :class="{ active: showReplace }"
+            @click="showReplace = !showReplace"
+            title="Toggle replace (Alt+H)"
+          >⇄</button>
+        </div>
+
+        <!-- ── Regex error ──────────────────────────────────── -->
+        <div v-if="regexError" class="regex-error">Invalid regex: {{ regexError }}</div>
+
+        <!-- ── Replace row ─────────────────────────────────── -->
+        <div v-if="showReplace" class="replace-row">
+          <span class="search-icon" style="opacity:0.4">⇄</span>
+          <input
+            v-model="replaceText"
+            class="search-input"
+            placeholder="Replace with…"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button v-if="replaceText" class="clear-btn" @click="replaceText = ''" title="Clear">✕</button>
+          <button
+            class="replace-btn"
+            :disabled="!query.trim() || resultGroups.length === 0"
+            @click="replaceFocused"
+            title="Replace focused match"
+          >Replace</button>
+          <button
+            class="replace-btn replace-all-btn"
+            :disabled="!query.trim() || resultGroups.length === 0"
+            @click="replaceAll"
+            title="Replace all matches"
+          >All</button>
         </div>
 
         <!-- ── TOC (empty query) ─────────────────────────────── -->
@@ -61,6 +107,7 @@
         <!-- ── Footer ─────────────────────────────────────────── -->
         <div class="search-footer">
           <span v-if="!query.trim()">{{ chapters.length }} chapter{{ chapters.length === 1 ? '' : 's' }} · {{ totalWords.toLocaleString() }} words total</span>
+          <span v-else-if="showReplace">Replace &nbsp;·&nbsp; Replace All &nbsp;·&nbsp; ↑↓ navigate &nbsp;·&nbsp; Esc close</span>
           <span v-else>↑↓ navigate &nbsp;·&nbsp; Enter jump &nbsp;·&nbsp; Esc close</span>
         </div>
       </div>
@@ -84,6 +131,11 @@ const query = ref('')
 const focusedIndex = ref(0)
 const panelEl = ref<HTMLElement | null>(null)
 const inputEl = ref<HTMLInputElement | null>(null)
+const caseSensitive = ref(false)
+const regexMode = ref(false)
+const regexError = ref('')
+const showReplace = ref(false)
+const replaceText = ref('')
 
 // ── Computed ──────────────────────────────────────────────────────────────────
 const chapters = computed(() => storyStore.chapters)
@@ -137,11 +189,53 @@ interface ResultGroup {
   snippets: Snippet[]
 }
 
+/** Build highlighted HTML for a plain-text snippet, marking all matches. */
+function highlightSnippet(raw: string): string {
+  const q = query.value.trim()
+  const flags = caseSensitive.value ? 'g' : 'gi'
+  let hlRe: RegExp
+  try {
+    hlRe = new RegExp(regexMode.value ? q : escapeRegex(q), flags)
+  } catch {
+    return escapeHtml(raw)
+  }
+  let result = ''
+  let lastIdx = 0
+  let m: RegExpExecArray | null
+  hlRe.lastIndex = 0
+  while ((m = hlRe.exec(raw)) !== null) {
+    result += escapeHtml(raw.slice(lastIdx, m.index))
+    result += '<mark>' + escapeHtml(m[0]) + '</mark>'
+    lastIdx = m.index + m[0].length
+    if (m[0].length === 0) hlRe.lastIndex++
+  }
+  result += escapeHtml(raw.slice(lastIdx))
+  return result
+}
+
+/** Build a RegExp from the current query + mode flags. Returns null and sets regexError on failure. */
+function buildSearchRegex(): RegExp | null {
+  const q = query.value.trim()
+  if (!q) return null
+  const flags = caseSensitive.value ? 'g' : 'gi'
+  try {
+    const pattern = regexMode.value ? q : escapeRegex(q)
+    const re = new RegExp(pattern, flags)
+    regexError.value = ''
+    return re
+  } catch (e) {
+    regexError.value = (e as Error).message
+    return null
+  }
+}
+
 const resultGroups = computed((): ResultGroup[] => {
   const q = query.value.trim()
   if (!q) return []
 
-  const re = new RegExp(escapeRegex(q), 'gi')
+  const re = buildSearchRegex()
+  if (!re) return []
+
   let globalIndex = 0
   const groups: ResultGroup[] = []
 
@@ -155,26 +249,22 @@ const resultGroups = computed((): ResultGroup[] => {
 
     while ((match = re.exec(plain)) !== null) {
       const pos = match.index
+      const matchLen = match[0].length
       // Deduplicate snippets that are very close together (within 2*radius)
       const bucket = Math.floor(pos / (SNIPPET_RADIUS * 2))
       if (seenOffsets.has(bucket)) continue
       seenOffsets.add(bucket)
 
       const start = Math.max(0, pos - SNIPPET_RADIUS)
-      const end = Math.min(plain.length, pos + q.length + SNIPPET_RADIUS)
+      const end = Math.min(plain.length, pos + matchLen + SNIPPET_RADIUS)
       let raw = plain.slice(start, end)
-      if (start > 0) raw = '…' + raw
-      if (end < plain.length) raw = raw + '…'
+      if (start > 0) raw = '\u2026' + raw
+      if (end < plain.length) raw = raw + '\u2026'
 
-      // Highlight matches in snippet
-      const html = escapeHtml(raw).replace(
-        new RegExp(escapeRegex(escapeHtml(q)), 'gi'),
-        '<mark>$&</mark>'
-      )
-
-      snippets.push({ html, globalIndex: globalIndex++ })
+      snippets.push({ html: highlightSnippet(raw), globalIndex: globalIndex++ })
 
       if (snippets.length >= 3) break // max 3 snippets per chapter
+      if (matchLen === 0) re.lastIndex++ // prevent infinite loop on zero-width match
     }
 
     if (snippets.length > 0) {
@@ -197,6 +287,10 @@ const allSnippets = computed(() =>
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') { close(); return }
+  // Alt+C: case-sensitive, Alt+R: regex, Alt+H: replace
+  if (e.altKey && e.key === 'c') { caseSensitive.value = !caseSensitive.value; return }
+  if (e.altKey && e.key === 'r') { regexMode.value = !regexMode.value; return }
+  if (e.altKey && e.key === 'h') { showReplace.value = !showReplace.value; return }
 
   if (query.value.trim() && allSnippets.value.length > 0) {
     if (e.key === 'ArrowDown') {
@@ -232,6 +326,44 @@ function close() {
   uiStore.showSearchPanel = false
 }
 
+// ── Replace ─────────────────────────────────────────────────────────────
+function applyReplacement(content: string, all: boolean): string {
+  const q = query.value.trim()
+  if (!q) return content
+  const baseFlags = caseSensitive.value ? '' : 'i'
+  const flags = all ? baseFlags + 'g' : baseFlags
+  try {
+    const pattern = regexMode.value ? q : escapeRegex(q)
+    return content.replace(new RegExp(pattern, flags), replaceText.value)
+  } catch {
+    return content
+  }
+}
+
+function replaceFocused() {
+  const item = allSnippets.value.find((s) => s.globalIndex === focusedIndex.value)
+  if (!item) return
+  const original = getContent(item.chapterId)
+  const updated = applyReplacement(original, false) // replace first occurrence only
+  if (updated === original) return
+  if (item.chapterId === storyStore.currentChapterId) {
+    editorStore.setContent(updated)
+  }
+  storyStore.updateChapter(item.chapterId, { content: updated })
+}
+
+function replaceAll() {
+  for (const group of resultGroups.value) {
+    const original = getContent(group.chapterId)
+    const updated = applyReplacement(original, true) // replace every occurrence
+    if (updated === original) continue
+    if (group.chapterId === storyStore.currentChapterId) {
+      editorStore.setContent(updated)
+    }
+    storyStore.updateChapter(group.chapterId, { content: updated })
+  }
+}
+
 function statusLabel(status: string): string {
   const map: Record<string, string> = {
     draft: 'Draft',
@@ -247,16 +379,19 @@ watch(
   () => uiStore.showSearchPanel,
   async (visible) => {
     if (visible) {
-      query.value = ''
       focusedIndex.value = 0
       await nextTick()
       inputEl.value?.focus()
+      inputEl.value?.select()
     }
   }
 )
 
 // Reset focused index when results change
 watch(resultGroups, () => { focusedIndex.value = 0 })
+
+// Clear regex error when query changes (re-evaluated in buildSearchRegex via computed)
+watch(query, () => { if (!regexMode.value) regexError.value = '' })
 </script>
 
 <style scoped>
@@ -332,6 +467,68 @@ watch(resultGroups, () => { focusedIndex.value = 0 })
   transition: color 0.15s;
 }
 .clear-btn:hover { color: var(--text-primary); }
+
+/* ─── Mode toggle buttons (Aa / .* / ⇄) ──────────────── */
+.mode-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  line-height: 1.5;
+}
+.mode-btn:hover { color: var(--text-primary); border-color: var(--text-muted); }
+.mode-btn.active {
+  background: color-mix(in srgb, var(--accent-color) 20%, transparent);
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+/* ─── Regex error ─────────────────────────────────────── */
+.regex-error {
+  padding: 4px 16px;
+  font-size: 11px;
+  color: #e06c75;
+  background: color-mix(in srgb, #e06c75 10%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, #e06c75 30%, transparent);
+  flex-shrink: 0;
+}
+
+/* ─── Replace row ─────────────────────────────────────── */
+.replace-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.replace-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 3px 9px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.replace-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-color) 15%, transparent);
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+.replace-btn:disabled { opacity: 0.35; cursor: default; }
+.replace-all-btn { font-weight: 600; }
 
 /* ─── Scrollable body ─────────────────────────────────── */
 .search-body {
