@@ -26,12 +26,16 @@ import { useStoryStore } from '@/stores/storyStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { initializeKeyboardShortcuts, registerDefaultShortcuts } from '@/utils/keyboard'
 import { storageManager } from '@/utils/storage'
+import { useSummaryManager } from '@/utils/summaryManager'
 
 const LAST_STORY_KEY = 'blockbreaker_last_story'
 
 const uiStore = useUIStore()
 const storyStore = useStoryStore()
 const settingsStore = useSettingsStore()
+
+// Start background chapter auto-summariser
+useSummaryManager()
 
 // Apply persisted theme immediately
 uiStore.setTheme(settingsStore.settings.theme)

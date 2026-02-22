@@ -1,18 +1,23 @@
 <template>
   <div class="chapter-item" :class="{ active: isActive }" @click="selectSelf">
     <div class="chapter-content">
-      <div class="chapter-name">{{ chapter.name }}</div>
+      <div class="chapter-name-row">
+        <span class="chapter-name">{{ chapter.name }}</span>
+        <span v-if="chapter.isPlotOutline" class="badge badge-outline" title="Plot outline — injected into every AI prompt">▸ Outline</span>
+      </div>
       <div class="chapter-meta">
         <span class="status" :class="`status-${chapter.status}`">
           {{ chapter.status }}
         </span>
         <span class="word-count">{{ chapter.wordCount }} words</span>
+        <span v-if="chapter.contextTags && chapter.contextTags.length" class="tags-badge" :title="chapter.contextTags.join(', ')">
+          &#x2317; {{ chapter.contextTags.length }}
+        </span>
+        <span v-if="chapter.summary" class="summary-badge" title="AI summary available">&#x2299;</span>
       </div>
     </div>
     <div class="chapter-actions" v-show="isActive">
-      <button class="action-btn" @click.stop="renameThis" title="Rename">
-        ✎
-      </button>
+      <button class="action-btn" @click.stop="openMeta" title="Edit properties">&#x2261;</button>
       <button class="action-btn delete" @click.stop="deleteThis" title="Delete">
         ×
       </button>
@@ -31,7 +36,7 @@ interface Props {
 interface Emits {
   (e: 'select', id: string): void
   (e: 'delete', id: string): void
-  (e: 'rename', id: string, newName: string): void
+  (e: 'edit-meta', id: string): void
 }
 
 const props = defineProps<Props>()
@@ -45,11 +50,8 @@ const deleteThis = () => {
   emit('delete', props.chapter.id)
 }
 
-const renameThis = () => {
-  const newName = prompt('New chapter name:', props.chapter.name)
-  if (newName && newName.trim()) {
-    emit('rename', props.chapter.id, newName.trim())
-  }
+const openMeta = () => {
+  emit('edit-meta', props.chapter.id)
 }
 </script>
 
@@ -83,12 +85,28 @@ const renameThis = () => {
   min-width: 0;
 }
 
+.chapter-name-row {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: var(--spacing-xs);
+  overflow: hidden;
+}
+
 .chapter-name {
   font-weight: 500;
-  margin-bottom: var(--spacing-xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1; min-width: 0;
+}
+
+.badge {
+  display: inline-block; padding: 1px 5px;
+  border-radius: 3px; font-size: 10px; font-weight: 600;
+  white-space: nowrap; flex-shrink: 0;
+}
+.badge-outline {
+  background: color-mix(in srgb, var(--accent-color) 15%, transparent);
+  color: var(--accent-color); border: 1px solid currentColor;
 }
 
 .chapter-meta {
@@ -96,6 +114,11 @@ const renameThis = () => {
   gap: var(--spacing-sm);
   font-size: 12px;
   color: var(--text-tertiary);
+  align-items: center;
+}
+
+.tags-badge, .summary-badge {
+  font-size: 11px; color: var(--text-tertiary); opacity: 0.7;
 }
 
 .chapter-item.active .chapter-meta {
@@ -177,6 +200,6 @@ const renameThis = () => {
 }
 
 .action-btn.delete:hover {
-  background-color: #e74c3c;
+  background-color: var(--error-color);
 }
 </style>

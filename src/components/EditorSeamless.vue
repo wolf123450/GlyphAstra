@@ -554,7 +554,7 @@ const onInput = (event: InputEvent) => {
 /* ── Source mode: show raw markdown ─────────────────────── */
 .editor-input :deep(.token.source .marker) {
   display: inline !important;
-  background-color: rgba(150, 100, 200, 0.15);
+  background-color: color-mix(in srgb, var(--accent-color) 15%, transparent);
   padding: 1px 3px;
   border-radius: 2px;
   color: var(--text-secondary);

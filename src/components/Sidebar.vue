@@ -64,7 +64,7 @@
             :is-active="chapter.id === currentChapterId"
             @select="selectChapter"
             @delete="deleteChapter"
-            @rename="renameChapter"
+            @edit-meta="openChapterMeta"
           />
         </div>
       </div>
@@ -80,6 +80,13 @@
       </button>
     </div>
   </aside>
+
+  <!-- Chapter Metadata Editor -->
+  <ChapterMeta
+    :show="showChapterMeta"
+    :chapter-id="metaChapterId"
+    @close="showChapterMeta = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -89,12 +96,20 @@ import { useUIStore } from '@/stores/uiStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { storageManager } from '@/utils/storage'
 import ChapterItem from './ChapterItem.vue'
+import ChapterMeta from './ChapterMeta.vue'
 
 const storyStore = useStoryStore()
 const editorStore = useEditorStore()
 const uiStore = useUIStore()
 
 const showStoryPicker = ref(false)
+const showChapterMeta = ref(false)
+const metaChapterId   = ref<string | null>(null)
+
+const openChapterMeta = (id: string) => {
+  metaChapterId.value   = id
+  showChapterMeta.value = true
+}
 
 const currentStoryTitle = computed(() => storyStore.metadata.title || 'Untitled Story')
 
@@ -217,10 +232,6 @@ const deleteChapter = (id: string) => {
       storyStore.setCurrentChapter(null)
     }
   }
-}
-
-const renameChapter = (id: string, newName: string) => {
-  storyStore.updateChapter(id, { name: newName })
 }
 
 const toggleSettings = () => {

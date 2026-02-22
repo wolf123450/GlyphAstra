@@ -255,7 +255,7 @@ const doImport = async () => {
   border-radius: var(--radius-sm);
   font-size: 12px;
 }
-.status-msg.ok  { background: rgba(76, 175, 80, 0.12); color: var(--success-color, #4caf50); }
-.status-msg.err { background: rgba(244, 67, 54, 0.12); color: #f44336; }
+.status-msg.ok  { background: color-mix(in srgb, var(--success-color) 12%, transparent); color: var(--success-color); }
+.status-msg.err { background: color-mix(in srgb, var(--error-color)   12%, transparent); color: var(--error-color); }
 .status-msg.info { background: var(--bg-tertiary); color: var(--text-tertiary); }
 </style>

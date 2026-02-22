@@ -17,8 +17,8 @@ import { ref, computed } from 'vue'
 import { ollamaClient } from '@/api/ollama'
 import { useAIStore } from '@/stores/aiStore'
 import { useStoryStore } from '@/stores/storyStore'
+import { buildContext } from '@/utils/contextBuilder'
 
-const CONTEXT_CHARS  = 1500
 const MAX_SUGGESTIONS = 3
 /** How many chars to buffer before checking for context overlap. */
 const OVERLAP_BUFFER  = 200
@@ -64,17 +64,6 @@ export function useAISuggestion() {
   // ─── Internal helpers ──────────────────────────────────────────────────────
 
   /**
-   * Build the instruction line that tells the model exactly how much to write.
-   * The phrasing is deliberately direct so models don't interpret it loosely.
-   */
-  const lengthInstruction = (tokens: number): string => {
-    if (tokens <= 35)  return 'Continue with a SHORT PHRASE only (4-8 words). DO NOT write a full sentence. DO NOT add line breaks. Stop immediately after the phrase.'
-    if (tokens <= 100) return 'Continue with EXACTLY ONE sentence, or continuation of a sentence. If the context ends in an incomplete sentence, continue the sentence naturally, omitting words already in the context. Do not write more than one sentence. Do not add any line breaks or start a new paragraph. Stop immediately after the period.'
-    return 'Continue with EXACTLY ONE SHORT PARAGRAPH (2-3 sentences maximum). Stop immediately after the paragraph ends. Do not start a second paragraph.'
-  }
-
-
-  /**
    * Choose stop sequences that prevent the model from running over
    * into a second paragraph regardless of the instruction above.
    */
@@ -85,30 +74,7 @@ export function useAISuggestion() {
   }
 
   const buildPrompt = (textBefore: string): string => {
-    const meta   = storyStore.metadata
-    const profile = aiStore.getStyle(aiStore.currentStyle)
-    const tokens = aiStore.suggestionTokens
-    const ctx    = textBefore.slice(-CONTEXT_CHARS)
-
-    const lines: string[] = [
-      'You are an inline creative writing assistant embedded in a text editor.',
-      lengthInstruction(tokens),
-    ]
-    if (meta.title) lines.push(`Story title: "${meta.title}".`)
-    if (meta.genre) lines.push(`Genre: ${meta.genre}.`)
-    if (meta.tone)  lines.push(`Tone: ${meta.tone}.`)
-    if (profile) {
-      lines.push('', `Writing style instructions: ${profile.prompt}`)
-    }
-
-    lines.push(
-      '',
-      '=== TEXT ALREADY WRITTEN (do NOT repeat any of this) ===',
-      ctx || '(beginning of story — nothing written yet)',
-      '=== WRITE ONLY THE CONTINUATION FROM THIS EXACT POINT ===',
-    )
-
-    return lines.join('\n')
+    return buildContext(textBefore, storyStore.currentChapterId ?? '')
   }
 
   /** Returns the last prompt sent to the model (for the prompt preview UI). */

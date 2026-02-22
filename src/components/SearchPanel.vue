@@ -493,9 +493,9 @@ watch(query, () => { if (!regexMode.value) regexError.value = '' })
 .regex-error {
   padding: 4px 16px;
   font-size: 11px;
-  color: #e06c75;
-  background: color-mix(in srgb, #e06c75 10%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, #e06c75 30%, transparent);
+  color: var(--error-color);
+  background: color-mix(in srgb, var(--error-color) 10%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--error-color) 30%, transparent);
   flex-shrink: 0;
 }
 
