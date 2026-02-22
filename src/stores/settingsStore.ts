@@ -2,11 +2,29 @@ import { defineStore } from "pinia";
 import { ref, watch } from "vue";
 
 export const CUSTOMIZABLE_VARS = [
-  '--accent-color',
+  // Surfaces
   '--bg-primary',
   '--bg-secondary',
+  '--bg-tertiary',
+  // Text
   '--text-primary',
+  '--text-secondary',
+  '--text-tertiary',
+  // UI chrome
   '--border-color',
+  '--accent-color',
+  '--accent-hover',
+  // Semantic
+  '--success-color',
+  '--error-color',
+  '--warning-color',
+  // Status badges
+  '--status-draft-bg',
+  '--status-draft-fg',
+  '--status-progress-bg',
+  '--status-progress-fg',
+  '--status-complete-bg',
+  '--status-complete-fg',
 ] as const
 
 export type CustomizableVar = typeof CUSTOMIZABLE_VARS[number]
@@ -30,6 +48,7 @@ export interface UserSettings {
   defaultModel: string;
   contextWindowSize: number;
   responseTemperature: number;
+  includeFutureChapters: boolean;
   keyboardShortcuts: Record<string, string>;
   themeColors: ThemeColorOverrides;
 }
@@ -50,6 +69,7 @@ const defaultSettings: UserSettings = {
   defaultModel: "llama2",
   contextWindowSize: 4096,
   responseTemperature: 0.7,
+  includeFutureChapters: true,
   keyboardShortcuts: {
     "new-chapter": "ctrl+n",
     save: "ctrl+s",

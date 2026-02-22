@@ -196,6 +196,25 @@
                 </div>
               </div>
             </div>
+
+            <div class="setting-row">
+              <label class="setting-label">Include future chapters in context</label>
+              <div class="setting-control">
+                <div class="pill-group">
+                  <button
+                    class="pill"
+                    :class="{ active: settings.includeFutureChapters === true }"
+                    @click="update('includeFutureChapters', true)"
+                  >On</button>
+                  <button
+                    class="pill"
+                    :class="{ active: settings.includeFutureChapters === false }"
+                    @click="update('includeFutureChapters', false)"
+                  >Off</button>
+                </div>
+              </div>
+              <p class="setting-hint inline-hint">When on, AI sees summaries of chapters written after the current one</p>
+            </div>
           </div>
 
           <!-- ── Appearance ─────────────────────────────────────── -->
@@ -228,22 +247,25 @@
                   title="Reset to theme defaults"
                 >Reset</button>
               </div>
-              <div class="color-grid">
-                <div v-for="c in colorMeta" :key="c.varName" class="color-row">
-                  <label class="color-label">{{ c.label }}</label>
-                  <div class="color-swatch-wrap">
-                    <input
-                      type="color"
-                      class="color-swatch"
-                      :value="getColorValue(c.varName)"
-                      @input="setColorValue(c.varName, ($event.target as HTMLInputElement).value)"
-                      :title="c.varName"
-                    />
-                    <span
-                      v-if="settings.themeColors?.[settings.theme]?.[c.varName]"
-                      class="color-override-dot"
-                      title="Customised"
-                    ></span>
+              <div v-for="grp in colorGroups" :key="grp.group" class="color-group">
+                <div class="color-group-label">{{ grp.group }}</div>
+                <div class="color-grid">
+                  <div v-for="c in grp.items" :key="c.varName" class="color-row">
+                    <label class="color-label">{{ c.label }}</label>
+                    <div class="color-swatch-wrap">
+                      <input
+                        type="color"
+                        class="color-swatch"
+                        :value="getColorValue(c.varName)"
+                        @input="setColorValue(c.varName, ($event.target as HTMLInputElement).value)"
+                        :title="c.varName"
+                      />
+                      <span
+                        v-if="settings.themeColors?.[settings.theme]?.[c.varName]"
+                        class="color-override-dot"
+                        title="Customised"
+                      ></span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -323,12 +345,50 @@ function setTheme(theme: 'dark' | 'light') {
 }
 
 // ── Color overrides ─────────────────────────────────────────────────────────
-const colorMeta: { varName: CustomizableVar; label: string }[] = [
-  { varName: '--accent-color', label: 'Accent' },
-  { varName: '--bg-primary',   label: 'Background' },
-  { varName: '--bg-secondary', label: 'Panel BG' },
-  { varName: '--text-primary', label: 'Text' },
-  { varName: '--border-color', label: 'Border' },
+const colorGroups: { group: string; items: { varName: CustomizableVar; label: string }[] }[] = [
+  {
+    group: 'Surfaces',
+    items: [
+      { varName: '--bg-primary',   label: 'Editor BG' },
+      { varName: '--bg-secondary', label: 'Panel BG' },
+      { varName: '--bg-tertiary',  label: 'Hover BG' },
+    ],
+  },
+  {
+    group: 'Text',
+    items: [
+      { varName: '--text-primary',   label: 'Primary' },
+      { varName: '--text-secondary', label: 'Muted' },
+      { varName: '--text-tertiary',  label: 'Faint' },
+    ],
+  },
+  {
+    group: 'UI Chrome',
+    items: [
+      { varName: '--border-color',  label: 'Border' },
+      { varName: '--accent-color',  label: 'Accent' },
+      { varName: '--accent-hover',  label: 'Accent hover' },
+    ],
+  },
+  {
+    group: 'Semantic',
+    items: [
+      { varName: '--success-color', label: 'Success' },
+      { varName: '--error-color',   label: 'Error' },
+      { varName: '--warning-color', label: 'Warning' },
+    ],
+  },
+  {
+    group: 'Status badges',
+    items: [
+      { varName: '--status-draft-bg',    label: 'Draft BG' },
+      { varName: '--status-draft-fg',    label: 'Draft text' },
+      { varName: '--status-progress-bg', label: 'Progress BG' },
+      { varName: '--status-progress-fg', label: 'Progress text' },
+      { varName: '--status-complete-bg', label: 'Done BG' },
+      { varName: '--status-complete-fg', label: 'Done text' },
+    ],
+  },
 ]
 
 function getColorValue(varName: CustomizableVar): string {
@@ -680,8 +740,20 @@ input[type="range"] {
 .reset-colors-btn:hover { color: var(--error-color); border-color: var(--error-color); }
 .color-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
   gap: 8px;
+}
+.color-group {
+  margin-bottom: 10px;
+}
+.color-group:last-child { margin-bottom: 0; }
+.color-group-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
 }
 .color-row {
   display: flex;

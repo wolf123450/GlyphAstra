@@ -139,10 +139,23 @@
       <span class="status-item">
         Lines: {{ lineCount }}
       </span>
+      <!-- Chapter summary status -->
+      <button
+        v-if="currentChapter"
+        class="status-item status-summary-btn"
+        :class="{ 'has-summary': currentChapter.summary }"
+        :title="currentChapter.summary ? 'AI summary available — click to edit chapter properties' : 'No summary yet — click to open chapter properties'"
+        @click="openChapterMeta"
+      >&#x2299; {{ currentChapter.summary ? 'Summary' : 'No summary' }}</button>
     </div>
   </div>
 
   <MarkdownReference :show="showMarkdownRef" @close="showMarkdownRef = false" />
+  <ChapterMeta
+    :show="showChapterMeta"
+    :chapter-id="metaChapterId"
+    @close="showChapterMeta = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -157,6 +170,7 @@ import EditorSeamless from './EditorSeamless.vue'
 import EditorMarkdown from './EditorMarkdown.vue'
 import EditorPreview from './EditorPreview.vue'
 import MarkdownReference from './MarkdownReference.vue'
+import ChapterMeta from './ChapterMeta.vue'
 
 const storyStore = useStoryStore()
 const editorStore = useEditorStore()
@@ -181,6 +195,16 @@ const toggleExport = () => {
 }
 
 const showMarkdownRef = ref(false)
+
+const showChapterMeta = ref(false)
+const metaChapterId   = ref<string | null>(null)
+
+const openChapterMeta = () => {
+  const id = storyStore.currentChapterId
+  if (!id) return
+  metaChapterId.value   = id
+  showChapterMeta.value = true
+}
 
 // ─── AI inline suggestions ─────────────────────────────────────────────────
 const ai = useAISuggestion()
@@ -426,4 +450,14 @@ const saveChapter = async () => {
   color: var(--success-color);
   font-weight: 500;
 }
+
+.status-summary-btn {
+  margin-left: auto;
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; color: var(--text-tertiary); padding: 0;
+  font-family: inherit; transition: color var(--transition-fast);
+}
+.status-summary-btn:hover { color: var(--accent-color); }
+.status-summary-btn.has-summary { color: var(--accent-color); opacity: 0.75; }
+.status-summary-btn.has-summary:hover { opacity: 1; }
 </style>

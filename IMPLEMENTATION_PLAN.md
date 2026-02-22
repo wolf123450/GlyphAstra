@@ -296,12 +296,106 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 
 ### Remaining:
 - [ ] **Parallel** multi-suggestion generation (all 3 start at once, appear as each completes)
-- [ ] Reference to previous chapters in context window (currently only last 1500 chars of current chapter)
-- [ ] Character consistency checking (flag if generated text contradicts known characters)
-- [ ] Plot continuity awareness
+- [ ] **Context builder** (`utils/contextBuilder.ts`) — layered token-budget prompt assembler (see 7.z)
+- [ ] **Chapter summaries** — AI-generated background summaries, cached per chapter (see 7.z)
+- [ ] **Plot outline chapter** — `isPlotOutline` flag on chapter, injected as outline layer in context
+- [ ] **Future chapter context** — included by default, global opt-out in AI settings, per-chapter opt-out
+- [ ] **Per-chapter context exclusion** — chapters are tagged with one or more **context tags** (e.g. `POV: Alice`, `POV: Bob`, `Timeline A`); the AI panel has an active context selector; only chapters whose tags overlap with the active context, plus untagged chapters, are included in the prompt (see 7.y for tag UI)
 - [ ] Custom suggestion count in settings (1–5)
 - [ ] Suggestion history (re-trigger to see different set)
 - [ ] Keyboard shortcut customization for AI triggers
+- [ ] Character consistency checking (flag if generated text contradicts known characters)
+
+### 7.z AI Context Architecture ✅ COMPLETE
+
+#### Layered context stack (priority order, lower layers cut first if over token budget)
+
+| Layer | Content | Size strategy |
+|---|---|---|
+| **System** | Role + instructions | Fixed ~200 tokens |
+| **Writing profile** | Current WritingProfile prompt block | Fixed ~100 tokens |
+| **Story metadata** | Title, genre, tone, characters | Fixed ~80 tokens |
+| **Plot outline** | Content of the chapter flagged `isPlotOutline` | Summarized to ~300 tokens if long |
+| **Past chapter summaries** | AI-generated summaries of chapters before the current one | ~50 tokens each, fill to budget |
+| **Current chapter prefix** | Verbatim text in the current chapter before cursor | Dynamic — see below |
+| **Future chapter summaries** | Summaries of chapters after the current one, labelled as planned | ~30 tokens each, opt-in by default |
+| **Continuation marker** | `=== CONTINUE FROM HERE ===` | Fixed |
+
+#### Current chapter prefix strategy
+- Chapter ≤ ~2,000 chars → send verbatim
+- Chapter > ~2,000 chars, cursor near start → verbatim prefix up to token budget
+- Chapter > ~2,000 chars, cursor in middle/end → summary of everything before the last ~800 verbatim chars + those 800 chars verbatim, so the model always sees the immediate prose
+
+#### Chapter summary caching
+- New fields on `Chapter`: `summary?: string`, `summaryGeneratedAt?: number` (timestamp), `summaryContentHash?: string`, `summaryPaused?: boolean`, `summaryManuallyEdited?: boolean`
+- Summary auto-triggers when: content delta since last summary ≥ ~250 chars AND cooldown of 5 minutes has elapsed
+- Summary is a short Ollama call: `"Summarize this chapter in 2–3 sentences for use as writing context:"`
+- If `summaryPaused = true`, auto-summary never fires regardless of changes
+- If `summaryManuallyEdited = true`, the manual edit persists until the user explicitly hits **Regenerate** (not wiped by auto-trigger). Warning shown: *"This summary was manually edited and will not update automatically. Click Regenerate to replace it."*
+- Summaries are persisted with chapter data in localStorage
+
+#### Future chapters
+- Sent under `=== PLANNED EVENTS (DO NOT REPEAT) ===` header so the model understands they are ahead
+- Global opt-out toggle in AI settings: **Include future chapter context** (default: on)
+- Per-chapter context filtering via **context tags** (see below) — chapters only appear in the prompt when their tags match the active context
+
+#### Context tag system
+- Each chapter has `contextTags: string[]` — a free-form list of tags (e.g. `POV: Alice`, `Timeline A`, `Subplot: Heist`)
+- Untagged chapters are always included (they are treated as universal context)
+- The AI panel has an **Active context** selector — a pill for each unique tag in the story plus an `All` pill (default)
+- When `All` is selected: all chapters are included (existing behaviour)
+- When a specific tag is selected: only chapters that carry that tag *or have no tags at all* are included in the context stack
+- Multiple tags can be active simultaneously (multi-select) for cross-POV scenes
+- Context tag selection persists per story (stored in `aiStore` or `storyStore` story metadata)
+
+#### Plot outline chapter
+- Any chapter can be flagged `isPlotOutline: true` via Chapter Metadata Editor
+- When flagged, its content is injected as the outline layer (between story metadata and past summaries)
+- If outline is short (< ~800 chars): verbatim; if longer: summarized
+- Only one chapter should be the active plot outline (the first one flagged wins; a warning is shown if multiple are flagged)
+
+#### `contextBuilder.ts` responsibilities
+- Assemble the final prompt string from all layers
+- Track running token estimate (chars ÷ 4)
+- Fill layers in priority order, truncating lower-priority layers first when over the configured context window size
+- Expose `buildContext(chapterId, cursorOffset, options)` → `string`
+
+#### Implementation tasks
+- [x] Add `summary`, `summaryGeneratedAt`, `summaryContentHash`, `summaryPaused`, `summaryManuallyEdited` to `Chapter` type in `storyStore`
+- [x] Add `isPlotOutline`, `contextTags: string[]` to `Chapter` type
+- [x] Add `activeContextTags: string[]` to story metadata (session ref in storyStore, default empty = All)
+- [x] `contextBuilder.ts` filters past/future chapter lists by tag overlap before assembling prompt
+- [x] Create `utils/contextBuilder.ts` with layered assembly + token budget
+- [x] Create `utils/summaryManager.ts` — delta-watcher, cooldown timer, background Ollama call, hash check
+- [x] Update `useAISuggestion.ts` `buildPrompt()` to call `contextBuilder`
+- [x] Add **Include future chapter context** toggle to AI settings tab
+- [x] Add **Active context** pill selector to `AIPanel.vue` (shows unique tags across all chapters; `All` pill = no filter)
+- [x] Summary status shown in editor status bar: `⊙` button opens Chapter Metadata Editor
+- [x] Full summary UI in Chapter Metadata Editor (see 7.y)
+
+### 7.y Chapter Metadata Editor ✅ COMPLETE
+
+A modal/panel accessible from the chapter context menu in the sidebar (and from the status bar summary button). Covers all per-chapter metadata in one place.
+
+#### Fields
+| Field | Input type | Notes |
+|---|---|---|
+| Title | Text input | Rename chapter |
+| Status | Pills: Draft / In Progress / Complete | Source of the badge in sidebar |
+| Chapter type | Pills: Normal / Plot Outline / Table of Contents / Cover / License / Illustration | `isPlotOutline` sets the context flag; others affect export rendering |
+| Context tags | Tag input (free text, comma-separated, with suggestions from existing tags) | `contextTags: string[]` — e.g. `POV: Alice`, `Timeline A`; untagged = always included |
+| **Summary section** | | |
+| Summary text | Read-only textarea (editable when user clicks Edit) | Shows current cached summary |
+| Generated timestamp | Text | "Generated 3 hours ago" / "Never" |
+| Paused indicator | Checkbox: Pause auto-summary | When checked, auto-summary never fires |
+| Manual edit warning | Banner | Shown when `summaryManuallyEdited = true`: *"Manual edit active — will not update automatically"* |
+| Regenerate button | Button | Fires summary generation immediately; clears `summaryManuallyEdited` |
+
+#### Implementation tasks
+- [x] Create `ChapterMeta.vue` modal component
+- [x] Wire to sidebar ≡ button on active chapter row ("Edit properties…")
+- [x] Wire to status bar summary `⊙` button → opens metadata editor
+- [x] Emit updates back through `storyStore.updateChapter()`
 
 ### 7.x Writing Profiles & AI Instruction Redesign ✅ COMPLETE
 
@@ -393,9 +487,9 @@ The current `prompt` field on `AIStyle` becomes a multi-sentence instruction blo
 - [x] `Ctrl+F` opens/closes the panel (via `uiStore.toggleSearchPanel()`)
 - [x] Live editor content used for currently-open chapter (shows unsaved changes)
 - [x] Click chapter heading or snippet to navigate to that chapter
-- [ ] **Regex mode** — toggle button (e.g. `.*` pill) in the search input row; when active, interprets the query as a JavaScript regular expression; invalid regex shows an inline error instead of results; affects snippet highlighting
-- [ ] **Case-sensitive mode** — toggle button (`Aa` pill) in the search input row; when off (default) search is case-insensitive; when on, exact case is required; applies to both plain-text and regex searches
-- [ ] **Search & Replace** — expandable replace row below the search input (toggle with a `⇄` button); replace field accepts plain text; "Replace" button swaps the focused match in its chapter; "Replace All" replaces every match across all chapters and saves each affected chapter; undo via the editor's existing content state
+- [x] **Regex mode** — toggle button (e.g. `.*` pill) in the search input row; when active, interprets the query as a JavaScript regular expression; invalid regex shows an inline error instead of results; affects snippet highlighting
+- [x] **Case-sensitive mode** — toggle button (`Aa` pill) in the search input row; when off (default) search is case-insensitive; when on, exact case is required; applies to both plain-text and regex searches
+- [x] **Search & Replace** — expandable replace row below the search input (toggle with a `⇄` button); replace field accepts plain text; "Replace" button swaps the focused match in its chapter; "Replace All" replaces every match across all chapters and saves each affected chapter; undo via the editor's existing content state
 - [ ] Advanced search filters (chapter, character, date range)
 - [ ] Result count badge in sidebar / status bar
 
@@ -415,7 +509,7 @@ The current `prompt` field on `AIStyle` becomes a multi-sentence instruction blo
 - [x] `Ctrl+,` and ⚙ button both open the modal
 - [ ] Keyboard shortcut customization (UI only, editing coming later)
 - [ ] Custom prompt templates
-- [ ] **Custom UI theme colors** — let users override individual CSS color variables (accent, background, text) for both dark and light mode; saved per-theme in `settingsStore`; a color-picker grid in the Appearance tab with a "Reset colors" button
+- [x] **Custom UI theme colors** — let users override individual CSS color variables (accent, background, text) for both dark and light mode; saved per-theme in `settingsStore`; a color-picker grid in the Appearance tab with a "Reset colors" button
 
 ---
 
@@ -477,10 +571,115 @@ The current `prompt` field on `AIStyle` becomes a multi-sentence instruction blo
 
 ---
 
-## Phase 12: Advanced Features & Extensions (Week 25+) ⏳ NOT STARTED
+## Phase 12: Chapter Management ⏳ NOT STARTED
 
-- [ ] Version history tracking
-- [ ] Commenting system
+Substantial standalone features grouped to avoid fragmented implementation.
+
+### 12.1 Drag-to-Reorder Chapters
+- [ ] Drag handle on each sidebar chapter row
+- [ ] Visual drop indicator between chapters
+- [ ] `storyStore.reorderChapters()` action updates chapter order
+- [ ] Consider `@vueuse/core` `useSortable` or `SortableJS`
+
+### 12.2 Chapter Version History & Timeline
+- [ ] Store diffs (or snapshots) of chapter content on each save (up to a configurable limit)
+- [ ] Timeline slider UI: drag to travel back/forward through edit history
+- [ ] **Age heatmap view**: colour text by how recently it was written/modified (recently written = bright, older = faded); alternately highlight frequently-changed text
+- [ ] Diff view: side-by-side or inline comparison between any two history points
+- [ ] Restore from a history point
+
+### 12.3 Session Undo / Redo
+- [ ] Persistent undo/redo stack beyond the browser's native `contenteditable` history
+- [ ] Survives chapter switches within a session
+- [ ] `Ctrl+Z` / `Ctrl+Shift+Z`
+
+### 12.4 Special Chapter Types (UI & Export Rendering)
+- [ ] **Table of Contents** — auto-generated from chapter titles; renders as a formatted list in preview/export
+- [ ] **Cover** — full-page image or styled title block in export
+- [ ] **License / Publisher Info** — formatted legal block
+- [ ] **Illustration** — embeds an image file; caption field; rendered inline in preview and export
+- [ ] Chapter type icons shown in sidebar next to title
+
+### 12.5 Translations
+- [ ] A chapter can have one or more translation variants (language tag + content)
+- [ ] AI-assisted auto-translation via Ollama (long-term)
+- [ ] Manual translation entry
+- [ ] Language selector in editor header when translations exist
+
+### 12.6 Inline Chapter Title Editing
+> Currently renaming is only available through the Chapter Metadata Editor (≡ → Title field).
+- [ ] Mouseover on a chapter name in the sidebar reveals an edit (✎) indicator icon.
+- [ ] Single-click on a chapter name in the sidebar activates an in-place `<input>` replacing the title text
+- [ ] `Escape` cancels and restores the original name; `Enter` or blur commits via `storyStore.updateChapter()`
+- [ ] Input auto-selects all text on activation for fast replacement
+- [ ] No rename occurs if the trimmed value is empty or unchanged
+- [ ] Visual affordance: cursor changes to `text` on hover over the title span
+
+---
+
+## Phase 13: Advanced Features & Extensions (Week 25+) ⏳ NOT STARTED
+
+- [ ] Analytics and insights
+- [ ] Community features
+
+---
+
+## Phase 14: Help, Onboarding & Demo Story ⏳ NOT STARTED
+
+### 14.1 First-Run Onboarding Tour
+- [ ] Detect first launch (flag in localStorage: `blockbreaker_onboarding_complete`)
+- [ ] Guided spotlight tour: step-by-step overlay highlights each major UI region in sequence
+  - Step 1: Sidebar — chapters, context menu, new chapter button
+  - Step 2: Editor header — mode switcher, word count, AI toggle, export
+  - Step 3: Seamless editor — markdown rendering, cursor, typing
+  - Step 4: AI panel — writing profiles, model selection, Ctrl+Space to trigger
+  - Step 5: Search panel — Ctrl+F, TOC mode, replace
+  - Step 6: Settings — Ctrl+, shortcut, theme, fonts
+- [ ] Each step has a title, description, and Next / Skip buttons
+- [ ] Tour overlay dims the rest of the UI and draws a highlighted border around the active element
+- [ ] "Skip tour" exits immediately and marks onboarding complete
+- [ ] Re-launchable: **Settings → Shortcuts tab** (or a dedicated Help tab) has a "Take the tour again" button
+
+### 14.2 Demo / Help Story
+- [ ] A pre-bundled story (`helpStory`) shipped with the app (in `/public/help-story/` or embedded in code)
+- [ ] Loaded automatically on first launch if no other stories exist; also accessible any time via a `?` / Help button in the sidebar footer
+- [ ] The story is structured as a set of chapters that double as a living reference:
+
+| Chapter | Content | Editable? |
+|---|---|---|
+| Welcome to BlockBreaker | App overview, what the app does, quick-start tips | 🔒 Read-only |
+| Markdown Guide | Full markdown syntax reference with live examples (the same content as `MarkdownReference.vue`) | 🔒 Read-only |
+| AI Writing Guide | How writing profiles work, how to trigger suggestions, prompt preview | 🔒 Read-only |
+| Keyboard Shortcuts | Full shortcut reference | 🔒 Read-only |
+| Sandbox — Try Markdown | Blank/starter chapter for practising markdown | ✏️ Editable |
+| Sandbox — Try AI | Starter prose for testing AI suggestions | ✏️ Editable |
+
+- [ ] Read-only chapters display a banner: *"This is a reference chapter — editing is disabled to preserve the help content."*
+- [ ] Sandbox chapters display a banner: *"This is a practice chapter — feel free to edit or delete content here."*
+- [ ] The help story cannot be deleted from the stories list (or shows a confirmation warning that it can be recreated from Help)
+- [ ] A **Reset help story** button in Settings restores the bundled content to all read-only chapters (sandbox chapters are left untouched)
+
+### 14.3 Chapter Read-Only Flag
+- [x] Add `isReadOnly?: boolean` to `Chapter` type in `storyStore` *(added in Phase 7.z)*
+- [ ] `EditorSeamless` / `EditorMarkdown` check this flag; when true, the editor `contenteditable` is disabled and a banner is shown
+- [ ] Read-only chapters are skipped by the auto-save system
+- [ ] The flag is visible (and toggleable for non-help stories) in the Chapter Metadata Editor (7.y)
+- [ ] Export includes read-only chapters normally (they are content, just locked in-app)
+
+### 14.4 Settings → Help Tab
+- [ ] Add a sixth tab to `Settings.vue`: **Help**
+- [ ] Contains: "Take the tour again" button, "Open help story" button, "Reset help story" button, link to project README / changelog
+- [ ] App version number displayed here
+
+### Technical Notes
+- Help story content is defined as a TypeScript constant (no disk files needed) and hydrated into `storyStore` on first launch or on reset
+- `isReadOnly` is the only new field required on `Chapter` for this phase; it is reusable for translated chapters, template chapters, etc. (Phase 12.5)
+- The spotlight tour uses a simple Vue component (`OnboardingTour.vue`) with a `steps` array; it does not require a third-party library
+
+---
+
+## Phase 15: Advanced Features & Extensions (Week 25+) ⏳ NOT STARTED
+
 - [ ] Analytics and insights
 - [ ] Community features
 
@@ -488,19 +687,27 @@ The current `prompt` field on `AIStyle` becomes a multi-sentence instruction blo
 
 ## OVERALL PROGRESS SUMMARY
 
-**Total Phases:** 12 (6 months planned)
+**Total Phases:** 15 (6 months planned + extensions)
 **Completed Phases:** 1-2 (~40% core framework done)
-**Partially Completed:** 3-6 (foundations in place, integration pending)
-**Not Started:** 7-12 (advanced features)
+**Partially Completed:** 3-7, 9-10 (most features implemented, some sub-items pending)
+**Not Started:** 12-13 (chapter management, advanced features)
 
 ### Current Implementation Status:
 - ✅ **Phase 1**: Foundation - COMPLETE
-- ✅ **Phase 2**: UI Framework - COMPLETE  
+- ✅ **Phase 2**: UI Framework - COMPLETE
 - ✅ **Phase 3**: File Storage - COMPLETE (dual-write FS + localStorage, Tauri plugin-fs wired)
-- ✅ **Phase 4**: Markdown Editor - 90% (three modes, full inline markdown, indented lists; fenced code blocks / links / images / tables pending in 4.5)
+- ✅ **Phase 4**: Markdown Editor - COMPLETE (three modes, full inline markdown, all block types, markdown reference modal)
 - ✅ **Phase 5**: Story Overview - 80% (panel functional, some fields pending)
 - ✅ **Phase 6**: Ollama Integration - COMPLETE (inline ghost-text suggestions, config panel)
-- ✅ **Phase 9**: Settings & Customization - COMPLETE (Settings.vue modal, all settings persisted)
+- ✅ **Phase 7**: Advanced AI - 90% (writing profiles, context builder, summaries, chapter metadata editor done; parallel suggestions pending)
+- 🟡 **Phase 8**: Search - 90% (full-text search, TOC, replace, regex, case-sensitive done; badge + advanced filters pending)
+- ✅ **Phase 9**: Settings & Customization - COMPLETE (5-tab modal, all settings persisted, custom theme colors)
+- 🟡 **Phase 10**: Export & Data Management - 80% (MD/HTML/DOCX/import done; backup/restore pending)
+- ⏳ **Phase 11**: Performance & Polish - NOT STARTED
+- ⏳ **Phase 12**: Chapter Management - NOT STARTED
+- ⏳ **Phase 13**: Advanced Features - NOT STARTED
+- ⏳ **Phase 14**: Help & Onboarding - NOT STARTED
+- ⏳ **Phase 15**: Extensions - NOT STARTED
 
 ### Key Achievements:
 ✅ Full Vue.js + Tauri desktop application framework
@@ -508,19 +715,25 @@ The current `prompt` field on `AIStyle` becomes a multi-sentence instruction blo
 ✅ Pinia state management with 5 stores (story, editor, settings, ai, ui)
 ✅ Three markdown editor modes (seamless, markdown, preview)
 ✅ Story/chapter management system with in-memory + localStorage persistence
+✅ Writing Profiles system with built-in + custom profiles, prompt preview, profile editor
+✅ AI context architecture: layered prompt stack, token budget, chapter summaries, context tag filtering
+✅ Chapter Metadata Editor (title, status, type, context tags, AI summary management)
+✅ Full-text search panel with regex, case-sensitive, and search & replace
+✅ Export: Markdown, HTML, DOCX; Import: Markdown
+✅ Settings: font, autosave, AI, custom theme colors (per dark/light), spellcheck toggle
 ✅ Character and metadata management
 ✅ Keyboard shortcut system with defaults registered
-✅ Dark/light theme toggle
+✅ Dark/light theme toggle with per-theme CSS color overrides
 ✅ Notification system
 ✅ Ollama API client with connection checking
 ✅ Word count, line count, and character count tracking
+✅ 149 unit tests (Vitest)
 
 ### Next Priorities:
-1. Settings modal — `Settings.vue` responding to `uiStore.showSettings` (Phase 9)
-2. Extended markdown features: fenced code blocks, ordered lists, blockquotes, links (Phase 4.5)
-3. Parallel multi-suggestion generation (Phase 7)
-4. Context from previous chapters in AI prompt (Phase 7)
-5. Crash recovery: on app start, check AppData for stories not in localStorage
+1. **Phase 10.5** — Backup & restore
+2. **Phase 12.1** — Drag-to-reorder chapters
+3. **Phase 14** — Help & Onboarding (demo story, onboarding tour)
+4. **Phase 11** — Performance & Polish
 
 ---
 

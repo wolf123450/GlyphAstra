@@ -16,6 +16,15 @@ export interface Chapter {
   lastEdited: string;
   content: string;
   parentId?: string;
+  // AI context
+  summary?: string;
+  summaryGeneratedAt?: number;   // unix ms
+  summaryContentHash?: string;   // cheap hash for delta detection
+  summaryPaused?: boolean;       // disable auto-summary for this chapter
+  summaryManuallyEdited?: boolean; // manual edit active — won't auto-update
+  isPlotOutline?: boolean;       // inject as outline layer in AI context
+  contextTags?: string[];        // e.g. ['POV: Alice', 'Timeline A']; empty = always included
+  isReadOnly?: boolean;          // editor disabled (used by help story chapters)
 }
 
 export interface Character {
@@ -55,8 +64,17 @@ export const useStoryStore = defineStore("story", () => {
   const characters = ref<Character[]>([]);
   const currentChapterId = ref<string | null>(null);
   const currentStoryId = ref<string | null>(null);
-  const isSaving = ref<boolean>(false);
+  const isSaving = ref<boolean>(false);  /** Active context tag filter for AI (session-only). Empty = include all chapters. */
+  const activeContextTags = ref<string[]>([])
 
+  /** All unique contextTags across all chapters in the current story. */
+  const allContextTags = computed(() => {
+    const tags = new Set<string>()
+    for (const ch of chapters.value) {
+      for (const t of ch.contextTags ?? []) tags.add(t)
+    }
+    return [...tags].sort()
+  })
   const currentChapter = computed(() => {
     if (!currentChapterId.value) return null;
     return chapters.value.find((ch) => ch.id === currentChapterId.value);
@@ -263,9 +281,11 @@ export const useStoryStore = defineStore("story", () => {
     currentChapterId,
     currentStoryId,
     isSaving,
+    activeContextTags,
     // Computed
     currentChapter,
     totalWordCount,
+    allContextTags,
     // Methods
     getChapterById,
     getChaptersByParent,

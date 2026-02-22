@@ -77,6 +77,30 @@
         </div>
       </section>
 
+      <!-- Active context tags (only shown when tags exist in the story) -->
+      <section class="ai-section" v-if="allContextTags.length > 0">
+        <div class="sec-label">Active context</div>
+        <div class="context-tag-pills">
+          <button
+            class="pill"
+            :class="{ active: activeContextTags.length === 0 }"
+            @click="setContextTags([])"
+            title="Include all chapters in AI context"
+          >All</button>
+          <button
+            v-for="tag in allContextTags"
+            :key="tag"
+            class="pill"
+            :class="{ active: activeContextTags.includes(tag) }"
+            @click="toggleContextTag(tag)"
+            :title="`Toggle context tag: ${tag}`"
+          >{{ tag }}</button>
+        </div>
+        <div class="hint muted">
+          {{ activeContextTags.length === 0 ? 'All chapters included' : `${activeContextTags.length} tag(s) active` }}
+        </div>
+      </section>
+
       <!-- Keyboard hint -->
       <section class="ai-section hint-section">
         <div class="sec-label">Inline suggestions</div>
@@ -107,16 +131,35 @@
 import { computed, ref, onMounted } from 'vue'
 import { useUIStore } from '@/stores/uiStore'
 import { useAIStore } from '@/stores/aiStore'
+import { useStoryStore } from '@/stores/storyStore'
 import { ollamaClient } from '@/api/ollama'
 import WritingProfileEditor from './WritingProfileEditor.vue'
 import PromptPreview from './PromptPreview.vue'
 
-const uiStore = useUIStore()
-const aiStore = useAIStore()
+const uiStore    = useUIStore()
+const aiStore    = useAIStore()
+const storyStore = useStoryStore()
 
 const isVisible   = computed(() => uiStore.activePanel === 'ai')
 const styles      = computed(() => aiStore.styles)
 const isConnected = computed(() => aiStore.isConnected)
+
+const allContextTags  = computed(() => storyStore.allContextTags)
+const activeContextTags = computed(() => storyStore.activeContextTags)
+
+const setContextTags = (tags: string[]) => {
+  storyStore.activeContextTags = tags
+}
+
+const toggleContextTag = (tag: string) => {
+  const current = storyStore.activeContextTags
+  const idx = current.indexOf(tag)
+  if (idx === -1) {
+    storyStore.activeContextTags = [...current, tag]
+  } else {
+    storyStore.activeContextTags = current.filter(t => t !== tag)
+  }
+}
 
 const checking      = ref(false)
 const modelList     = ref<string[]>([])
@@ -306,4 +349,8 @@ kbd {
 }
 .btn-sm:not(:disabled):hover { border-color: var(--accent-color); color: var(--accent-color); }
 .btn-sm:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* context tags */
+.context-tag-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.muted { color: var(--text-tertiary); font-size: 11px; }
 </style>
