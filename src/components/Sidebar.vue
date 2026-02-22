@@ -72,6 +72,7 @@
               @delete="deleteChapter"
               @edit-meta="openChapterMeta"
               @handle-down="onHandleDown"
+              @rename="renameChapter"
             />
           </template>
           <div class="drop-zone" :class="{ 'drop-active': dropIndex === filteredChapters.length }" />
@@ -286,6 +287,11 @@ const createNewChapter = () => {
 
 const selectChapter = (id: string) => {
   storyStore.setCurrentChapter(id)
+}
+
+const renameChapter = (id: string, newName: string) => {
+  storyStore.updateChapter(id, { name: newName })
+  storyStore.saveStory()
 }
 
 const deleteChapter = (id: string) => {
