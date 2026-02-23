@@ -623,10 +623,10 @@ Substantial standalone features grouped to avoid fragmented implementation.
 - [ ] **Age heatmap view** — colour live text by recency: recently written = bright, older = faded (deferred, complex)
 - [ ] Timeline slider UI for visual browsing
 
-### 12.3 Session Undo / Redo
-- [ ] Persistent undo/redo stack beyond the browser's native `contenteditable` history
-- [ ] Survives chapter switches within a session
-- [ ] `Ctrl+Z` / `Ctrl+Shift+Z`
+### 12.3 Session Undo / Redo ✅ COMPLETE
+- [x] Persistent undo/redo stack beyond the browser's native `contenteditable` history (`src/utils/undoManager.ts`)
+- [x] Survives chapter switches within a session (stack keyed by chapter ID; `init` is a no-op if the chapter already has a stack)
+- [x] `Ctrl+Z` / `Ctrl+Shift+Z` (also `Ctrl+Y`); pre-structural snapshot emitted before Enter/Delete/Tab/paste/cut
 
 ### 12.4 Special Chapter Types (UI & Export Rendering)
 - [ ] **Table of Contents** — auto-generated from chapter titles; renders as a formatted list in preview/export
@@ -823,7 +823,7 @@ Higher-level metadata for multi-book series — builds on 17.1.
 - ✅ **Phase 9**: Settings & Customization - COMPLETE (5-tab modal, all settings persisted, custom theme colors)
 - 🟡 **Phase 10**: Export & Data Management - 95% (MD/HTML/DOCX/import/backup/restore done; auto-backup timer pending)
 - ⏳ **Phase 11**: Performance & Polish - NOT STARTED (icon overhaul planned)
-- 🟡 **Phase 12**: Chapter Management - IN PROGRESS (12.1 drag-to-reorder, 12.2 version history, 12.6 inline title editing done; 12.3–12.5, 12.7 not started)
+- 🟡 **Phase 12**: Chapter Management - IN PROGRESS (12.1 drag-to-reorder, 12.2 version history, 12.3 session undo/redo, 12.6 inline title editing done; 12.4–12.5, 12.7 not started)
 - ⏳ **Phase 13**: Advanced Features - NOT STARTED
 - ⏳ **Phase 14**: Help & Onboarding - NOT STARTED
 - ⏳ **Phase 15**: Extensions - NOT STARTED

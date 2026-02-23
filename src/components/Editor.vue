@@ -84,7 +84,7 @@
         :suggestion-count="ai.totalCount.value"
         :suggestion-index="ai.currentIndex.value"
         :suggestion-generating="ai.isGenerating.value"
-        @update:content="content = $event"
+        @update:content="onContentFromEditor($event)"
         @update:cursorPos="cursorPosition = $event"
         @trigger-ai="onTriggerAI"
         @accept-suggestion="onAcceptSuggestion"
@@ -93,6 +93,9 @@
         @prev-suggestion="onPrevSuggestion"
         @type-char="onTypeChar"
         @navigate-chapter="navigateToChapter"
+        @undo="onUndo"
+        @redo="onRedo"
+        @snapshot="onSnapshot"
       />
       <EditorMarkdown
         v-else-if="renderMode === 'markdown' && currentChapter"
@@ -101,7 +104,7 @@
         :suggestion-count="ai.totalCount.value"
         :suggestion-index="ai.currentIndex.value"
         :suggestion-generating="ai.isGenerating.value"
-        @update:content="content = $event"
+        @update:content="onContentFromEditor($event)"
         @update:cursorPos="cursorPosition = $event"
         @trigger-ai="onTriggerAI"
         @accept-suggestion="onAcceptSuggestion"
@@ -109,6 +112,9 @@
         @next-suggestion="onNextSuggestion"
         @prev-suggestion="onPrevSuggestion"
         @type-char="onTypeChar"
+        @undo="onUndo"
+        @redo="onRedo"
+        @snapshot="onSnapshot"
       />
 
       <!-- Preview Mode -->
@@ -184,6 +190,7 @@ import MarkdownReference from './MarkdownReference.vue'
 import ChapterMeta from './ChapterMeta.vue'
 import ChapterHistory from './ChapterHistory.vue'
 import { captureSnapshot } from '@/utils/historyManager'
+import * as undoManager from '@/utils/undoManager'
 
 const storyStore = useStoryStore()
 const editorStore = useEditorStore()
@@ -240,6 +247,39 @@ const onNextSuggestion    = () => ai.next()
 const onPrevSuggestion    = () => ai.prev()
 const onTypeChar          = (char: string) => ai.tryMatchChar(char)
 
+// ─── Session undo/redo ─────────────────────────────────────────────────────
+/** Called by every editor update:content so we push to the undo stack. */
+const onContentFromEditor = (newContent: string) => {
+  content.value = newContent        // → editorStore.setContent (marks dirty)
+  const id = storyStore.currentChapterId
+  if (id) undoManager.push(id, newContent, () => cursorPosition.value)
+}
+
+/** Flush the pre-edit state immediately (before Enter/Delete/Tab/paste/cut). */
+const onSnapshot = () => {
+  const id = storyStore.currentChapterId
+  if (id) undoManager.flush(id, content.value, cursorPosition.value)
+}
+
+const onUndo = () => {
+  const id = storyStore.currentChapterId
+  if (!id) return
+  undoManager.flush(id, content.value, cursorPosition.value)  // save current first
+  const entry = undoManager.undo(id)
+  if (!entry) return
+  content.value = entry.content
+  cursorPosition.value = entry.cursorPos
+}
+
+const onRedo = () => {
+  const id = storyStore.currentChapterId
+  if (!id) return
+  const entry = undoManager.redo(id)
+  if (!entry) return
+  content.value = entry.content
+  cursorPosition.value = entry.cursorPos
+}
+
 // Dismiss suggestion when chapter changes
 watch(() => storyStore.currentChapterId, () => ai.clear())
 
@@ -293,13 +333,18 @@ watch(
     flushCurrentChapter(oldId ?? null)
     const chapter = newId ? storyStore.getChapterById(newId) : null
     editorStore.loadContent(chapter?.content ?? '')
+    if (newId) undoManager.init(newId, chapter?.content ?? '', 0)
   }
 )
 
 // On mount: initialise editor with the content of the already-selected chapter
 onMounted(() => {
   const chapter = storyStore.currentChapter
-  if (chapter) editorStore.loadContent(chapter.content)
+  if (chapter) {
+    editorStore.loadContent(chapter.content)
+    const id = storyStore.currentChapterId
+    if (id) undoManager.init(id, chapter.content, 0)
+  }
 
   // Wire up auto-save so it actually calls saveChapter
   autoSaveManager.registerSaveCallback('current-chapter', async () => {
