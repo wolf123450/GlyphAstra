@@ -8,6 +8,7 @@ import {
   deleteStory as fsDeleteStory,
 } from "@/utils/fileStorage";
 import type { BackupFile } from "@/utils/backupRestore";
+import { HELP_STORY_ID, HELP_CHAPTERS } from "@/utils/helpStory";
 
 export interface Chapter {
   id: string;
@@ -218,16 +219,23 @@ export const useStoryStore = defineStore("story", () => {
         wordCount: story.metadata.wordCount,
       };
 
-      // Load chapters with default path if not present
-      chapters.value = story.chapters.map((ch) => ({
-        id: ch.id,
-        name: ch.name,
-        path: ch.name.toLowerCase().replace(/\s+/g, "-"),
-        status: ch.status,
-        content: ch.content,
-        wordCount: ch.wordCount,
-        lastEdited: ch.lastEdited,
+      // Spread all stored chapter fields so extended properties
+      // (isReadOnly, isPlotOutline, contextTags, summary, etc.) survive reload.
+      let mappedChapters = story.chapters.map((ch) => ({
+        ...ch,
+        path: (ch as any).path ?? ch.name.toLowerCase().replace(/\s+/g, "-"),
       }));
+
+      // For the help story, always re-apply isReadOnly from the embedded definition
+      // in case the story was stored before the read-only flag was introduced.
+      if (storyId === HELP_STORY_ID) {
+        mappedChapters = mappedChapters.map((ch) => {
+          const def = HELP_CHAPTERS.find((d) => d.id === ch.id);
+          return def ? { ...ch, isReadOnly: def.isReadOnly } : ch;
+        });
+      }
+
+      chapters.value = mappedChapters;
       
       characters.value = story.characters;
       currentStoryId.value = storyId;
@@ -295,6 +303,110 @@ export const useStoryStore = defineStore("story", () => {
     }
     return success;
   };
+
+  /**
+   * Load the built-in help story, creating it from the embedded definition
+   * if it doesn’t exist yet.  After loading, re-applies isReadOnly flags from
+   * the embedded definition (so they survive even if storage stripped them).
+   * Returns true if the help story is now active.
+   */
+  const loadOrCreateHelpStory = async (): Promise<boolean> => {
+    let loaded = await loadStory(HELP_STORY_ID)
+    if (!loaded) {
+      // First time: build the story in memory from the embedded definition
+      const now = new Date().toISOString()
+      metadata.value = {
+        title: 'Help & Reference',
+        summary: 'Built-in reference guide and sandbox for BlockBreaker.',
+        genre: '',
+        tone: '',
+        narrativeVoice: '',
+        createdDate: now,
+        lastModified: now,
+        wordCount: 0,
+      }
+      const wc = (text: string) =>
+        text.trim().split(/\s+/).filter(Boolean).length
+      chapters.value = HELP_CHAPTERS.map((ch) => ({
+        id: ch.id,
+        name: ch.name,
+        path: ch.name.toLowerCase().replace(/\s+/g, '-'),
+        status: 'draft' as const,
+        content: ch.content,
+        wordCount: wc(ch.content),
+        lastEdited: now,
+        isReadOnly: ch.isReadOnly,
+      }))
+      characters.value = []
+      currentStoryId.value = HELP_STORY_ID
+      currentChapterId.value = null
+      loaded = true
+      // Persist it so it survives restarts
+      await saveStory(HELP_STORY_ID)
+    } else {
+      // Re-apply isReadOnly from embedded definition (storage may have
+      // an older schema that didn’t persist this field).
+      chapters.value = chapters.value.map((ch) => {
+        const def = HELP_CHAPTERS.find((d) => d.id === ch.id)
+        return def ? { ...ch, isReadOnly: def.isReadOnly } : ch
+      })
+    }
+    return loaded
+  }
+
+  /**
+   * Reset the read-only reference chapters of the help story to their
+   * bundled content.  Sandbox chapters are left untouched.
+   */
+  const resetHelpStory = async () => {
+    // If the help story isn’t currently loaded, load it first.
+    if (currentStoryId.value !== HELP_STORY_ID) {
+      await loadOrCreateHelpStory()
+    }
+    const now = new Date().toISOString()
+    const wc  = (text: string) =>
+      text.trim().split(/\s+/).filter(Boolean).length
+    chapters.value = chapters.value.map((ch) => {
+      const def = HELP_CHAPTERS.find((d) => d.id === ch.id)
+      if (!def || !def.isReadOnly) return ch   // leave sandbox chapters alone
+      return {
+        ...ch,
+        name:      def.name,
+        content:   def.content,
+        wordCount: wc(def.content),
+        lastEdited: now,
+        isReadOnly: true,
+      }
+    })
+    await saveStory(HELP_STORY_ID)
+  }
+
+  /**
+   * Silently ensure the help story exists in storage without switching
+   * the currently-active story.  Call this on every app startup so the
+   * help story is always present in the project list.
+   */
+  const ensureHelpStoryExists = async (): Promise<void> => {
+    const projects = storageManager.getProjectsList()
+    if (projects.some((p) => p.id === HELP_STORY_ID)) return
+
+    // Snapshot current in-memory state so we can restore it afterwards
+    const savedStoryId = currentStoryId.value
+    const savedChapterId = currentChapterId.value
+    const savedMetadata = { ...metadata.value }
+    const savedChapters = chapters.value.slice()
+    const savedCharacters = characters.value.slice()
+
+    // Create and save the help story
+    await loadOrCreateHelpStory()
+
+    // Restore original state
+    metadata.value = savedMetadata
+    chapters.value = savedChapters
+    characters.value = savedCharacters
+    currentStoryId.value = savedStoryId
+    currentChapterId.value = savedChapterId
+  }
 
   /**
    * Reorder chapters by providing a new array of chapter IDs.
@@ -367,5 +479,9 @@ export const useStoryStore = defineStore("story", () => {
     reorderChapters,
     restoreFromBackup,
     deleteStory,
+    loadOrCreateHelpStory,
+    resetHelpStory,
+    ensureHelpStoryExists,
+    HELP_STORY_ID,
   };
 });

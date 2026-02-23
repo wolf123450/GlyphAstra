@@ -743,57 +743,36 @@ Higher-level metadata for multi-book series — builds on 17.1.
 
 ---
 
-## Phase 14: Help, Onboarding & Demo Story ⏳ NOT STARTED
+## Phase 14: Help, Onboarding & Demo Story ✅ COMPLETE
 
-### 14.1 First-Run Onboarding Tour
-- [ ] Detect first launch (flag in localStorage: `blockbreaker_onboarding_complete`)
-- [ ] Guided spotlight tour: step-by-step overlay highlights each major UI region in sequence
-  - Step 1: Sidebar — chapters, context menu, new chapter button
-  - Step 2: Editor header — mode switcher, word count, AI toggle, export
-  - Step 3: Seamless editor — markdown rendering, cursor, typing
-  - Step 4: AI panel — writing profiles, model selection, Ctrl+Space to trigger
-  - Step 5: Search panel — Ctrl+F, TOC mode, replace
-  - Step 6: Settings — Ctrl+, shortcut, theme, fonts
-- [ ] Each step has a title, description, and Next / Skip buttons
-- [ ] Tour overlay dims the rest of the UI and draws a highlighted border around the active element
-- [ ] "Skip tour" exits immediately and marks onboarding complete
-- [ ] Re-launchable: **Settings → Shortcuts tab** (or a dedicated Help tab) has a "Take the tour again" button
+### 14.1 First-Run Onboarding Tour ✅ COMPLETE
+- [x] Detect first launch (flag in localStorage: `blockbreaker_onboarding_complete`)
+- [x] Guided spotlight tour: 6-step overlay highlights each major UI region in sequence (sidebar, editor header, editor body, status bar, sidebar footer, finish)
+- [x] Each step has a title, description, and Next / Skip buttons
+- [x] Tour overlay dims the rest of the UI and draws a highlighted border around the active element (`OnboardingTour.vue`)
+- [x] "Skip tour" exits immediately and marks onboarding complete
+- [x] Re-launchable from **Settings → Help tab**
 
-### 14.2 Demo / Help Story
-- [ ] A pre-bundled story (`helpStory`) shipped with the app (in `/public/help-story/` or embedded in code)
-- [ ] Loaded automatically on first launch if no other stories exist; also accessible any time via a `?` / Help button in the sidebar footer
-- [ ] The story is structured as a set of chapters that double as a living reference:
+### 14.2 Demo / Help Story ✅ COMPLETE
+- [x] A pre-bundled story defined as TypeScript constants in `src/utils/helpStory.ts`
+- [x] Loaded automatically on first launch if no other stories exist; also accessible any time via the **?** button in the sidebar footer
+- [x] 6 chapters: Welcome, Markdown Guide, AI Writing Guide, Keyboard Shortcuts, Sandbox — Try Markdown, Sandbox — Try AI
+- [x] Read-only chapters display a banner (editing disabled with `contenteditable="false"` + banner)
+- [x] The help story cannot be deleted from the stories list (shows an info notification instead)
+- [x] **Reset help story** button in Settings → Help restores all read-only chapters; sandbox chapters left untouched
+- [x] `storyStore.loadOrCreateHelpStory()` and `storyStore.resetHelpStory()` actions
 
-| Chapter | Content | Editable? |
-|---|---|---|
-| Welcome to BlockBreaker | App overview, what the app does, quick-start tips | 🔒 Read-only |
-| Markdown Guide | Full markdown syntax reference with live examples (the same content as `MarkdownReference.vue`) | 🔒 Read-only |
-| AI Writing Guide | How writing profiles work, how to trigger suggestions, prompt preview | 🔒 Read-only |
-| Keyboard Shortcuts | Full shortcut reference | 🔒 Read-only |
-| Sandbox — Try Markdown | Blank/starter chapter for practising markdown | ✏️ Editable |
-| Sandbox — Try AI | Starter prose for testing AI suggestions | ✏️ Editable |
+### 14.3 Chapter Read-Only Flag ✅ COMPLETE
+- [x] `isReadOnly?: boolean` on `Chapter` type in `storyStore`
+- [x] `EditorSeamless` / `EditorMarkdown` — when true, `contenteditable="false"` and a read-only banner is shown
+- [x] Read-only chapters are skipped by `onContentFromEditor` and `saveChapter` (no dirty state, no autosave, no history snapshot)
+- [x] Toggle visible in the **Chapter Metadata Editor** (checkbox at the bottom of the form)
+- [x] Extended chapter fields (`isReadOnly`, `isPlotOutline`, `contextTags`, `summary`, etc.) now correctly serialised/deserialised ( `storyManager.ts` + `loadStory` fix)
 
-- [ ] Read-only chapters display a banner: *"This is a reference chapter — editing is disabled to preserve the help content."*
-- [ ] Sandbox chapters display a banner: *"This is a practice chapter — feel free to edit or delete content here."*
-- [ ] The help story cannot be deleted from the stories list (or shows a confirmation warning that it can be recreated from Help)
-- [ ] A **Reset help story** button in Settings restores the bundled content to all read-only chapters (sandbox chapters are left untouched)
-
-### 14.3 Chapter Read-Only Flag
-- [x] Add `isReadOnly?: boolean` to `Chapter` type in `storyStore` *(added in Phase 7.z)*
-- [ ] `EditorSeamless` / `EditorMarkdown` check this flag; when true, the editor `contenteditable` is disabled and a banner is shown
-- [ ] Read-only chapters are skipped by the auto-save system
-- [ ] The flag is visible (and toggleable for non-help stories) in the Chapter Metadata Editor (7.y)
-- [ ] Export includes read-only chapters normally (they are content, just locked in-app)
-
-### 14.4 Settings → Help Tab
-- [ ] Add a sixth tab to `Settings.vue`: **Help**
-- [ ] Contains: "Take the tour again" button, "Open help story" button, "Reset help story" button, link to project README / changelog
-- [ ] App version number displayed here
-
-### Technical Notes
-- Help story content is defined as a TypeScript constant (no disk files needed) and hydrated into `storyStore` on first launch or on reset
-- `isReadOnly` is the only new field required on `Chapter` for this phase; it is reusable for translated chapters, template chapters, etc. (Phase 12.5)
-- The spotlight tour uses a simple Vue component (`OnboardingTour.vue`) with a `steps` array; it does not require a third-party library
+### 14.4 Settings → Help Tab ✅ COMPLETE
+- [x] **Help** tab added to `Settings.vue` (sixth tab)
+- [x] Contains: “Take the tour again” button, “Open help story” button, “Reset help content” button
+- [x] App version number displayed (imported from `package.json`)
 
 ---
 
@@ -824,6 +803,7 @@ Higher-level metadata for multi-book series — builds on 17.1.
 - 🟡 **Phase 10**: Export & Data Management - 95% (MD/HTML/DOCX/import/backup/restore done; auto-backup timer pending)
 - ⏳ **Phase 11**: Performance & Polish - NOT STARTED (icon overhaul planned)
 - 🟡 **Phase 12**: Chapter Management - IN PROGRESS (12.1 drag-to-reorder, 12.2 version history, 12.3 session undo/redo, 12.6 inline title editing done; 12.4–12.5, 12.7 not started)
+- ✅ **Phase 14**: Help & Onboarding - COMPLETE (14.1 tour, 14.2 demo story, 14.3 read-only flag, 14.4 Help settings tab)
 - ⏳ **Phase 13**: Advanced Features - NOT STARTED
 - ⏳ **Phase 14**: Help & Onboarding - NOT STARTED
 - ⏳ **Phase 15**: Extensions - NOT STARTED
@@ -854,13 +834,11 @@ Higher-level metadata for multi-book series — builds on 17.1.
 ✅ 149 unit tests (Vitest)
 
 ### Next Priorities:
-1. **Phase 14** — Help & Onboarding (demo story, onboarding tour)
-2. **Phase 12.3** — Session Undo/Redo
-3. **Phase 12.7** — Chapter custom numbering & labels
-4. **Phase 11.x** — Icon library evaluation & overhaul
-5. **Phase 16** — Cloud AI model integration (OpenAI, Anthropic, Google)
-6. **Phase 17** — Story library & series management
-7. **Phase 11** — Performance & Polish
+1. **Phase 12.7** — Chapter custom numbering & labels
+2. **Phase 11.x** — Icon library evaluation & overhaul
+3. **Phase 16** — Cloud AI model integration (OpenAI, Anthropic, Google)
+4. **Phase 17** — Story library & series management
+5. **Phase 11** — Performance & Polish
 
 ---
 

@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { tokenizeMarkdown } from '../utils/seamlessRenderer'
+import { tokenizeMarkdown, renderTokens } from '../utils/seamlessRenderer'
 import type { Token } from '../utils/seamlessRenderer'
 
 // ─── Helpers ───────────────────────────────────────────────────────
@@ -507,5 +507,280 @@ describe('link tokenization', () => {
   it('link followed by bold', () => {
     const content = '[a](b) **bold**'
     expect(coversFullContent(tokenizeMarkdown(content), content)).toBe(true)
+  })
+})
+
+// ─── Table tokenization ──────────────────────────────────────────────────
+
+describe('table tokenization', () => {
+  const SIMPLE = '| A | B |\n|---|---|\n| 1 | 2 |'
+
+  it('produces a single table token', () => {
+    const tokens = tokenizeMarkdown(SIMPLE)
+    const tables = tokens.filter(t => t.type === 'table')
+    expect(tables).toHaveLength(1)
+  })
+
+  it('table spans from 0 to content.length for a standalone table', () => {
+    const tokens = tokenizeMarkdown(SIMPLE)
+    const tbl = tokens.find(t => t.type === 'table')!
+    expect(tbl.start).toBe(0)
+    expect(tbl.end).toBe(SIMPLE.length)
+  })
+
+  it('full coverage: standalone table', () => {
+    expect(coversFullContent(tokenizeMarkdown(SIMPLE), SIMPLE)).toBe(true)
+  })
+
+  it('full coverage: table surrounded by text', () => {
+    const content = 'intro\n' + SIMPLE + '\noutro'
+    expect(coversFullContent(tokenizeMarkdown(content), content)).toBe(true)
+  })
+
+  it('table start offset is correct when preceded by text', () => {
+    const prefix = 'intro\n'
+    const content = prefix + SIMPLE
+    const tokens = tokenizeMarkdown(content)
+    const tbl = tokens.find(t => t.type === 'table')!
+    expect(tbl.start).toBe(prefix.length)
+    expect(tbl.end).toBe(content.length)
+  })
+
+  it('table token content contains the raw markdown rows', () => {
+    const tokens = tokenizeMarkdown(SIMPLE)
+    const tbl = tokens.find(t => t.type === 'table')!
+    expect(tbl.content).toContain('| A | B |')
+    expect(tbl.content).toContain('| 1 | 2 |')
+  })
+
+  it('rendered HTML contains <table>, <thead>, <tbody>', () => {
+    const tokens = tokenizeMarkdown(SIMPLE)
+    const tbl = tokens.find(t => t.type === 'table')!
+    expect(tbl.rendered).toContain('<table>')
+    expect(tbl.rendered).toContain('<thead>')
+    expect(tbl.rendered).toContain('<tbody>')
+    expect(tbl.rendered).toContain('</table>')
+  })
+
+  it('rendered HTML has <th> for header cells', () => {
+    const tokens = tokenizeMarkdown(SIMPLE)
+    const tbl = tokens.find(t => t.type === 'table')!
+    expect(tbl.rendered).toContain('<th>A</th>')
+    expect(tbl.rendered).toContain('<th>B</th>')
+  })
+
+  it('rendered HTML has <td> for data cells', () => {
+    const tokens = tokenizeMarkdown(SIMPLE)
+    const tbl = tokens.find(t => t.type === 'table')!
+    expect(tbl.rendered).toContain('<td>1</td>')
+    expect(tbl.rendered).toContain('<td>2</td>')
+  })
+
+  it('table with only header + separator (no data rows) renders correctly', () => {
+    const content = '| X | Y |\n|---|---|'
+    const tokens = tokenizeMarkdown(content)
+    const tbl = tokens.find(t => t.type === 'table')!
+    expect(tbl).toBeDefined()
+    expect(tbl.rendered).toContain('<th>X</th>')
+    expect(tbl.rendered).toContain('<th>Y</th>')
+    expect(tbl.rendered).not.toContain('<tbody>')
+    expect(coversFullContent(tokens, content)).toBe(true)
+  })
+
+  it('table with three columns renders all columns', () => {
+    const content = '| A | B | C |\n|---|---|---|\n| 1 | 2 | 3 |'
+    const tokens = tokenizeMarkdown(content)
+    const tbl = tokens.find(t => t.type === 'table')!
+    expect(tbl.rendered).toContain('<th>A</th>')
+    expect(tbl.rendered).toContain('<th>B</th>')
+    expect(tbl.rendered).toContain('<th>C</th>')
+    expect(tbl.rendered).toContain('<td>1</td>')
+    expect(tbl.rendered).toContain('<td>3</td>')
+  })
+
+  it('inline formatting inside table cells is rendered', () => {
+    const content = '| **Bold** | *Italic* |\n|---|---|\n| `code` | text |'
+    const tokens = tokenizeMarkdown(content)
+    const tbl = tokens.find(t => t.type === 'table')!
+    expect(tbl.rendered).toContain('<strong>Bold</strong>')
+    expect(tbl.rendered).toContain('<em>Italic</em>')
+    expect(tbl.rendered).toContain('<code>code</code>')
+  })
+
+  it('multiple data rows are all rendered', () => {
+    const content = '| H |\n|---|\n| R1 |\n| R2 |\n| R3 |'
+    const tokens = tokenizeMarkdown(content)
+    const tbl = tokens.find(t => t.type === 'table')!
+    expect(tbl.rendered).toContain('<td>R1</td>')
+    expect(tbl.rendered).toContain('<td>R2</td>')
+    expect(tbl.rendered).toContain('<td>R3</td>')
+  })
+
+  it('line starting with | but no separator is NOT a table', () => {
+    // No separator row -> falls through to inline char tokenizer  
+    const content = '| just a pipe line'
+    const tokens = tokenizeMarkdown(content)
+    expect(tokens.some(t => t.type === 'table')).toBe(false)
+  })
+
+  it('table in preview render mode produces table HTML', () => {
+    const tokens = tokenizeMarkdown(SIMPLE)
+    const html = renderTokens(tokens, SIMPLE, -1, 'preview')
+    expect(html).toContain('<table>')
+    expect(html).toContain('<th>A</th>')
+    expect(html).toContain('<td>1</td>')
+  })
+
+  it('table separator with column alignment markers is recognised', () => {
+    const content = '| Left | Right | Center |\n|:---|---:|:---:|\n| a | b | c |'
+    const tokens = tokenizeMarkdown(content)
+    expect(tokens.some(t => t.type === 'table')).toBe(true)
+    const tbl = tokens.find(t => t.type === 'table')!
+    expect(tbl.rendered).toContain('<th>Left</th>')
+  })
+
+  it('table text field is empty (table is a block token)', () => {
+    const tokens = tokenizeMarkdown(SIMPLE)
+    const tbl = tokens.find(t => t.type === 'table')!
+    expect(tbl.text).toBe('')
+  })
+})
+
+// ─── Inline HTML in rendered output ─────────────────────────────────────
+
+describe('inline formatting in block token rendered output', () => {
+  it('header with bold renders <strong> in rendered field', () => {
+    const tokens = tokenizeMarkdown('## Hello **world**')
+    const h = tokens.find(t => t.type === 'header')!
+    expect(h.rendered).toContain('<strong>world</strong>')
+    expect(h.rendered).toMatch(/^<h2>.*<\/h2>$/)
+  })
+
+  it('header with italic renders <em>', () => {
+    const tokens = tokenizeMarkdown('# *italic* title')
+    const h = tokens.find(t => t.type === 'header')!
+    expect(h.rendered).toContain('<em>italic</em>')
+  })
+
+  it('header with inline code renders <code>', () => {
+    const tokens = tokenizeMarkdown('## Use `npm install`')
+    const h = tokens.find(t => t.type === 'header')!
+    expect(h.rendered).toContain('<code>npm install</code>')
+  })
+
+  it('list item with bold renders <strong>', () => {
+    const tokens = tokenizeMarkdown('- item with **bold**')
+    const li = tokens.find(t => t.type === 'listItem')!
+    expect(li.rendered).toContain('<strong>bold</strong>')
+  })
+
+  it('list item with italic renders <em>', () => {
+    const tokens = tokenizeMarkdown('- *italic* item')
+    const li = tokens.find(t => t.type === 'listItem')!
+    expect(li.rendered).toContain('<em>italic</em>')
+  })
+
+  it('list item with inline code renders <code>', () => {
+    const tokens = tokenizeMarkdown('- run `npm start`')
+    const li = tokens.find(t => t.type === 'listItem')!
+    expect(li.rendered).toContain('<code>npm start</code>')
+  })
+
+  it('ordered list item with strikethrough renders <del>', () => {
+    const tokens = tokenizeMarkdown('1. ~~done~~')
+    const ol = tokens.find(t => t.type === 'orderedList')!
+    expect(ol.rendered).toContain('<del>done</del>')
+  })
+
+  it('blockquote with bold renders <strong>', () => {
+    const tokens = tokenizeMarkdown('> quote with **bold**')
+    const bq = tokens.find(t => t.type === 'blockquote')!
+    expect(bq.rendered).toContain('<strong>bold</strong>')
+  })
+
+  it('blockquote with link renders <a>', () => {
+    const tokens = tokenizeMarkdown('> see [here](https://x.com)')
+    const bq = tokens.find(t => t.type === 'blockquote')!
+    expect(bq.rendered).toContain('<a href="https://x.com">here</a>')
+  })
+
+  it('plain list item text is HTML-escaped', () => {
+    const tokens = tokenizeMarkdown('- AT&T <corp>')
+    const li = tokens.find(t => t.type === 'listItem')!
+    expect(li.rendered).toContain('&amp;')
+    expect(li.rendered).toContain('&lt;corp&gt;')
+    expect(li.rendered).not.toContain('AT&T')
+  })
+
+  it('header rendered wraps with correct hN tag', () => {
+    for (let lvl = 1; lvl <= 6; lvl++) {
+      const tokens = tokenizeMarkdown('#'.repeat(lvl) + ' text')
+      const h = tokens.find(t => t.type === 'header')!
+      expect(h.rendered).toMatch(new RegExp(`^<h${lvl}>.*</h${lvl}>$`))
+    }
+  })
+})
+
+// ─── Escape characters ─────────────────────────────────────────────────────
+
+describe('escape characters', () => {
+  it('\\* produces a text token with text="*"', () => {
+    const tokens = tokenizeMarkdown('\\*')
+    const t = tokens.find(t => t.type === 'text')!
+    expect(t).toBeDefined()
+    expect(t.text).toBe('*')
+  })
+
+  it('\\* does not produce a bold/italic token', () => {
+    const tokens = tokenizeMarkdown('\\*not italic\\*')
+    expect(tokens.some(t => t.type === 'italic')).toBe(false)
+    expect(tokens.some(t => t.type === 'bold')).toBe(false)
+  })
+
+  it('\\\\ produces a text token with text="\\\\"', () => {
+    const tokens = tokenizeMarkdown('\\\\\\\\')
+    const t = tokens.find(t => t.type === 'text')!
+    expect(t.text).toBe('\\')
+  })
+
+  it('\\` does not trigger inline code', () => {
+    const tokens = tokenizeMarkdown('\\`not code\\`')
+    expect(tokens.some(t => t.type === 'code')).toBe(false)
+  })
+
+  it('\\[ does not trigger a link', () => {
+    const tokens = tokenizeMarkdown('\\[text](url)')
+    expect(tokens.some(t => t.type === 'link')).toBe(false)
+  })
+
+  it('\\~ does not produce strikethrough', () => {
+    const tokens = tokenizeMarkdown('\\~~not strike\\~~')
+    expect(tokens.some(t => t.type === 'strikethrough')).toBe(false)
+  })
+
+  it('escaped char rendered is the literal char (HTML-safe)', () => {
+    // '>' is in the escape class and is HTML-encoded as '&gt;'
+    const tokens = tokenizeMarkdown('\\>')
+    const t = tokens.find(t => t.text === '>')!
+    expect(t).toBeDefined()
+    expect(t.rendered).toBe('&gt;')
+  })
+
+  it('full coverage with escape sequences', () => {
+    const content = 'before \\* after'
+    expect(coversFullContent(tokenizeMarkdown(content), content)).toBe(true)
+  })
+
+  it('escape sequence token end = start + 2', () => {
+    const content = 'x\\*y'
+    const tokens = tokenizeMarkdown(content)
+    const esc = tokens.find(t => t.text === '*')!
+    expect(esc).toBeDefined()
+    expect(esc.end - esc.start).toBe(2)
+  })
+
+  it('\\# at start of line does not create a header', () => {
+    const tokens = tokenizeMarkdown('\\# not a header')
+    expect(tokens.some(t => t.type === 'header')).toBe(false)
   })
 })

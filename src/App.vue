@@ -8,6 +8,7 @@
     <Settings />
     <SearchPanel />
     <Notification />
+    <OnboardingTour />
   </div>
 </template>
 
@@ -21,6 +22,7 @@ import ExportPanel from '@/components/ExportPanel.vue'
 import Settings from '@/components/Settings.vue'
 import SearchPanel from '@/components/SearchPanel.vue'
 import Notification from '@/components/Notification.vue'
+import OnboardingTour from '@/components/OnboardingTour.vue'
 import { useUIStore } from '@/stores/uiStore'
 import { useStoryStore } from '@/stores/storyStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -28,7 +30,8 @@ import { initializeKeyboardShortcuts, registerDefaultShortcuts } from '@/utils/k
 import { storageManager } from '@/utils/storage'
 import { useSummaryManager } from '@/utils/summaryManager'
 
-const LAST_STORY_KEY = 'blockbreaker_last_story'
+const LAST_STORY_KEY   = 'blockbreaker_last_story'
+const ONBOARDING_KEY   = 'blockbreaker_onboarding_complete'
 
 const uiStore = useUIStore()
 const storyStore = useStoryStore()
@@ -66,8 +69,12 @@ onMounted(async () => {
   }
 
   if (!loaded) {
-    storyStore.createNewStory('My Story')
+    // First launch: show the built-in help story instead of a blank canvas
+    loaded = await storyStore.loadOrCreateHelpStory()
   }
+
+  // Ensure the help story always exists in the sidebar (background creation, no switch)
+  storyStore.ensureHelpStoryExists().catch(() => {})
 
   // Auto-select first chapter if none selected
   if (!storyStore.currentChapterId && storyStore.chapters.length > 0) {
@@ -93,6 +100,11 @@ onMounted(async () => {
   })
 
   uiStore.setTheme(uiStore.theme)
+
+  // Start onboarding tour on first launch
+  if (!localStorage.getItem(ONBOARDING_KEY)) {
+    setTimeout(() => uiStore.startTour(), 600)
+  }
 
   if (storyStore.chapters.length === 0) {
     uiStore.showNotification('Welcome to BlockBreaker! Create your first chapter to get started.', 'info', 0)

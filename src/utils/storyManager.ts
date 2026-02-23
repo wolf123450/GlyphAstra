@@ -28,6 +28,15 @@ export interface SerializedStory {
     content: string
     wordCount: number
     lastEdited: string
+    // Extended / AI metadata fields
+    isPlotOutline?: boolean
+    contextTags?: string[]
+    summary?: string
+    summaryGeneratedAt?: number
+    summaryContentHash?: string
+    summaryPaused?: boolean
+    summaryManuallyEdited?: boolean
+    isReadOnly?: boolean
   }>
   characters: Array<{
     id: string
@@ -87,6 +96,15 @@ export function serializeStory(
       content: ch.content || '',
       wordCount: ch.wordCount || 0,
       lastEdited: ch.lastEdited,
+      // Extended fields — only include when set to avoid bloating storage
+      ...(ch.isPlotOutline         != null  && { isPlotOutline:         ch.isPlotOutline }),
+      ...(ch.contextTags           != null  && { contextTags:           ch.contextTags }),
+      ...(ch.summary               != null  && { summary:               ch.summary }),
+      ...(ch.summaryGeneratedAt    != null  && { summaryGeneratedAt:    ch.summaryGeneratedAt }),
+      ...(ch.summaryContentHash    != null  && { summaryContentHash:    ch.summaryContentHash }),
+      ...(ch.summaryPaused         != null  && { summaryPaused:         ch.summaryPaused }),
+      ...(ch.summaryManuallyEdited != null  && { summaryManuallyEdited: ch.summaryManuallyEdited }),
+      ...(ch.isReadOnly            != null  && { isReadOnly:            ch.isReadOnly }),
     })),
     characters: characters.map((char: any) => ({
       id: char.id,

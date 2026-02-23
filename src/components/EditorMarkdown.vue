@@ -3,6 +3,7 @@
     :content="content"
     :cursorPos="cursorPos"
     forceMode="markdown"
+    :isReadOnly="isReadOnly"
     :suggestion-text="suggestionText"
     :suggestion-count="suggestionCount"
     :suggestion-index="suggestionIndex"
@@ -27,6 +28,7 @@ import EditorSeamless from './EditorSeamless.vue'
 
 interface Props {
   content: string
+  isReadOnly?: boolean
   suggestionText?: string
   suggestionCount?: number
   suggestionIndex?: number

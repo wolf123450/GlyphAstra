@@ -46,10 +46,8 @@
       </div>
     </div>
     <div class="chapter-actions" v-show="isActive">
+      <button class="action-btn delete" @click.stop="deleteThis" title="Delete">×</button>
       <button class="action-btn" @click.stop="openMeta" title="Edit properties">&#x2261;</button>
-      <button class="action-btn delete" @click.stop="deleteThis" title="Delete">
-        ×
-      </button>
     </div>
   </div>
 </template>
@@ -304,16 +302,21 @@ const onHandleDown = (e: MouseEvent) => {
 
 .chapter-actions {
   display: flex;
-  gap: var(--spacing-xs);
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: var(--spacing-xs);
 }
 
 .action-btn {
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding: 2px 6px;
   border-radius: var(--radius-sm);
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.4;
   transition: all var(--transition-fast);
   color: white;
 }

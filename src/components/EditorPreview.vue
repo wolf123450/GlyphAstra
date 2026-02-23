@@ -76,7 +76,11 @@ watch(
 )
 </script>
 
-<style scoped>
+<!-- Not scoped: content is injected via innerHTML and scoped selectors
+     (which append [data-v-xxx] to the deepest rule) would never match those
+     dynamically-created elements. All rules are prefixed with .editor-preview
+     so there is no risk of global style leakage. -->
+<style>
 .editor-preview {
   flex: 1;
   padding: var(--spacing-md);
@@ -156,8 +160,81 @@ watch(
   margin: var(--spacing-sm) 0;
 }
 
+.editor-preview ol {
+  list-style-position: inside;
+  list-style-type: decimal;
+  padding: 0;
+  margin: var(--spacing-sm) 0;
+}
+
 .editor-preview li {
   margin-left: 0;
   margin-bottom: var(--spacing-xs);
 }
-</style>
+
+/* Blockquote */
+.editor-preview blockquote {
+  border-left: 3px solid var(--accent-color);
+  margin: var(--spacing-sm) 0;
+  padding: var(--spacing-xs) var(--spacing-md);
+  color: var(--text-secondary);
+  font-style: italic;
+  background-color: var(--bg-secondary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* Links */
+.editor-preview a {
+  color: var(--accent-color);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Horizontal rule */
+.editor-preview hr {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: var(--spacing-lg) 0;
+}
+
+/* Preformatted / fenced code */
+.editor-preview pre {
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  overflow-x: auto;
+  margin: var(--spacing-sm) 0;
+  white-space: pre;
+}
+
+.editor-preview pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.9em;
+}
+
+/* Tables */
+.editor-preview table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: var(--spacing-sm) 0;
+  white-space: normal;
+}
+
+.editor-preview th,
+.editor-preview td {
+  border: 1px solid var(--border-color);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  text-align: left;
+}
+
+.editor-preview thead th {
+  background-color: var(--bg-tertiary);
+  font-weight: 600;
+}
+
+.editor-preview tbody tr:nth-child(even) {
+  background-color: var(--bg-secondary);
+}</style>

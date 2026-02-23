@@ -127,6 +127,9 @@
       <button class="btn-icon" @click="toggleTheme" :title="`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`">
         {{ theme === 'dark' ? '◐' : '☀' }}
       </button>
+      <button class="btn-icon" @click="openHelpStory" title="Help &amp; Reference">
+        ?
+      </button>
     </div>
   </aside>
 
@@ -144,6 +147,7 @@ import { useStoryStore } from '@/stores/storyStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { storageManager } from '@/utils/storage'
+import { HELP_STORY_ID } from '@/utils/helpStory'
 import ChapterItem from './ChapterItem.vue'
 import ChapterMeta from './ChapterMeta.vue'
 
@@ -195,6 +199,13 @@ const formatDate = (iso: string) => {
 const pendingDelete = ref<{ id: string; name: string } | null>(null)
 
 const requestDeleteStory = (id: string, name: string) => {
+  if (id === HELP_STORY_ID) {
+    uiStore.showNotification(
+      'The help story cannot be deleted. You can reset it to its original content from Settings → Help.',
+      'info', 4000
+    )
+    return
+  }
   pendingDelete.value = { id, name }
 }
 
@@ -393,6 +404,16 @@ const executeDeleteChapter = () => {
 
 const toggleSettings = () => {
   uiStore.toggleSettings()
+}
+
+const openHelpStory = async () => {
+  if (storyStore.currentStoryId !== HELP_STORY_ID) {
+    await storyStore.loadOrCreateHelpStory()
+    if (storyStore.chapters.length > 0) {
+      storyStore.setCurrentChapter(storyStore.chapters[0].id)
+    }
+  }
+  showStoryPicker.value = false
 }
 
 const toggleTheme = () => {

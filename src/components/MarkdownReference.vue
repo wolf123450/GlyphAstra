@@ -202,6 +202,67 @@
               </tbody>
             </table>
           </section>
+
+          <!-- ─── Tables ──────────────────────────────────── -->
+          <section class="md-section">
+            <h3 class="md-section-title">Tables</h3>
+            <table class="md-table">
+              <thead><tr><th>Syntax</th><th>Rendered</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <code>| Col A | Col B |</code><br>
+                    <code>|-------|-------|</code><br>
+                    <code>| Val 1 | Val 2 |</code><br>
+                    <code>| Val 3 | Val 4 |</code>
+                  </td>
+                  <td>
+                    <div class="ex-table-wrapper">
+                      <table class="ex-table">
+                        <thead><tr><th>Col A</th><th>Col B</th></tr></thead>
+                        <tbody>
+                          <tr><td>Val 1</td><td>Val 2</td></tr>
+                          <tr><td>Val 3</td><td>Val 4</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" class="ex-tip">
+                    Column alignment: <code>|:---|</code> left &nbsp;·&nbsp;
+                    <code>|---:|</code> right &nbsp;·&nbsp;
+                    <code>|:---:|</code> center<br>
+                    Cells can contain inline formatting: <code>**bold**</code>, <code>*italic*</code>, <code>`code`</code>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- ─── Escape Characters ────────────────────────── -->
+          <section class="md-section">
+            <h3 class="md-section-title">Escape Characters</h3>
+            <table class="md-table">
+              <thead><tr><th>Syntax</th><th>Result</th></tr></thead>
+              <tbody>
+                <tr><td><code>\*</code></td><td>*</td></tr>
+                <tr><td><code>\_</code></td><td>_</td></tr>
+                <tr><td><code>\~</code></td><td>~</td></tr>
+                <tr><td><code>\`</code></td><td>`</td></tr>
+                <tr><td><code>\[</code></td><td>[</td></tr>
+                <tr><td><code>\#</code></td><td>#</td></tr>
+                <tr><td><code>\|</code></td><td>|</td></tr>
+                <tr><td><code>\\</code></td><td>\</td></tr>
+                <tr>
+                  <td colspan="2" class="ex-tip">
+                    Prefix any Markdown control character with <code>\</code> to render it literally.
+                    Works inside headings, list items, blockquotes, and table cells.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
         </div><!-- /body -->
       </div>
     </div>
@@ -445,6 +506,35 @@ ol.ex-list {
   border-top: 1px solid var(--border-color);
   width: 100%;
   margin: 4px 0;
+}
+
+/* ─── Example table ─────────────────────────────────────────── */
+.ex-table-wrapper {
+  overflow-x: auto;
+}
+
+.ex-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 120px;
+}
+
+.ex-table th,
+.ex-table td {
+  border: 1px solid var(--border-color);
+  padding: 3px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ex-table thead th {
+  background: var(--bg-tertiary, color-mix(in srgb, var(--bg-primary) 50%, var(--bg-secondary)));
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ex-table tbody td {
+  color: var(--text-primary);
 }
 
 .ex-tip {

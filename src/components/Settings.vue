@@ -286,6 +286,31 @@
             <p class="setting-hint">Keyboard shortcut customisation coming soon.</p>
           </div>
 
+          <!-- ── Help ────────────────────────────────────────── -->
+          <div v-if="activeTab === 'help'" class="tab-content help-tab">
+
+            <div class="help-section">
+              <h3 class="help-section-title">Onboarding</h3>
+              <p class="setting-hint">Take the guided tour to learn the key areas of the app.</p>
+              <button class="btn-sm help-btn" @click="startTour">&#9654; Take the tour</button>
+            </div>
+
+            <div class="help-section">
+              <h3 class="help-section-title">Help Story</h3>
+              <p class="setting-hint">The built-in help story contains reference material and sandbox chapters.</p>
+              <div class="help-btn-row">
+                <button class="btn-sm help-btn" @click="openHelpStory">Open help story</button>
+                <button class="btn-sm help-btn" @click="resetHelpContent">Reset help content</button>
+              </div>
+            </div>
+
+            <div class="help-section">
+              <h3 class="help-section-title">About</h3>
+              <p class="setting-hint">BlockBreaker v{{ appVersion }}</p>
+            </div>
+
+          </div>
+
         </div>
 
         <!-- Footer -->
@@ -303,12 +328,15 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useUIStore } from '@/stores/uiStore'
 import { useSettingsStore, CUSTOMIZABLE_VARS, type CustomizableVar } from '@/stores/settingsStore'
+import { useStoryStore } from '@/stores/storyStore'
+import { version as appVersion } from '../../package.json'
 
 const uiStore = useUIStore()
 const settingsStore = useSettingsStore()
 const settings = settingsStore.settings
+const storyStore = useStoryStore()
 
-const activeTab = ref<'editor' | 'autosave' | 'ai' | 'appearance' | 'shortcuts'>('editor')
+const activeTab = ref<'editor' | 'autosave' | 'ai' | 'appearance' | 'shortcuts' | 'help'>('editor')
 
 const tabs = [
   { key: 'editor',      label: 'Editor' },
@@ -316,6 +344,7 @@ const tabs = [
   { key: 'ai',          label: 'AI' },
   { key: 'appearance',  label: 'Appearance' },
   { key: 'shortcuts',   label: 'Shortcuts' },
+  { key: 'help',        label: 'Help' },
 ] as const
 
 const fontFamilies = [
@@ -418,6 +447,28 @@ function resetDefaults() {
 
 function close() {
   uiStore.showSettings = false
+}
+
+// ─── Help tab handlers ─────────────────────────────────────────────────────
+
+async function openHelpStory() {
+  close()
+  await storyStore.loadOrCreateHelpStory()
+  const chapters = storyStore.chapters
+  if (chapters.length > 0) {
+    storyStore.setCurrentChapter(chapters[0].id)
+  }
+}
+
+async function resetHelpContent() {
+  await storyStore.resetHelpStory()
+  uiStore.showNotification('Help story reference chapters have been reset.', 'success')
+}
+
+function startTour() {
+  close()
+  // Tour is wired in App.vue via uiStore.startTour()
+  uiStore.startTour()
 }
 
 function shortcutLabel(action: string): string {
@@ -664,6 +715,30 @@ input[type="range"] {
   color: var(--text-secondary);
   white-space: nowrap;
 }
+
+/* ── Help tab ───────────────────────────────────────── */
+.help-tab { display: flex; flex-direction: column; gap: var(--spacing-xl); }
+.help-section { display: flex; flex-direction: column; gap: 8px; }
+.help-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+.help-btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.help-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.help-btn:hover { background: var(--bg-hover); border-color: var(--accent-color); }
 
 /* ── Footer ────────────────────────────────────────── */
 .settings-footer {

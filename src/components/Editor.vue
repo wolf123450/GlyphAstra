@@ -34,7 +34,7 @@
         <button
           class="action-btn"
           @click="saveChapter"
-          :disabled="!isDirty"
+          :disabled="!isDirty || isReadOnly"
           title="Save (Ctrl+S)"
         >
           ⬇
@@ -80,6 +80,7 @@
         v-if="renderMode === 'seamless' && currentChapter"
         :content="content"
         :cursorPos="cursorPosition"
+        :isReadOnly="isReadOnly"
         :suggestion-text="ai.remainingText.value"
         :suggestion-count="ai.totalCount.value"
         :suggestion-index="ai.currentIndex.value"
@@ -100,6 +101,7 @@
       <EditorMarkdown
         v-else-if="renderMode === 'markdown' && currentChapter"
         :content="content"
+        :isReadOnly="isReadOnly"
         :suggestion-text="ai.remainingText.value"
         :suggestion-count="ai.totalCount.value"
         :suggestion-index="ai.currentIndex.value"
@@ -198,6 +200,7 @@ const uiStore = useUIStore()
 
 const currentChapter = computed(() => storyStore.currentChapter)
 const isDirty = computed(() => editorStore.isDirty)
+const isReadOnly = computed(() => currentChapter.value?.isReadOnly ?? false)
 const isOverviewOpen = computed(() => uiStore.activePanel === 'overview')
 const isAIOpen = computed(() => uiStore.activePanel === 'ai')
 
@@ -250,6 +253,7 @@ const onTypeChar          = (char: string) => ai.tryMatchChar(char)
 // ─── Session undo/redo ─────────────────────────────────────────────────────
 /** Called by every editor update:content so we push to the undo stack. */
 const onContentFromEditor = (newContent: string) => {
+  if (isReadOnly.value) return            // guard: read-only chapters cannot be edited
   content.value = newContent        // → editorStore.setContent (marks dirty)
   const id = storyStore.currentChapterId
   if (id) undoManager.push(id, newContent, () => cursorPosition.value)
@@ -368,27 +372,26 @@ const lineCount = computed(() => {
 })
 
 const saveChapter = async () => {
-  if (currentChapter.value) {
-    const wordCount = content.value
-      .trim()
-      .split(/\s+/)
-      .filter((word: string) => word.length > 0).length
-    storyStore.updateChapter(currentChapter.value.id, {
-      content: content.value,
-      wordCount,
-      lastEdited: new Date().toISOString(),
-    })
-    // Save to storage - will use currentStoryId from store
-    const saved = await storyStore.saveStory()
-    if (saved) {
-      editorStore.markAsSaved()
-      // Capture a history snapshot (no-ops if change is too small)
-      await captureSnapshot(
-        storyStore.currentStoryId,
-        currentChapter.value,
-        content.value,
-      )
-    }
+  if (!currentChapter.value || isReadOnly.value) return
+  const wordCount = content.value
+    .trim()
+    .split(/\s+/)
+    .filter((word: string) => word.length > 0).length
+  storyStore.updateChapter(currentChapter.value.id, {
+    content: content.value,
+    wordCount,
+    lastEdited: new Date().toISOString(),
+  })
+  // Save to storage - will use currentStoryId from store
+  const saved = await storyStore.saveStory()
+  if (saved) {
+    editorStore.markAsSaved()
+    // Capture a history snapshot (no-ops if change is too small)
+    await captureSnapshot(
+      storyStore.currentStoryId,
+      currentChapter.value,
+      content.value,
+    )
   }
 }
 </script>

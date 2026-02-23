@@ -107,6 +107,18 @@ export function buildStructuredHTML(tokens: Token[], content: string): string {
     } else if (token.type === 'link') {
       const url = token.url ?? ''
       html += `<span class="token token-link rendered" data-start="${token.start}" data-end="${token.end}" data-url="${esc(url)}"><span class="marker">[</span><span class="content">${esc(token.text)}</span><span class="marker">](${esc(url)})</span></span>`
+    } else if (token.type === 'table') {
+      // All source characters live in .table-source as text nodes so countTextUpTo
+      // can walk through them for accurate cursor positioning.
+      // The visual HTML table lives in a data-ghost span so countTextUpTo skips it.
+      // CSS in EditorSeamless swaps which one is visible based on rendered/source class.
+      const lines = token.content.split('\n')
+      const sourceHtml = lines.map(line =>
+        line.split('|').map((cell, i, arr) =>
+          esc(cell) + (i < arr.length - 1 ? `<span class="marker">|</span>` : '')
+        ).join('')
+      ).join('\n')
+      html += `<span class="token token-table rendered" data-start="${token.start}" data-end="${token.end}"><span class="table-source">${sourceHtml}</span><span class="table-render" data-ghost="true">${token.rendered}</span></span>`
     }
 
     lastEnd = token.end
