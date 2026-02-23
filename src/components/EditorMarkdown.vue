@@ -15,6 +15,9 @@
     @next-suggestion="emit('next-suggestion')"
     @prev-suggestion="emit('prev-suggestion')"
     @type-char="emit('type-char', $event)"
+    @undo="emit('undo')"
+    @redo="emit('redo')"
+    @snapshot="emit('snapshot')"
   />
 </template>
 
@@ -39,6 +42,9 @@ interface Emits {
   'next-suggestion':   []
   'prev-suggestion':   []
   'type-char':         [char: string]
+  'undo':              []
+  'redo':              []
+  'snapshot':          []
 }
 
 defineProps<Props>()

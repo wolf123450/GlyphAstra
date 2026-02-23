@@ -52,6 +52,10 @@ interface Emits {
   'type-char':         [char: string]
   // Link navigation
   'navigate-chapter':  [id: string]
+  // Session undo/redo
+  'undo':     []
+  'redo':     []
+  'snapshot': []   // flush current state before a structural edit
 }
 
 const props = defineProps<Props>()
@@ -236,7 +240,33 @@ const onKeyup = (e: KeyboardEvent) => {
 const handleKeydown = (event: KeyboardEvent) => {
   const pos = livePos()
 
-  // ── Ctrl+Space → trigger AI generation ──────────────────────────
+  // ── Session undo/redo ──────────────────────────────────────────────
+  // Note: event.key is uppercase ('Z') when Shift is held, so compare lowercase.
+  const k = event.key.toLowerCase()
+  if (k === 'z' && (event.ctrlKey || event.metaKey) && !event.shiftKey) {
+    event.preventDefault()
+    emit('undo')
+    return
+  }
+  if (
+    (k === 'y' && (event.ctrlKey || event.metaKey)) ||
+    (k === 'z' && (event.ctrlKey || event.metaKey) && event.shiftKey)
+  ) {
+    event.preventDefault()
+    emit('redo')
+    return
+  }
+
+  // ── Snapshot before structural edits ─────────────────────────────────
+  // Save the current state immediately so undo can restore it after the edit.
+  if (
+    (event.key === 'Enter' || event.key === 'Delete' || event.key === 'Tab') &&
+    !event.ctrlKey && !event.metaKey
+  ) {
+    emit('snapshot')
+  }
+
+  // ── Ctrl+Space → trigger AI generation ─────────────────────────────────────
   if (event.key === ' ' && event.ctrlKey && !event.shiftKey) {
     event.preventDefault()
     emit('trigger-ai')
@@ -334,6 +364,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 
 const handlePaste = (event: ClipboardEvent) => {
   event.preventDefault()
+  emit('snapshot')    // save pre-paste state
   const pos = livePos()
   const text = event.clipboardData?.getData('text/plain') || ''
 
@@ -356,6 +387,7 @@ const handlePaste = (event: ClipboardEvent) => {
 
 const handleCut = (event: ClipboardEvent) => {
   event.preventDefault()
+  emit('snapshot')    // save pre-cut state
   if (selectionStart !== selectionEnd) {
     const cutEnd = selectionEnd
     event.clipboardData?.setData('text/plain', props.content.slice(selectionStart, cutEnd))
