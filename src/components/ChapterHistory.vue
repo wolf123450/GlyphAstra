@@ -471,6 +471,40 @@ function restore() {
   padding-left: var(--spacing-md);
   color: var(--text-secondary);
 }
+.preview-content :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5em 0;
+}
+.preview-content :deep(th),
+.preview-content :deep(td) {
+  border: 1px solid var(--border-color);
+  padding: 4px 8px;
+  text-align: left;
+}
+.preview-content :deep(thead th) {
+  background-color: var(--bg-tertiary);
+  font-weight: 600;
+}
+.preview-content :deep(ul),
+.preview-content :deep(ol) {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+.preview-content :deep(li) {
+  margin-bottom: 0.25em;
+}
+.preview-content :deep(pre) {
+  background-color: var(--bg-tertiary);
+  border-radius: 4px;
+  padding: 0.5em;
+  overflow-x: auto;
+}
+.preview-content :deep(code) {
+  background-color: var(--bg-tertiary);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
 
 /* Diff view */
 .diff-view {

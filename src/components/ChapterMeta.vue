@@ -140,6 +140,15 @@
             </div>
           </div>
 
+          <!-- Read-only toggle -->
+          <div class="field-group">
+            <label class="pause-label readonly-toggle">
+              <input type="checkbox" v-model="draft.isReadOnly" />
+              Lock chapter (read-only) — disable editing in the editor
+            </label>
+            <p class="field-hint">Useful for reference chapters or finished work you don’t want to accidentally change.</p>
+          </div>
+
         </div>
 
         <!-- Footer -->
@@ -180,6 +189,7 @@ interface DraftState {
   name: string
   status: 'draft' | 'in-progress' | 'complete'
   isPlotOutline: boolean
+  isReadOnly: boolean
   contextTags: string[]
   summary: string
   summaryPaused: boolean
@@ -190,6 +200,7 @@ const draft = ref<DraftState>({
   name: '',
   status: 'draft',
   isPlotOutline: false,
+  isReadOnly: false,
   contextTags: [],
   summary: '',
   summaryPaused: false,
@@ -211,6 +222,7 @@ watch(
         name:                  ch.name,
         status:                ch.status,
         isPlotOutline:         ch.isPlotOutline ?? false,
+        isReadOnly:            ch.isReadOnly ?? false,
         contextTags:           [...(ch.contextTags ?? [])],
         summary:               ch.summary ?? '',
         summaryPaused:         ch.summaryPaused ?? false,
@@ -318,6 +330,7 @@ const saveChapter = () => {
     name:                  draft.value.name.trim() || chapter.value?.name,
     status:                draft.value.status,
     isPlotOutline:         draft.value.isPlotOutline,
+    isReadOnly:            draft.value.isReadOnly,
     contextTags:           draft.value.contextTags,
     summary:               draft.value.summary,
     summaryPaused:         draft.value.summaryPaused,

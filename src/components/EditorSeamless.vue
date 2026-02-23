@@ -1,9 +1,13 @@
 <template>
   <div class="editor-wrapper">
+    <div v-if="props.isReadOnly" class="readonly-banner">
+      🔒 This is a reference chapter — editing is disabled to preserve the help content.
+    </div>
     <div
       ref="editorInput"
       class="editor-input"
-      contenteditable="plaintext-only"
+      :class="{ 'editor-input--readonly': props.isReadOnly }"
+      :contenteditable="props.isReadOnly ? 'false' : 'plaintext-only'"
       :spellcheck="settingsStore.settings.spellCheck"
       @input="onInput"
       @click="handleEditorClick"
@@ -33,6 +37,7 @@ interface Props {
   content: string
   cursorPos: number
   forceMode?: 'seamless' | 'markdown' | 'preview'
+  isReadOnly?: boolean
   // Inline suggestion props (managed by parent)
   suggestionText?: string
   suggestionCount?: number
@@ -240,6 +245,9 @@ const onKeyup = (e: KeyboardEvent) => {
 const handleKeydown = (event: KeyboardEvent) => {
   const pos = livePos()
 
+  // Read-only chapters: block all editing interactions
+  if (props.isReadOnly) return
+
   // ── Session undo/redo ──────────────────────────────────────────────
   // Note: event.key is uppercase ('Z') when Shift is held, so compare lowercase.
   const k = event.key.toLowerCase()
@@ -364,6 +372,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 
 const handlePaste = (event: ClipboardEvent) => {
   event.preventDefault()
+  if (props.isReadOnly) return
   emit('snapshot')    // save pre-paste state
   const pos = livePos()
   const text = event.clipboardData?.getData('text/plain') || ''
@@ -387,6 +396,7 @@ const handlePaste = (event: ClipboardEvent) => {
 
 const handleCut = (event: ClipboardEvent) => {
   event.preventDefault()
+  if (props.isReadOnly) return
   emit('snapshot')    // save pre-cut state
   if (selectionStart !== selectionEnd) {
     const cutEnd = selectionEnd
@@ -428,6 +438,22 @@ const onInput = (event: InputEvent) => {
 </script>
 
 <style scoped>
+.readonly-banner {
+  padding: 6px 16px;
+  background: transparent;
+  border-bottom: 1px dashed var(--border-color);
+  font-size: 11px;
+  color: var(--text-muted);
+  user-select: none;
+  opacity: 0.75;
+  flex-shrink: 0;
+}
+
+.editor-input--readonly {
+  cursor: default;
+  opacity: 0.9;
+}
+
 .editor-wrapper {
   flex: 1;
   position: relative;
@@ -575,6 +601,58 @@ const onInput = (event: InputEvent) => {
   color: var(--text-primary);
 }
 
+/* ── Rendered: table — ghost HTML table visible, source hidden ──── */
+/* Block wrapper for the token itself */
+.editor-input :deep(.token-table) {
+  display: block;
+  margin: 0.3em 0;
+}
+/* Source text: hidden by default (rendered state), visible in source state */
+.editor-input :deep(.token-table .table-source) {
+  display: none;
+}
+.editor-input :deep(.token-table.source .table-source) {
+  display: inline;
+  white-space: pre;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 0.9em;
+}
+.editor-input :deep(.token-table.source .marker) {
+  color: var(--accent-color);
+  font-weight: 700;
+}
+/* Ghost table: hidden by default, shown in rendered state */
+.editor-input :deep(.token-table .table-render) {
+  display: none;
+}
+.editor-input :deep(.token-table.rendered .table-render) {
+  display: block;
+}
+.editor-input :deep(.token-table .table-render table) {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.92em;
+}
+.editor-input :deep(.token-table .table-render th),
+.editor-input :deep(.token-table .table-render td) {
+  border: 1px solid var(--border-color);
+  padding: 3px 10px;
+  text-align: left;
+  font-weight: normal;
+  color: var(--text-primary);
+}
+.editor-input :deep(.token-table .table-render thead th) {
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--bg-secondary));
+  font-weight: 600;
+}
+.editor-input :deep(.token-table .table-render tbody tr:nth-child(even) td) {
+  background: color-mix(in srgb, var(--bg-tertiary) 60%, transparent);
+}
+/* Ghost table must not be collapsed by the source-reset block */
+.editor-input :deep(.token-table.source .table-render) {
+  display: none !important;
+}
+
 /* ── Rendered: inline link ──────────────────────────────── */
 .editor-input :deep(.token-link.rendered .marker) { display: none; }
 .editor-input :deep(.token-link.rendered .content) {
@@ -615,6 +693,7 @@ const onInput = (event: InputEvent) => {
 .editor-input :deep(.token-blockquote.source),
 .editor-input :deep(.token-ordered.source),
 .editor-input :deep(.token-fenced.source),
+.editor-input :deep(.token-table.source),
 .editor-input :deep(.token-link.source) {
   font-weight: normal !important;
   font-style: normal !important;

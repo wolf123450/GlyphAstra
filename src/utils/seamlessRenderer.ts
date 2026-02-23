@@ -7,7 +7,7 @@ export type RenderMode = 'markdown' | 'seamless' | 'preview'
 
 export interface Token {
   type: 'text' | 'header' | 'bold' | 'italic' | 'code' | 'strikethrough' | 'listItem'
-      | 'fencedCode' | 'orderedList' | 'blockquote' | 'hr' | 'link'
+      | 'fencedCode' | 'orderedList' | 'blockquote' | 'hr' | 'link' | 'table'
   start: number
   end: number
   level?: number   // for headers (1-6) and blockquotes (nesting depth)
@@ -52,7 +52,7 @@ export function tokenizeMarkdown(content: string): Token[] {
         end,
         content: line,
         text: text,
-        rendered: `<h${level}>${escapeHtml(text)}</h${level}>`,
+        rendered: `<h${level}>${renderInlineHtml(text)}</h${level}>`,
       })
 
       lineStartPos += line.length + 1
@@ -74,7 +74,7 @@ export function tokenizeMarkdown(content: string): Token[] {
         end,
         content: line,
         text: text,
-        rendered: `<ul><li>${escapeHtml(text)}</li></ul>`,
+        rendered: `<ul><li>${renderInlineHtml(text)}</li></ul>`,
       })
 
       lineStartPos += line.length + 1
@@ -115,7 +115,7 @@ export function tokenizeMarkdown(content: string): Token[] {
         end,
         content: line,
         text: text,
-        rendered: `<blockquote>${escapeHtml(text)}</blockquote>`,
+        rendered: `<blockquote>${renderInlineHtml(text)}</blockquote>`,
       })
 
       lineStartPos += line.length + 1
@@ -139,11 +139,59 @@ export function tokenizeMarkdown(content: string): Token[] {
         end,
         content: line,
         text: text,
-        rendered: `<ol start="${order}"><li>${escapeHtml(text)}</li></ol>`,
+        rendered: `<ol start="${order}"><li>${renderInlineHtml(text)}</li></ol>`,
       })
 
       lineStartPos += line.length + 1
       continue
+    }
+
+    // Check for table (line starts with | and next line is a separator |---|)
+    if (stripped.startsWith('|') && lineIdx + 1 < lines.length) {
+      const sepRaw = lines[lineIdx + 1]
+      const sepStripped = sepRaw.endsWith('\r') ? sepRaw.slice(0, -1) : sepRaw
+      if (/^\|[-| :]+\|/.test(sepStripped)) {
+        const headerCols = parseTableRow(stripped)
+        const tableStart = lineStartPos
+
+        // pos advances past each consumed line (length + 1 for \n)
+        let pos = lineStartPos + line.length + 1  // past header → start of separator
+
+        lineIdx++  // consume separator line
+        pos += lines[lineIdx].length + 1  // past separator → start of first data line
+
+        const dataRows: string[][] = []
+        while (lineIdx + 1 < lines.length) {
+          const nxtRaw = lines[lineIdx + 1]
+          const nxtStripped = nxtRaw.endsWith('\r') ? nxtRaw.slice(0, -1) : nxtRaw
+          if (!nxtStripped.startsWith('|')) break
+          lineIdx++
+          dataRows.push(parseTableRow(nxtStripped))
+          pos += lines[lineIdx].length + 1
+        }
+
+        // pos is now start of first non-table line; tableEnd uses same convention
+        // as single-line tokens (position of the \n of the last consumed line)
+        const tableEnd = pos - 1
+        lineStartPos = pos
+
+        const headerHtml = `<tr>${headerCols.map(c => `<th>${renderInlineHtml(c.trim())}</th>`).join('')}</tr>`
+        const bodyHtml = dataRows.length > 0
+          ? `<tbody>${dataRows.map(row =>
+              `<tr>${row.map(c => `<td>${renderInlineHtml(c.trim())}</td>`).join('')}</tr>`
+            ).join('')}</tbody>`
+          : ''
+
+        tokens.push({
+          type: 'table',
+          start: tableStart,
+          end: tableEnd,
+          content: content.substring(tableStart, tableEnd),
+          text: '',
+          rendered: `<table><thead>${headerHtml}</thead>${bodyHtml}</table>`,
+        })
+        continue
+      }
     }
 
     // Check for fenced code block (```lang …  ```)
@@ -199,6 +247,23 @@ export function tokenizeMarkdown(content: string): Token[] {
     while (col < stripped.length) {
       // Try to match patterns at current position
       const remaining = stripped.substring(col)
+
+      // Check for escape character (\* \_ \~ \` \[ \] \\ \# \| etc.)
+      const escMatch = remaining.match(/^\\([*_~`[\]\\#|>!])/)
+      if (escMatch) {
+        const start = currentLineStart + col
+        const end = start + 2  // backslash + the escaped character
+        tokens.push({
+          type: 'text',
+          start,
+          end,
+          content: escMatch[0],
+          text: escMatch[1],
+          rendered: escapeHtml(escMatch[1]),
+        })
+        col += 2
+        continue
+      }
 
       // Check for inline link ([text](url))
       const linkMatch = remaining.match(/^\[([^\]]+)\]\(([^)]+)\)/)
@@ -438,4 +503,41 @@ function escapeHtml(text: string): string {
     "'": '&#039;',
   }
   return text.replace(/[&<>"']/g, (m) => map[m])
+}
+
+/**
+ * Render inline markdown formatting into clean HTML tags.
+ * Used for block-level token.rendered values (headers, list items, blockquotes)
+ * so that bold/italic/etc. work correctly in preview mode.
+ */
+function renderInlineHtml(text: string): string {
+  // Order matters: ** before *, ~~ before general text
+  const parts = text.split(/(\*\*.*?\*\*|~~.*?~~|\*.*?\*|`.*?`|\[[^\]]+\]\([^)]+\))/)
+  return parts.map(part => {
+    const bold = part.match(/^\*\*(.*)\*\*$/)
+    if (bold) return `<strong>${escapeHtml(bold[1])}</strong>`
+    const strike = part.match(/^~~(.*)~~$/)
+    if (strike) return `<del>${escapeHtml(strike[1])}</del>`
+    const italic = part.match(/^\*(.*)\*$/)
+    if (italic) return `<em>${escapeHtml(italic[1])}</em>`
+    const code = part.match(/^`(.*)`$/)
+    if (code) return `<code>${escapeHtml(code[1])}</code>`
+    const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+    if (link) return `<a href="${escapeHtml(link[2])}">${escapeHtml(link[1])}</a>`
+    return escapeHtml(part)
+  }).join('')
+}
+
+/**
+ * Split a markdown table row by | and return trimmed cell strings.
+ * e.g. "| A | B |" → ["A", "B"]
+ */
+function parseTableRow(line: string): string[] {
+  const trimmed = line.trim()
+  // Remove leading/trailing |
+  const inner = trimmed.startsWith('|') ? trimmed.slice(1) : trimmed
+  const cells = inner.split('|')
+  // Drop trailing empty cell if row ends with |
+  if (cells.length > 0 && cells[cells.length - 1].trim() === '') cells.pop()
+  return cells
 }

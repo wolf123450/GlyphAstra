@@ -77,6 +77,31 @@ export const useUIStore = defineStore("ui", () => {
     isNotificationVisible.value = false;
   };
 
+  // ─── Onboarding tour ─────────────────────────────────────────────────
+  const tourActive = ref(false)
+  const tourStep   = ref(0)
+
+  const startTour = () => {
+    tourStep.value  = 0
+    tourActive.value = true
+  }
+
+  const endTour = () => {
+    tourActive.value = false
+  }
+
+  const nextTourStep = (totalSteps: number) => {
+    if (tourStep.value < totalSteps - 1) {
+      tourStep.value++
+    } else {
+      endTour()
+    }
+  }
+
+  const prevTourStep = () => {
+    if (tourStep.value > 0) tourStep.value--
+  }
+
   return {
     // State
     sidebarOpen,
@@ -99,5 +124,12 @@ export const useUIStore = defineStore("ui", () => {
     setSidebarSearchQuery,
     showNotification,
     hideNotification,
+    // Onboarding tour
+    tourActive,
+    tourStep,
+    startTour,
+    endTour,
+    nextTourStep,
+    prevTourStep,
   };
 });

@@ -1,7 +1,12 @@
 /**
  * Markdown Renderer with Context-Aware Visibility
- * Shows/hides markdown syntax based on cursor position
+ * Shows/hides markdown syntax based on cursor position.
+ *
+ * For 'preview' mode, delegates to seamlessRenderer so that all block-level
+ * features (tables, proper inline formatting, etc.) are rendered consistently.
  */
+
+import { tokenizeMarkdown, renderTokens } from './seamlessRenderer'
 
 export type RenderMode = 'markdown' | 'seamless' | 'preview'
 
@@ -15,7 +20,9 @@ export function renderMarkdown(
   mode: RenderMode
 ): string {
   if (mode === 'preview') {
-    return renderPreview(content)
+    const tokens = tokenizeMarkdown(content)
+    return renderTokens(tokens, content, -1, 'preview')
+
   }
   
   if (mode === 'markdown') {
@@ -34,30 +41,6 @@ function escapeHtml(text: string): string {
     "'": '&#039;',
   }
   return text.replace(/[&<>"']/g, (m) => map[m])
-}
-
-function renderPreview(content: string): string {
-  let html = escapeHtml(content)
-  
-  html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>')
-  html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>')
-  html = html.replace(/^# (.*?)$/gm, '<h1>$1</h1>')
-  
-  html = html.replace(/~~(.*?)~~/g, '<del>$1</del>')
-  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>')
-  html = html.replace(/`(.*?)`/g, '<code>$1</code>')
-  
-  html = html.replace(/^- (.*?)$/gm, '<li>$1</li>')
-  html = html.replace(/^\* (.*?)$/gm, '<li>$1</li>')
-  html = html.replace(/(<li>.*?<\/li>(?:\n<li>.*?<\/li>)*)/gm, function(match) {
-    const listContent = match.replace(/\n/g, '')
-    return '<ul>' + listContent + '</ul>'
-  })
-  
-  html = html.replace(/\n/g, '<br>')
-  
-  return html
 }
 
 function renderSeamless(
