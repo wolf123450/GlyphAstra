@@ -37,6 +37,29 @@
             </div>
           </div>
 
+          <!-- Display label -->
+          <div class="field-group">
+            <label class="field-label">Display label
+              <span class="label-hint">— shown in sidebar and as export heading prefix</span>
+            </label>
+            <input
+              v-model="draft.chapterLabel"
+              class="field-input"
+              type="text"
+              placeholder="e.g. Prologue, Chapter 4, Part II… (leave blank for auto-numbering)"
+            />
+            <div class="label-preset-row">
+              <button class="label-preset" @click="draft.chapterLabel = 'Prologue'">Prologue</button>
+              <button class="label-preset" @click="draft.chapterLabel = 'Epilogue'">Epilogue</button>
+              <button class="label-preset" @click="draft.chapterLabel = 'Interlude'">Interlude</button>
+              <button class="label-preset" @click="draft.chapterLabel = 'Appendix'">Appendix</button>
+              <button class="label-preset" @click="draft.chapterLabel = 'Part I'">Part I</button>
+              <button class="label-preset" @click="draft.chapterLabel = 'Part II'">Part II</button>
+              <button class="label-preset" @click="draft.chapterLabel = 'Part III'">Part III</button>
+              <button v-if="draft.chapterLabel" class="label-preset label-preset--clear" @click="draft.chapterLabel = ''">&#x2715; Clear</button>
+            </div>
+          </div>
+
           <!-- Chapter Type -->
           <div class="field-group">
             <label class="field-label">Chapter type</label>
@@ -187,6 +210,7 @@ const aiStore    = useAIStore()
 
 interface DraftState {
   name: string
+  chapterLabel: string
   status: 'draft' | 'in-progress' | 'complete'
   isPlotOutline: boolean
   isReadOnly: boolean
@@ -198,6 +222,7 @@ interface DraftState {
 
 const draft = ref<DraftState>({
   name: '',
+  chapterLabel: '',
   status: 'draft',
   isPlotOutline: false,
   isReadOnly: false,
@@ -220,6 +245,7 @@ watch(
       const ch = chapter.value
       draft.value = {
         name:                  ch.name,
+        chapterLabel:          ch.chapterLabel ?? '',
         status:                ch.status,
         isPlotOutline:         ch.isPlotOutline ?? false,
         isReadOnly:            ch.isReadOnly ?? false,
@@ -328,6 +354,7 @@ const saveChapter = () => {
   if (!props.chapterId) return
   storyStore.updateChapter(props.chapterId, {
     name:                  draft.value.name.trim() || chapter.value?.name,
+    chapterLabel:          draft.value.chapterLabel.trim() || undefined,
     status:                draft.value.status,
     isPlotOutline:         draft.value.isPlotOutline,
     isReadOnly:            draft.value.isReadOnly,
@@ -443,6 +470,22 @@ onUnmounted(() => {
 .pill-status-draft.active       { background: var(--status-draft-bg); border-color: var(--status-draft-bg); color: var(--status-draft-fg); }
 .pill-status-in-progress.active { background: var(--status-progress-bg); border-color: var(--status-progress-bg); color: var(--status-progress-fg); }
 .pill-status-complete.active    { background: var(--status-complete-bg); border-color: var(--status-complete-bg); color: var(--status-complete-fg); }
+
+/* Label presets */
+.label-preset-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.label-preset {
+  padding: 2px 9px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 99px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+.label-preset:hover { border-color: var(--accent-color); color: var(--accent-color); }
+.label-preset--clear { color: var(--error-color); border-color: currentColor; }
+.label-preset--clear:hover { background: color-mix(in srgb, var(--error-color) 10%, transparent); }
 
 /* Tag chips */
 .tag-editor { position: relative; }

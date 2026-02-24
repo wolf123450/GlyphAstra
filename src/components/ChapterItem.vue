@@ -13,7 +13,8 @@
     >&#x28FF;</span>
     <div class="chapter-content">
       <div class="chapter-name-row">
-        <input
+          <span v-if="props.displayLabel" class="chapter-label" :title="chapter.chapterLabel ? 'Custom label' : 'Auto-numbered'">{{ props.displayLabel }}</span>
+          <input
           v-if="isEditingTitle"
           ref="titleInput"
           v-model="editTitleValue"
@@ -60,6 +61,7 @@ interface Props {
   chapter: Chapter
   isActive: boolean
   draggable?: boolean
+  displayLabel?: string
 }
 
 interface Emits {
@@ -218,6 +220,27 @@ const onHandleDown = (e: MouseEvent) => {
 
 .chapter-item.active .chapter-name-input {
   color: var(--text-primary);
+}
+
+.chapter-label {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 1px 5px;
+  white-space: nowrap;
+  align-self: center;
+  margin-right: 4px;
+}
+
+.chapter-item.active .chapter-label {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.85);
 }
 
 .badge {

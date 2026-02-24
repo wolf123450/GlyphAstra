@@ -27,6 +27,7 @@ export interface ExportChapter {
   name: string
   content: string
   order: number
+  label?: string   // chapterLabel override (e.g. 'Prologue', 'Chapter 4'); absent = use name only
 }
 
 export interface ExportMeta {
@@ -48,6 +49,12 @@ function escHtml(s: string): string {
 
 // ── Markdown Export ───────────────────────────────────────────────────────────
 
+function chapterHeading(ch: ExportChapter): string {
+  if (!ch.label) return ch.name
+  if (ch.label === ch.name) return ch.label
+  return `${ch.label}: ${ch.name}`
+}
+
 function buildMarkdownDoc(meta: ExportMeta, chapters: ExportChapter[]): string {
   const lines: string[] = [`# ${meta.title}`, '']
   if (meta.genre) lines.push(`**Genre:** ${meta.genre}  `)
@@ -55,7 +62,7 @@ function buildMarkdownDoc(meta: ExportMeta, chapters: ExportChapter[]): string {
   if (meta.summary) lines.push('', meta.summary)
   lines.push('', '---', '')
   for (const ch of [...chapters].sort((a, b) => a.order - b.order)) {
-    lines.push(`## ${ch.name}`, '', ch.content.trim(), '', '---', '')
+    lines.push(`## ${chapterHeading(ch)}`, '', ch.content.trim(), '', '---', '')
   }
   return lines.join('\n')
 }
@@ -133,7 +140,7 @@ export async function exportStoryToHTML(
 
   const body = sorted
     .map(ch =>
-      `<h2>${escHtml(ch.name)}</h2>\n${renderMarkdown(ch.content, 0, 'preview')}`
+      `<h2>${escHtml(chapterHeading(ch))}</h2>\n${renderMarkdown(ch.content, 0, 'preview')}`
     )
     .join('\n<hr>\n')
 
@@ -209,7 +216,7 @@ export async function exportStoryToDocx(
   const sorted = [...chapters].sort((a, b) => a.order - b.order)
   for (const ch of sorted) {
     children.push(
-      new Paragraph({ text: ch.name, heading: HeadingLevel.HEADING_1, pageBreakBefore: children.length > 2 })
+      new Paragraph({ text: chapterHeading(ch), heading: HeadingLevel.HEADING_1, pageBreakBefore: children.length > 2 })
     )
     const cleaned = stripMarkdown(ch.content)
     for (const block of cleaned.split(/\n\n+/)) {

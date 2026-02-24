@@ -131,6 +131,7 @@ const buildChapters = (): ExportChapter[] =>
       ? editorStore.content   // live (possibly unsaved) content
       : ch.content,
     order: i,
+    label: ch.chapterLabel || undefined,
   }))
 
 const buildMeta = (): ExportMeta => ({

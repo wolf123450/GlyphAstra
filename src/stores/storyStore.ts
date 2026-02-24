@@ -25,6 +25,7 @@ export interface Chapter {
   summaryContentHash?: string;   // cheap hash for delta detection
   summaryPaused?: boolean;       // disable auto-summary for this chapter
   summaryManuallyEdited?: boolean; // manual edit active — won't auto-update
+  chapterLabel?: string;         // display prefix override e.g. 'Prologue', 'Chapter 4', 'Part II'
   isPlotOutline?: boolean;       // inject as outline layer in AI context
   contextTags?: string[];        // e.g. ['POV: Alice', 'Timeline A']; empty = always included
   isReadOnly?: boolean;          // editor disabled (used by help story chapters)

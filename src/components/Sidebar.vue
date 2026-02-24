@@ -106,6 +106,7 @@
               :chapter="chapter"
               :is-active="chapter.id === currentChapterId"
               :draggable="!searchQuery"
+              :display-label="chapterDisplayLabels[chapter.id]"
               :class="{ 'is-dragging': chapter.id === dragChapterId }"
               @select="selectChapter"
               @delete="deleteChapter"
@@ -289,6 +290,21 @@ const searchQuery = computed({
 
 const theme = computed(() => uiStore.theme)
 const chapters = computed(() => storyStore.chapters)
+
+/** Per-chapter display label: chapterLabel if set, "Chapter N" (auto) otherwise. */
+const chapterDisplayLabels = computed(() => {
+  const map: Record<string, string> = {}
+  let n = 0
+  for (const ch of storyStore.chapters) {
+    if (ch.chapterLabel) {
+      map[ch.id] = ch.chapterLabel
+    } else {
+      n++
+      map[ch.id] = String(n)
+    }
+  }
+  return map
+})
 const currentChapterId = computed(() => storyStore.currentChapterId)
 
 const filteredChapters = computed(() => {

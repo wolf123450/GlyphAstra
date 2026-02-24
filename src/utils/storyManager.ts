@@ -29,6 +29,7 @@ export interface SerializedStory {
     wordCount: number
     lastEdited: string
     // Extended / AI metadata fields
+    chapterLabel?: string
     isPlotOutline?: boolean
     contextTags?: string[]
     summary?: string
@@ -97,6 +98,7 @@ export function serializeStory(
       wordCount: ch.wordCount || 0,
       lastEdited: ch.lastEdited,
       // Extended fields — only include when set to avoid bloating storage
+      ...(ch.chapterLabel          != null  && { chapterLabel:          ch.chapterLabel }),
       ...(ch.isPlotOutline         != null  && { isPlotOutline:         ch.isPlotOutline }),
       ...(ch.contextTags           != null  && { contextTags:           ch.contextTags }),
       ...(ch.summary               != null  && { summary:               ch.summary }),
