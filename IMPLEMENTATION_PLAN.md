@@ -641,16 +641,14 @@ Substantial standalone features grouped to avoid fragmented implementation.
 - [ ] Manual translation entry
 - [ ] Language selector in editor header when translations exist
 
-### 12.7 Chapter Numbering & Custom Labels ⏳ NOT STARTED
+### 12.7 Chapter Numbering & Custom Labels ✅ COMPLETE
 
-Authors frequently use non-numeric chapter identifiers — prologues, epilogues, interludes, parts, and unnumbered literary chapters. Auto-numbering by position is not sufficient.
-
-- [ ] Add `chapterLabel?: string` to the `Chapter` type — a freeform override for the display number/title prefix (e.g. `"Prologue"`, `"Interlude I"`, `"Chapter 4"`, `"Part Two"`)
-- [ ] When `chapterLabel` is set it is shown in the sidebar and in export headings instead of the auto-incremented number
-- [ ] When `chapterLabel` is empty the chapter falls back to auto-numbering that skips chapters whose label explicitly opts out of numbering (e.g. a `"Prologue"` label implies no number)
-- [ ] `chapterLabel` is editable in the **Chapter Metadata Editor** (Phase 7.y)
-- [ ] Export (MD, HTML, DOCX) uses `chapterLabel` when present; falls back to `chapterTitle` only
-- [ ] Chapter type pills in the metadata editor (Normal / Plot Outline / Prologue / Epilogue / Interlude / etc.) can pre-populate `chapterLabel` as a convenience
+- [x] Add `chapterLabel?: string` to the `Chapter` type
+- [x] When `chapterLabel` is set it is shown in the sidebar as a badge and as a heading prefix in exports
+- [x] When `chapterLabel` is empty the chapter shows an auto-incremented number (unlabeled chapters only); labeled chapters don't consume a number
+- [x] `chapterLabel` is editable in the **Chapter Metadata Editor** (new "Display label" field with free-form input and quick-preset buttons: Prologue, Epilogue, Interlude, Appendix, Part I/II/III)
+- [x] Export (MD, HTML, DOCX) uses `chapterLabel` when present (prefixed to heading: "Prologue: Chapter Title" or just "Prologue" when label = title); falls back to chapter title only
+- [x] Serialization updated in `storyManager.ts` (`chapterLabel` persisted with story data)
 
 ### 12.6 Inline Chapter Title Editing ✅ COMPLETE
 > Currently renaming is only available through the Chapter Metadata Editor (≡ → Title field).
@@ -802,7 +800,7 @@ Higher-level metadata for multi-book series — builds on 17.1.
 - ✅ **Phase 9**: Settings & Customization - COMPLETE (5-tab modal, all settings persisted, custom theme colors)
 - 🟡 **Phase 10**: Export & Data Management - 95% (MD/HTML/DOCX/import/backup/restore done; auto-backup timer pending)
 - ⏳ **Phase 11**: Performance & Polish - NOT STARTED (icon overhaul planned)
-- 🟡 **Phase 12**: Chapter Management - IN PROGRESS (12.1 drag-to-reorder, 12.2 version history, 12.3 session undo/redo, 12.6 inline title editing done; 12.4–12.5, 12.7 not started)
+- ✅ **Phase 12**: Chapter Management - IN PROGRESS (12.1 drag-to-reorder, 12.2 version history, 12.3 session undo/redo, 12.6 inline title editing, 12.7 custom labels/numbering done; 12.4–12.5 not started)
 - ✅ **Phase 14**: Help & Onboarding - COMPLETE (14.1 tour, 14.2 demo story, 14.3 read-only flag, 14.4 Help settings tab)
 - ⏳ **Phase 13**: Advanced Features - NOT STARTED
 - ⏳ **Phase 14**: Help & Onboarding - NOT STARTED
@@ -822,7 +820,7 @@ Higher-level metadata for multi-book series — builds on 17.1.
 ✅ Full-text search panel with regex, case-sensitive, and search & replace
 ✅ Chapter version history (snapshots, Markdown preview, line-level diff, restore)
 ✅ Drag-to-reorder chapters via native pointer events
-✅ Inline chapter title editing in sidebar
+✅ Inline chapter title editing in sidebar\n✅ Chapter custom numbering & labels (chapterLabel field, auto-number fallback, export heading prefix, quick-preset buttons in metadata editor)
 ✅ Export: Markdown, HTML, DOCX; Import: Markdown; Backup & Restore
 ✅ Settings: font, autosave, AI, custom theme colors (per dark/light), spellcheck toggle
 ✅ Character and metadata management
@@ -834,11 +832,10 @@ Higher-level metadata for multi-book series — builds on 17.1.
 ✅ 149 unit tests (Vitest)
 
 ### Next Priorities:
-1. **Phase 12.7** — Chapter custom numbering & labels
-2. **Phase 11.x** — Icon library evaluation & overhaul
-3. **Phase 16** — Cloud AI model integration (OpenAI, Anthropic, Google)
-4. **Phase 17** — Story library & series management
-5. **Phase 11** — Performance & Polish
+1. **Phase 11.x** — Icon library evaluation & overhaul
+2. **Phase 16** — Cloud AI model integration (OpenAI, Anthropic, Google)
+3. **Phase 17** — Story library & series management
+4. **Phase 11** — Performance & polish
 
 ---
 
