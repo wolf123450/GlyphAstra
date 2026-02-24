@@ -41,13 +41,8 @@ export async function saveStory(
     const meta = {
       metadata: story.metadata,
       characters: story.characters,
-      chapters: story.chapters.map((ch) => ({
-        id: ch.id,
-        name: ch.name,
-        status: ch.status,
-        wordCount: ch.wordCount,
-        lastEdited: ch.lastEdited,
-      })),
+      // Store all chapter fields except content (content is saved per-chapter as .md files)
+      chapters: story.chapters.map(({ content: _content, ...rest }) => rest),
       lastSaved: new Date().toISOString(),
     };
     await writeFileContent(storyMetaPath(storyId), JSON.stringify(meta, null, 2));

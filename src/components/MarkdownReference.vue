@@ -153,6 +153,14 @@
                   <td><a class="ex-link ex-chapter-link">Chapter name</a> <span class="ex-note">(navigates to that chapter)</span></td>
                 </tr>
                 <tr>
+                  <td><code>[Story title](story://story-id)</code></td>
+                  <td><a class="ex-link ex-chapter-link">Story title</a> <span class="ex-note">(opens that story)</span></td>
+                </tr>
+                <tr>
+                  <td><code>[Ch. 1 in Book 2](story://story-id/chapter-id)</code></td>
+                  <td><a class="ex-link ex-chapter-link">Ch. 1 in Book 2</a> <span class="ex-note">(opens story, lands on chapter)</span></td>
+                </tr>
+                <tr>
                   <td colspan="2" class="ex-tip">
                     💡 In Seamless mode, use <kbd>Ctrl+Click</kbd> to follow a link.
                     External links open in your system browser.

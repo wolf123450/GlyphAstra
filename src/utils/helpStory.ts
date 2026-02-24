@@ -148,6 +148,18 @@ Three or more hyphens on a line create a scene break:
 [Go to Chapter 2](chapter://chapter-id)
 \`\`\`
 
+**Story links** — Ctrl+Click to open a different story:
+\`\`\`
+[Open My Novel](story://story-id)
+\`\`\`
+
+You can also link to a specific chapter inside another story:
+\`\`\`
+[See Book 2, Chapter 1](story://story-id/chapter-id)
+\`\`\`
+
+Broken links (story or chapter no longer exists) are shown with a strikethrough in red.
+
 ---
 
 ## Code blocks
@@ -291,9 +303,10 @@ Type \`**\`, \`*\`, \`~~\`, \`\`\`\` directly around text.
 
 ---
 
-## Chapter links
+## Chapter and story links
 
-Ctrl+Click any \`chapter://\` link in the editor to navigate to that chapter.
+Ctrl+Click any \`chapter://\` link in the editor to navigate to that chapter.  
+Ctrl+Click any \`story://\` link to open a different story.
 
 ---
 

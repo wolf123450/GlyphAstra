@@ -24,6 +24,7 @@
 import { computed, ref, watch, nextTick } from 'vue'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { storageManager } from '@/utils/storage'
 import { tokenizeMarkdown } from '@/utils/seamlessRenderer'
 import {
   buildStructuredHTML,
@@ -57,6 +58,7 @@ interface Emits {
   'type-char':         [char: string]
   // Link navigation
   'navigate-chapter':  [id: string]
+  'navigate-story':    [id: string]
   // Session undo/redo
   'undo':     []
   'redo':     []
@@ -72,6 +74,24 @@ let selectionStart = 0
 let selectionEnd = 0
 let isUpdatingDOM = false
 let pendingCursorPos: number | null = null
+
+// ─── Story link annotation ────────────────────────────────────────
+
+/**
+ * Walk all [data-url^="story://"] spans and add/remove the 'link-broken' class
+ * based on whether the target story ID exists in the local library.
+ */
+const annotateStoryLinks = (el: HTMLElement): void => {
+  const projects = storageManager.getProjectsList()
+  const knownIds   = new Set(projects.map((p) => p.id))
+  const knownNames = new Set(projects.map((p) => p.name.toLowerCase()))
+  el.querySelectorAll<HTMLElement>('[data-url^="story://"]').forEach((span) => {
+    const url = span.getAttribute('data-url') ?? ''
+    const storyPart = url.slice('story://'.length).split('/')[0]
+    const broken = !!storyPart && !knownIds.has(storyPart) && !knownNames.has(storyPart.toLowerCase())
+    span.classList.toggle('link-broken', broken)
+  })
+}
 
 // ─── Ghost DOM injection ──────────────────────────────────────────
 
@@ -167,6 +187,7 @@ watch(
       pendingCursorPos = null
 
       updateTokenVisibility(container(), target, mode())
+      annotateStoryLinks(container())
       setCursorPosition(container(), props.content.length, target, sel())
 
       selectionStart = target
@@ -198,16 +219,22 @@ watch(
 
 /**
  * Handle Ctrl+click on a rendered link token.
- * External URLs open in the system browser; chapter:// links navigate within the app.
+ * External URLs open in the system browser; chapter:// links navigate to a chapter; story:// links open a story.
  */
 const handleEditorClick = (event: MouseEvent) => {
   if (event.ctrlKey || event.metaKey) {
     const target = event.target as HTMLElement
-    const linkSpan = target.closest<HTMLElement>('.token-link.rendered')
+    // Use [data-url] selector so it works regardless of rendered/source class state.
+    // (mouseup fires before click and may toggle the rendered class via updateTokenVisibility)
+    const linkSpan = target.closest<HTMLElement>('[data-url]')
     if (linkSpan) {
       const url = linkSpan.getAttribute('data-url') ?? ''
       if (url.startsWith('chapter://')) {
         emit('navigate-chapter', url.slice('chapter://'.length))
+        return
+      }
+      if (url.startsWith('story://')) {
+        emit('navigate-story', url.slice('story://'.length))
         return
       }
       if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -662,6 +689,18 @@ defineExpose({ scrollEl: editorInput })
   color: var(--accent-color);
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* Broken story:// links — story not found in the library */
+.editor-input :deep(.token-link.rendered.link-broken .content) {
+  color: var(--error-color);
+  text-decoration: line-through;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+.editor-input :deep(.token-link.source.link-broken .content) {
+  color: var(--error-color);
+  opacity: 0.8;
 }
 
 /* ── Source mode: show raw markdown ─────────────────────── */
