@@ -107,6 +107,7 @@
             @prev-suggestion="onPrevSuggestion"
             @type-char="onTypeChar"
             @navigate-chapter="navigateToChapter"
+            @navigate-story="navigateToStory"
             @undo="onUndo"
             @redo="onRedo"
             @snapshot="onSnapshot"
@@ -118,6 +119,7 @@
             ref="splitPreviewRef"
             :content="content"
             @navigate-chapter="navigateToChapter"
+            @navigate-story="navigateToStory"
           />
         </div>
       </template>
@@ -143,6 +145,7 @@
         @prev-suggestion="onPrevSuggestion"
         @type-char="onTypeChar"
         @navigate-chapter="navigateToChapter"
+        @navigate-story="navigateToStory"
         @undo="onUndo"
         @redo="onRedo"
         @snapshot="onSnapshot"
@@ -175,6 +178,7 @@
         ref="soloPreviewRef"
         :content="content"
         @navigate-chapter="navigateToChapter"
+        @navigate-story="navigateToStory"
       />
       <!-- No chapter selected -->
       <div v-else class="editor-empty">
@@ -241,6 +245,7 @@ import EditorPreview from './EditorPreview.vue'
 import MarkdownReference from './MarkdownReference.vue'
 import ChapterMeta from './ChapterMeta.vue'
 import ChapterHistory from './ChapterHistory.vue'
+import { storageManager } from '@/utils/storage'
 import { captureSnapshot } from '@/utils/historyManager'
 import * as undoManager from '@/utils/undoManager'
 
@@ -367,6 +372,40 @@ const navigateToChapter = (idOrName: string) => {
     (ch) => ch.name.toLowerCase() === idOrName.toLowerCase()
   )
   if (byName) storyStore.setCurrentChapter(byName.id)
+}
+
+/**
+ * Navigate to a story referenced by a story:// link.
+ * Supports both story://story-id and story://story-id/chapter-id.
+ * Story part matched by ID first, then by title (case-insensitive).
+ * Chapter part matched by ID first, then by name (case-insensitive).
+ */
+const navigateToStory = async (rawPath: string) => {
+  // Split at the first "/" to separate optional chapter segment
+  const slashIdx = rawPath.indexOf('/')
+  const storyPart   = slashIdx === -1 ? rawPath : rawPath.slice(0, slashIdx)
+  const chapterPart = slashIdx === -1 ? null    : rawPath.slice(slashIdx + 1)
+
+  // Try direct ID load first
+  let loaded = await storyStore.loadStory(storyPart)
+
+  if (!loaded) {
+    // Fall back: find by title in the projects list
+    const all = storageManager.getProjectsList()
+    const match = all.find(
+      (p) => p.name.toLowerCase() === storyPart.toLowerCase()
+    )
+    if (match) loaded = await storyStore.loadStory(match.id)
+  }
+
+  if (loaded) {
+    if (chapterPart) {
+      // Navigate to a specific chapter within the loaded story (id or name)
+      navigateToChapter(chapterPart)
+    } else if (!storyStore.currentChapterId && storyStore.chapters.length > 0) {
+      storyStore.setCurrentChapter(storyStore.chapters[0].id)
+    }
+  }
 }
 
 const renderMode = ref<RenderMode>('seamless')

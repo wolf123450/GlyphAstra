@@ -707,7 +707,7 @@ Substantial standalone features grouped to avoid fragmented implementation.
 
 ---
 
-## Phase 17: Story Library & Series Management ⏳ NOT STARTED
+## Phase 17: Story Library & Series Management 🟡 IN PROGRESS
 
 Support for multi-book series, sequels, and cross-story references — useful for authors working on a universe with multiple books.
 
@@ -715,12 +715,12 @@ Support for multi-book series, sequels, and cross-story references — useful fo
 
 Mirrors the existing `chapter://` link scheme, but for navigating between stories in the library.
 
-- [ ] **`story://` URL scheme** — `[Link text](story://story-id)` in any chapter opens that story in the app. Also support `story://story-id/chapter-id` to land on a specific chapter.
-- [ ] `markdownRenderer.ts` recognises the `story://` scheme and routes it through the app router instead of the system browser (same pattern as `chapter://`)
-- [ ] In seamless mode, `Ctrl+Click` on a `story://` link navigates to that story (consistent with `chapter://` behaviour)
+- [x] **`story://` URL scheme** — `[Link text](story://story-id)` in any chapter opens that story in the app. Also support `story://story-id/chapter-id` to land on a specific chapter.
+- [x] `EditorPreview.vue` and `EditorSeamless.vue` handle the `story://` scheme and route it through the app instead of the system browser (same pattern as `chapter://`)
+- [x] In seamless mode, `Ctrl+Click` on a `story://` link navigates to that story (consistent with `chapter://` behaviour)
 - [ ] The **Insert Link** helper (if/when added) offers an autocomplete picker for stories and their chapters alongside the existing chapter picker
 - [ ] Story titles are resolved at render time from the story library so the rendered link label can fall back to the story title when the href is an opaque ID
-- [ ] Broken `story://` links (story no longer exists) render with a visual error indicator (`class="link-broken"`) rather than silently going nowhere
+- [x] Broken `story://` links (story no longer exists) render with a visual error indicator (`class="link-broken"`) rather than silently going nowhere
 
 ### 17.2 Story Metadata Linking (Series Management)
 

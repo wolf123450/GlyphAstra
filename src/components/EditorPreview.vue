@@ -6,6 +6,7 @@
 import { ref, watch, computed, nextTick } from 'vue'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { tokenizeMarkdown } from '@/utils/seamlessRenderer'
+import { storageManager } from '@/utils/storage'
 
 interface Props {
   content: string
@@ -13,6 +14,7 @@ interface Props {
 
 interface Emits {
   'navigate-chapter': [id: string]
+  'navigate-story':   [id: string]
 }
 
 const props = defineProps<Props>()
@@ -24,6 +26,7 @@ const previewDiv = ref<HTMLDivElement | null>(null)
  * Intercept all <a> clicks inside the preview.
  * - External URLs (http/https) open in the system browser via plugin-opener.
  * - Internal chapter:// links emit navigate-chapter so the editor can switch chapters.
+ * - Internal story:// links emit navigate-story so the app can open a different story.
  * - Everything else is blocked (no navigation inside the Tauri WebView).
  */
 const handleLinkClick = (event: MouseEvent) => {
@@ -38,6 +41,11 @@ const handleLinkClick = (event: MouseEvent) => {
   if (href.startsWith('chapter://')) {
     const chapterId = href.slice('chapter://'.length)
     emit('navigate-chapter', chapterId)
+    return
+  }
+
+  if (href.startsWith('story://')) {
+    emit('navigate-story', href.slice('story://'.length))
     return
   }
 
@@ -73,6 +81,22 @@ const buildRenderedHTML = (): string => {
     .join('')
 }
 
+/**
+ * Walk all story:// <a> elements and add or remove the 'link-broken' class
+ * depending on whether the target story ID exists in the local library.
+ */
+function annotateStoryLinks(container: HTMLElement): void {
+  const projects = storageManager.getProjectsList()
+  const knownIds   = new Set(projects.map((p) => p.id))
+  const knownNames = new Set(projects.map((p) => p.name.toLowerCase()))
+  container.querySelectorAll<HTMLAnchorElement>('a[href^="story://"]').forEach((a) => {
+    const href = a.getAttribute('href') ?? ''
+    const storyPart = href.slice('story://'.length).split('/')[0]
+    const broken = !!storyPart && !knownIds.has(storyPart) && !knownNames.has(storyPart.toLowerCase())
+    a.classList.toggle('link-broken', broken)
+  })
+}
+
 // Update preview when content changes
 watch(
   () => props.content,
@@ -81,6 +105,7 @@ watch(
       if (previewDiv.value) {
         const html = buildRenderedHTML()
         previewDiv.value.innerHTML = html
+        annotateStoryLinks(previewDiv.value)
       }
     })
   },
@@ -203,6 +228,14 @@ defineExpose({ scrollEl: previewDiv })
   color: var(--accent-color);
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* Broken story:// links — story not found in the library */
+.editor-preview a.link-broken {
+  color: var(--error-color);
+  text-decoration: line-through;
+  cursor: not-allowed;
+  opacity: 0.8;
 }
 
 /* Horizontal rule */
