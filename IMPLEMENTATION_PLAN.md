@@ -174,7 +174,7 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 - [x] Full preview mode (rendered HTML)
 - [x] Seamless mode (hybrid showing markdown and preview)
 - [x] Smooth transitions between modes
-- [ ] Sync scroll between editor and preview (in seamless mode)
+- [x] Sync scroll between editor and preview — split view toggle (⊡ button) shows editor + live preview side by side with proportional scroll sync; persisted to localStorage
 
 ### 4.4 Inline Editing Mode
 - [ ] Detect cursor position in preview
