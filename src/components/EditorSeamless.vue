@@ -435,6 +435,9 @@ const onInput = (event: InputEvent) => {
     }
   }
 }
+
+// Expose the scroll container so a parent can attach scroll-sync listeners
+defineExpose({ scrollEl: editorInput })
 </script>
 
 <style scoped>

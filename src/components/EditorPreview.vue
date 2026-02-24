@@ -53,11 +53,23 @@ const tokens = computed(() => {
 })
 
 /**
- * Build HTML for rendered tokens (all rendered, no source)
+ * Inject data-source-line="N" into the outermost opening tag of an HTML string.
+ * This lets the scroll-sync logic identify which source line a rendered block corresponds to.
+ */
+function withSourceLine(html: string, line: number): string {
+  return html.replace(/^(<[a-zA-Z][a-zA-Z0-9]*)([\s>])/, `$1 data-source-line="${line}"$2`)
+}
+
+/**
+ * Build HTML for rendered tokens (all rendered, no source).
+ * Each block gets a data-source-line attribute matching its first source line.
  */
 const buildRenderedHTML = (): string => {
   return tokens.value
-    .map((token) => token.rendered)
+    .map((token) => {
+      const line = props.content.slice(0, token.start).split('\n').length - 1
+      return withSourceLine(token.rendered, line)
+    })
     .join('')
 }
 
@@ -74,6 +86,9 @@ watch(
   },
   { immediate: true }
 )
+
+// Expose the scroll container for scroll-sync use by a parent
+defineExpose({ scrollEl: previewDiv })
 </script>
 
 <!-- Not scoped: content is injected via innerHTML and scoped selectors

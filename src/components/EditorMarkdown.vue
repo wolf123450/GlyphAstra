@@ -1,5 +1,6 @@
 <template>
   <EditorSeamless
+    ref="seamlessRef"
     :content="content"
     :cursorPos="cursorPos"
     forceMode="markdown"
@@ -52,4 +53,10 @@ interface Emits {
 defineProps<Props>()
 const emit = defineEmits<Emits>()
 const cursorPos = ref(0)
+
+const seamlessRef = ref<InstanceType<typeof EditorSeamless> | null>(null)
+// Pass through the inner scroll container so Editor.vue can sync scroll across mode switches
+defineExpose({
+  get scrollEl() { return seamlessRef.value?.scrollEl ?? null },
+})
 </script>

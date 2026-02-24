@@ -6,10 +6,20 @@
         <h2 v-else>No chapter selected</h2>
       </div>
       <div class="editor-controls">
+        <!-- Split view: always visible, disabled outside markdown mode -->
+        <button
+          class="mode-btn"
+          :class="{ active: splitView && renderMode === 'markdown' }"
+          :disabled="renderMode !== 'markdown'"
+          @click="splitView = !splitView"
+          title="Split view — raw markdown left, live preview right"
+        >
+          ◫
+        </button>
         <button
           class="mode-btn"
           :class="{ active: renderMode === 'markdown' }"
-          @click="renderMode = 'markdown'"
+          @click="setMode('markdown')"
           title="Show all markdown"
         >
           ⁋
@@ -17,7 +27,7 @@
         <button
           class="mode-btn"
           :class="{ active: renderMode === 'seamless' }"
-          @click="renderMode = 'seamless'"
+          @click="setMode('seamless')"
           title="Seamless editing"
         >
           ≈
@@ -25,7 +35,7 @@
         <button
           class="mode-btn"
           :class="{ active: renderMode === 'preview' }"
-          @click="renderMode = 'preview'"
+          @click="setMode('preview')"
           title="Preview mode"
         >
           ▣
@@ -74,10 +84,49 @@
       </div>
     </div>
 
-    <div class="editor-body">
+    <div class="editor-body" :class="{ 'editor-body--split': splitViewActive }">
+      <!-- ── Split view: active editor on the left, live preview on the right ── -->
+      <template v-if="splitViewActive">
+        <div class="split-editor">
+          <EditorSeamless
+            ref="splitEditorRef"
+            :content="content"
+            :cursorPos="cursorPosition"
+            :forceMode="renderMode"
+            :isReadOnly="isReadOnly"
+            :suggestion-text="ai.remainingText.value"
+            :suggestion-count="ai.totalCount.value"
+            :suggestion-index="ai.currentIndex.value"
+            :suggestion-generating="ai.isGenerating.value"
+            @update:content="onContentFromEditor($event)"
+            @update:cursorPos="cursorPosition = $event"
+            @trigger-ai="onTriggerAI"
+            @accept-suggestion="onAcceptSuggestion"
+            @dismiss-suggestion="onDismissSuggestion"
+            @next-suggestion="onNextSuggestion"
+            @prev-suggestion="onPrevSuggestion"
+            @type-char="onTypeChar"
+            @navigate-chapter="navigateToChapter"
+            @undo="onUndo"
+            @redo="onRedo"
+            @snapshot="onSnapshot"
+          />
+        </div>
+        <div class="split-divider" aria-hidden="true" />
+        <div class="split-preview">
+          <EditorPreview
+            ref="splitPreviewRef"
+            :content="content"
+            @navigate-chapter="navigateToChapter"
+          />
+        </div>
+      </template>
+
+      <!-- ── Solo modes (unchanged) ──────────────────────────────────── -->
       <!-- Seamless Mode -->
       <EditorSeamless
-        v-if="renderMode === 'seamless' && currentChapter"
+        v-else-if="renderMode === 'seamless' && currentChapter"
+        ref="soloSeamlessRef"
         :content="content"
         :cursorPos="cursorPosition"
         :isReadOnly="isReadOnly"
@@ -98,8 +147,10 @@
         @redo="onRedo"
         @snapshot="onSnapshot"
       />
+      <!-- Markdown Mode -->
       <EditorMarkdown
         v-else-if="renderMode === 'markdown' && currentChapter"
+        ref="soloMarkdownRef"
         :content="content"
         :isReadOnly="isReadOnly"
         :suggestion-text="ai.remainingText.value"
@@ -118,14 +169,13 @@
         @redo="onRedo"
         @snapshot="onSnapshot"
       />
-
       <!-- Preview Mode -->
       <EditorPreview
         v-else-if="renderMode === 'preview' && currentChapter"
+        ref="soloPreviewRef"
         :content="content"
         @navigate-chapter="navigateToChapter"
       />
-
       <!-- No chapter selected -->
       <div v-else class="editor-empty">
         <p v-if="renderMode === 'preview'">Select a chapter to see the preview</p>
@@ -178,7 +228,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useStoryStore } from '@/stores/storyStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useUIStore } from '@/stores/uiStore'
@@ -222,6 +272,21 @@ const showMarkdownRef = ref(false)
 const showChapterMeta = ref(false)
 const metaChapterId   = ref<string | null>(null)
 const showHistory     = ref(false)
+
+// ─── Split view ──────────────────────────────────────────────────────────────
+const splitView   = ref(localStorage.getItem('blockbreaker_split_view') === 'true')
+// Split view only applies to markdown mode (raw editing beside live preview)
+const splitViewActive = computed(
+  () => splitView.value && !!currentChapter.value && renderMode.value === 'markdown'
+)
+const splitEditorRef  = ref<InstanceType<typeof EditorSeamless> | null>(null)
+const splitPreviewRef = ref<InstanceType<typeof EditorPreview>  | null>(null)
+watch(splitView, (val) => localStorage.setItem('blockbreaker_split_view', String(val)))
+
+// ─── Solo mode refs (used for mode-switch scroll sync) ───────────────────────
+const soloSeamlessRef = ref<InstanceType<typeof EditorSeamless> | null>(null)
+const soloMarkdownRef = ref<InstanceType<typeof EditorMarkdown>  | null>(null)
+const soloPreviewRef  = ref<InstanceType<typeof EditorPreview>   | null>(null)
 
 const openChapterMeta = () => {
   const id = storyStore.currentChapterId
@@ -360,6 +425,169 @@ onBeforeUnmount(() => {
   autoSaveManager.unregisterSaveCallback('current-chapter')
 })
 
+// ─── Scroll sync for split view ───────────────────────────────────────────────
+let _stopScrollSync: (() => void) | null = null
+
+// ─── Line-number scroll sync (shared core) ────────────────────────────────
+/**
+ * Reads the fractional source-line at the top of `container`.
+ * isPreview=true  → reads [data-source-line] blocks (EditorPreview)
+ * isPreview=false → reads [data-start]/[data-end] token spans (editor modes)
+ * Returns 0 when already at top.
+ */
+function captureLineFrom(container: HTMLElement, isPreview: boolean): number {
+  if (container.scrollTop < 2) return 0
+  const cTop = container.getBoundingClientRect().top
+
+  if (isPreview) {
+    const all = Array.from(container.querySelectorAll('[data-source-line]')) as HTMLElement[]
+    for (let i = 0; i < all.length; i++) {
+      const r = all[i].getBoundingClientRect()
+      if (r.bottom <= cTop) continue
+      const lineStart = parseInt(all[i].getAttribute('data-source-line')!, 10)
+      if (r.top >= cTop) return lineStart
+      const lineEnd = i + 1 < all.length
+        ? parseInt(all[i + 1].getAttribute('data-source-line')!, 10)
+        : lineStart + 1
+      return r.height > 1
+        ? lineStart + ((cTop - r.top) / r.height) * (lineEnd - lineStart)
+        : lineStart
+    }
+  } else {
+    const all = Array.from(container.querySelectorAll('[data-start]')) as HTMLElement[]
+    for (const el of all) {
+      const r = el.getBoundingClientRect()
+      if (r.bottom <= cTop) continue
+      const charStart = parseInt(el.getAttribute('data-start')!, 10)
+      const charEnd   = parseInt(el.getAttribute('data-end') ?? String(charStart), 10)
+      const lineStart = content.value.slice(0, charStart).split('\n').length - 1
+      if (r.top >= cTop) return lineStart
+      const lineEnd = content.value.slice(0, charEnd).split('\n').length - 1
+      if (lineEnd === lineStart || r.height < 2) return lineStart
+      return lineStart + ((cTop - r.top) / r.height) * (lineEnd - lineStart)
+    }
+  }
+  return 0
+}
+
+/**
+ * Scrolls `container` so that `sourceLine` (fractional) is at the top of the
+ * viewport.  Works whether container.scrollTop is 0 (fresh mount) or nonzero
+ * (live split-view sync): uses current scrollTop + element's rect delta.
+ */
+function applyScrollLine(container: HTMLElement, isPreview: boolean, sourceLine: number): void {
+  if (sourceLine < 0.05) { container.scrollTop = 0; return }
+  const cRect = container.getBoundingClientRect()
+
+  if (isPreview) {
+    const all = Array.from(container.querySelectorAll('[data-source-line]')) as HTMLElement[]
+    for (let i = 0; i < all.length; i++) {
+      const lineStart = parseInt(all[i].getAttribute('data-source-line')!, 10)
+      const lineEnd   = i + 1 < all.length
+        ? parseInt(all[i + 1].getAttribute('data-source-line')!, 10)
+        : lineStart + 1
+      if (sourceLine >= lineStart && sourceLine < lineEnd) {
+        const tRect = all[i].getBoundingClientRect()
+        const frac  = lineEnd > lineStart ? (sourceLine - lineStart) / (lineEnd - lineStart) : 0
+        container.scrollTop = container.scrollTop + (tRect.top - cRect.top) + frac * tRect.height
+        return
+      }
+    }
+    for (let i = all.length - 1; i >= 0; i--) {
+      if (parseInt(all[i].getAttribute('data-source-line')!, 10) <= sourceLine) {
+        const tRect = all[i].getBoundingClientRect()
+        container.scrollTop = container.scrollTop + (tRect.top - cRect.top)
+        return
+      }
+    }
+  } else {
+    const lines      = content.value.split('\n')
+    const lineFloor  = Math.floor(sourceLine)
+    const lineFrac   = sourceLine - lineFloor
+    const charBase   = lines.slice(0, lineFloor).join('\n').length
+    const lineLen    = (lines[lineFloor] ?? '').length
+    const charOffset = charBase + Math.round(lineFrac * lineLen)
+    const all = Array.from(container.querySelectorAll('[data-start]')) as HTMLElement[]
+    for (const el of all) {
+      const charStart = parseInt(el.getAttribute('data-start')!, 10)
+      const charEnd   = parseInt(el.getAttribute('data-end') ?? String(charStart), 10)
+      if (charEnd < charOffset) continue
+      const tRect      = el.getBoundingClientRect()
+      const tokenChars = charEnd - charStart
+      const frac       = tokenChars > 0 ? (charOffset - charStart) / tokenChars : 0
+      container.scrollTop = container.scrollTop + (tRect.top - cRect.top) + frac * tRect.height
+      return
+    }
+  }
+}
+
+// ─── Split-view live scroll sync ──────────────────────────────────────────
+function setupScrollSync() {
+  const editorEl  = splitEditorRef.value?.scrollEl
+  const previewEl = splitPreviewRef.value?.scrollEl
+  if (!editorEl || !previewEl) return
+
+  let isSyncing = false
+
+  const onEditorScroll = () => {
+    if (isSyncing) return
+    isSyncing = true
+    applyScrollLine(previewEl, true, captureLineFrom(editorEl, false))
+    requestAnimationFrame(() => { isSyncing = false })
+  }
+  const onPreviewScroll = () => {
+    if (isSyncing) return
+    isSyncing = true
+    applyScrollLine(editorEl, false, captureLineFrom(previewEl, true))
+    requestAnimationFrame(() => { isSyncing = false })
+  }
+
+  editorEl.addEventListener('scroll',  onEditorScroll,  { passive: true })
+  previewEl.addEventListener('scroll', onPreviewScroll, { passive: true })
+
+  _stopScrollSync = () => {
+    editorEl.removeEventListener('scroll',  onEditorScroll)
+    previewEl.removeEventListener('scroll', onPreviewScroll)
+  }
+}
+
+watch(splitViewActive, (active) => {
+  _stopScrollSync?.()
+  _stopScrollSync = null
+  if (active) nextTick(setupScrollSync)
+})
+
+onBeforeUnmount(() => _stopScrollSync?.())
+
+// ─── Mode-switch scroll sync ───────────────────────────────────────────────
+function captureScrollLine(): number {
+  const seamlessEl = soloSeamlessRef.value?.scrollEl
+  const markdownEl = soloMarkdownRef.value?.scrollEl
+  const previewEl  = soloPreviewRef.value?.scrollEl
+  const container  = seamlessEl ?? markdownEl ?? previewEl
+  if (!container) return 0
+  return captureLineFrom(container, !!(previewEl && !seamlessEl && !markdownEl))
+}
+
+function restoreScrollLine(toMode: RenderMode, sourceLine: number) {
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      const container = toMode === 'preview'
+        ? soloPreviewRef.value?.scrollEl
+        : (soloSeamlessRef.value?.scrollEl ?? soloMarkdownRef.value?.scrollEl)
+      if (!container) return
+      applyScrollLine(container, toMode === 'preview', sourceLine)
+    })
+  })
+}
+
+function setMode(newMode: RenderMode) {
+  if (newMode === renderMode.value) return
+  const line = captureScrollLine()
+  renderMode.value = newMode
+  restoreScrollLine(newMode, line)
+}
+
 const wordCount = computed(() => {
   return content.value
     .trim()
@@ -462,9 +690,15 @@ const saveChapter = async () => {
   border-color: var(--accent-color);
 }
 
-.action-btn:disabled {
-  opacity: 0.5;
+.action-btn:disabled,
+.mode-btn:disabled {
+  opacity: 0.35;
   cursor: not-allowed;
+}
+
+.mode-btn:disabled:hover {
+  background-color: transparent;
+  border-color: transparent;
 }
 
 .separator {
@@ -535,4 +769,29 @@ const saveChapter = async () => {
   font-family: inherit; transition: color var(--transition-fast);
 }
 .status-history-btn:hover { color: var(--accent-color); }
+
+/* ── Split view layout ─────────────────────────────────────────────── */
+.editor-body--split {
+  padding: 0;
+  gap: 0;
+}
+
+.split-editor,
+.split-preview {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  /* Must be a flex container so inner .editor-wrapper / .editor-preview
+     can use flex:1 and overflow-y:auto correctly */
+  display: flex;
+  flex-direction: column;
+}
+
+.split-divider {
+  width: 1px;
+  height: 100%;
+  background-color: var(--border-color);
+  flex-shrink: 0;
+}
 </style>
