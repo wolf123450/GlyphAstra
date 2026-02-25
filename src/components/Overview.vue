@@ -2,7 +2,7 @@
   <aside class="overview-panel" v-if="isVisible">
     <div class="overview-header">
       <h3>Story Overview</h3>
-      <button class="close-btn" @click="closeOverview" title="Close">×</button>
+      <button class="close-btn" @click="closeOverview" title="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiClose"/></svg></button>
     </div>
 
     <div class="overview-content">
@@ -63,7 +63,7 @@
             <div v-if="char.role" class="character-role">{{ char.role }}</div>
             <div class="character-actions">
               <button class="action-btn" @click="editCharacter(char)" title="Edit">✎</button>
-              <button class="action-btn delete" @click="deleteCharacter(char.id)" title="Delete">×</button>
+              <button class="action-btn delete" @click="deleteCharacter(char.id)" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiDeleteOutline"/></svg></button>
             </div>
           </div>
         </div>
@@ -77,6 +77,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { mdiClose, mdiDeleteOutline } from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useUIStore } from '@/stores/uiStore'
 import type { Character } from '@/stores/storyStore'

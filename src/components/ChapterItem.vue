@@ -10,7 +10,7 @@
       class="drag-handle"
       title="Drag to reorder"
       @mousedown.stop.prevent="onHandleDown"
-    >&#x28FF;</span>
+    ><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiDragVertical"/></svg></span>
     <div class="chapter-content">
       <div class="chapter-name-row">
           <span v-if="props.displayLabel" class="chapter-label" :title="chapter.chapterLabel ? 'Custom label' : 'Auto-numbered'">{{ props.displayLabel }}</span>
@@ -31,7 +31,7 @@
           @click.stop="startRename"
         >
           {{ chapter.name }}
-          <span class="edit-icon">✎</span>
+          <svg class="edit-icon" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiPencilOutline"/></svg>
         </span>
         <span v-if="chapter.isPlotOutline" class="badge badge-outline" title="Plot outline — injected into every AI prompt">▸ Outline</span>
       </div>
@@ -43,18 +43,19 @@
         <span v-if="chapter.contextTags && chapter.contextTags.length" class="tags-badge" :title="chapter.contextTags.join(', ')">
           &#x2317; {{ chapter.contextTags.length }}
         </span>
-        <span v-if="chapter.summary" class="summary-badge" title="AI summary available">&#x2299;</span>
+        <span v-if="chapter.summary" class="summary-badge" title="AI summary available"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiTextBoxOutline"/></svg></span>
       </div>
     </div>
     <div class="chapter-actions" v-show="isActive">
-      <button class="action-btn delete" @click.stop="deleteThis" title="Delete">×</button>
-      <button class="action-btn" @click.stop="openMeta" title="Edit properties">&#x2261;</button>
+      <button class="action-btn delete" @click.stop="deleteThis" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiDeleteOutline"/></svg></button>
+      <button class="action-btn" @click.stop="openMeta" title="Edit properties"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiDotsVertical"/></svg></button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
+import { mdiDragVertical, mdiPencilOutline, mdiDotsVertical, mdiDeleteOutline, mdiTextBoxOutline } from '@mdi/js'
 import type { Chapter } from '@/stores/storyStore'
 
 interface Props {

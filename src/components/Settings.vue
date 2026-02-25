@@ -290,6 +290,12 @@
           <div v-if="activeTab === 'help'" class="tab-content help-tab">
 
             <div class="help-section">
+              <h3 class="help-section-title">Icons</h3>
+              <p class="setting-hint">Compare Phosphor and Material Design icon candidates for the UI overhaul (Phase 11.x).</p>
+              <button class="btn-sm help-btn" @click="showIconGallery = true">&#9783; Browse icon gallery</button>
+            </div>
+
+            <div class="help-section">
               <h3 class="help-section-title">Onboarding</h3>
               <p class="setting-hint">Take the guided tour to learn the key areas of the app.</p>
               <button class="btn-sm help-btn" @click="startTour">&#9654; Take the tour</button>
@@ -322,6 +328,8 @@
       </div>
     </div>
   </Teleport>
+
+  <IconGallery :show="showIconGallery" @close="showIconGallery = false" />
 </template>
 
 <script setup lang="ts">
@@ -330,6 +338,7 @@ import { useUIStore } from '@/stores/uiStore'
 import { useSettingsStore, CUSTOMIZABLE_VARS, type CustomizableVar } from '@/stores/settingsStore'
 import { useStoryStore } from '@/stores/storyStore'
 import { version as appVersion } from '../../package.json'
+import IconGallery from './IconGallery.vue'
 
 const uiStore = useUIStore()
 const settingsStore = useSettingsStore()
@@ -337,6 +346,7 @@ const settings = settingsStore.settings
 const storyStore = useStoryStore()
 
 const activeTab = ref<'editor' | 'autosave' | 'ai' | 'appearance' | 'shortcuts' | 'help'>('editor')
+const showIconGallery = ref(false)
 
 const tabs = [
   { key: 'editor',      label: 'Editor' },

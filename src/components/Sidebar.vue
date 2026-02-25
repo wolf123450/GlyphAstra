@@ -3,7 +3,7 @@
     <div class="sidebar-header">
       <h1 class="sidebar-title">BlockBreaker</h1>
       <button class="sidebar-toggle" @click="toggleSidebar" title="Toggle sidebar">
-        <span class="toggle-icon">{{ isOpen ? '◀' : '▶' }}</span>
+        <svg class="toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="isOpen ? mdiChevronLeft : mdiChevronRight"/></svg>
       </button>
     </div>
 
@@ -17,7 +17,7 @@
         </button>
 
         <div v-if="showStoryPicker" class="story-picker">
-          <button class="story-new-btn" @click="createAndSwitchStory">⊕ New Story</button>
+          <button class="story-new-btn" @click="createAndSwitchStory"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:4px"><path :d="mdiPlusCircleOutline"/></svg>New Story</button>
           <div class="story-list">
             <div
               v-for="proj in savedProjects"
@@ -33,7 +33,7 @@
                 class="story-item-delete"
                 title="Delete story"
                 @click.stop="requestDeleteStory(proj.id, proj.name)"
-              >×</button>
+              ><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiDeleteOutline"/></svg></button>
             </div>
             <div v-if="savedProjects.length === 0" class="story-item-empty">No saved stories</div>
           </div>
@@ -75,7 +75,7 @@
 
       <!-- New Chapter Button -->
       <button class="btn-sidebar-action" @click="createNewChapter" title="Create new chapter (Ctrl+N)">
-        <span class="icon">⊕</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path :d="mdiPlusCircleOutline"/></svg>
         <span class="label">New Chapter</span>
       </button>
 
@@ -123,10 +123,10 @@
     <!-- Sidebar Footer -->
     <div class="sidebar-footer">
       <button class="btn-icon" @click="toggleSettings" title="Settings (Ctrl+,)">
-        ⚙
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiCog"/></svg>
       </button>
       <button class="btn-icon" @click="toggleTheme" :title="`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`">
-        {{ theme === 'dark' ? '◐' : '☀' }}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path :d="theme === 'dark' ? mdiCircleHalfFull : mdiWhiteBalanceSunny"/></svg>
       </button>
       <button class="btn-icon" @click="openHelpStory" title="Help &amp; Reference">
         ?
@@ -144,6 +144,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { mdiPlusCircleOutline, mdiCog, mdiChevronLeft, mdiChevronRight, mdiDeleteOutline, mdiCircleHalfFull, mdiWhiteBalanceSunny } from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useEditorStore } from '@/stores/editorStore'

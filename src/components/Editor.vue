@@ -14,7 +14,7 @@
           @click="splitView = !splitView"
           title="Split view — raw markdown left, live preview right"
         >
-          ◫
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiViewSplitVertical"/></svg>
         </button>
         <button
           class="mode-btn"
@@ -22,7 +22,7 @@
           @click="setMode('markdown')"
           title="Show all markdown"
         >
-          ⁋
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiLanguageMarkdown"/></svg>
         </button>
         <button
           class="mode-btn"
@@ -30,7 +30,7 @@
           @click="setMode('seamless')"
           title="Seamless editing"
         >
-          ≈
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiApproximatelyEqual"/></svg>
         </button>
         <button
           class="mode-btn"
@@ -38,7 +38,7 @@
           @click="setMode('preview')"
           title="Preview mode"
         >
-          ▣
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiEyeOutline"/></svg>
         </button>
         <div class="separator"></div>
         <button
@@ -47,7 +47,7 @@
           :disabled="!isDirty || isReadOnly"
           title="Save (Ctrl+S)"
         >
-          ⬇
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiContentSaveOutline"/></svg>
         </button>
         <button
           class="action-btn"
@@ -55,7 +55,7 @@
           @click="toggleOverview"
           title="Story Overview"
         >
-          ◨
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiBookOpenVariant"/></svg>
         </button>
         <button
           class="action-btn"
@@ -63,7 +63,7 @@
           @click="toggleAI"
           title="AI Assistant (Ctrl+Space)"
         >
-          ✦
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiRobot"/></svg>
         </button>
         <button
           class="action-btn"
@@ -71,7 +71,7 @@
           @click="toggleExport"
           title="Export / Import"
         >
-          ⬡
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiApplicationExport"/></svg>
         </button>
         <button
           class="action-btn"
@@ -208,14 +208,14 @@
         :class="{ 'has-summary': currentChapter.summary }"
         :title="currentChapter.summary ? 'AI summary available — click to edit chapter properties' : 'No summary yet — click to open chapter properties'"
         @click="openChapterMeta"
-      >&#x2299; {{ currentChapter.summary ? 'Summary' : 'No summary' }}</button>
+      ><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path :d="mdiTextBoxOutline"/></svg>{{ currentChapter.summary ? 'Summary' : 'No summary' }}</button>
       <!-- Version history -->
       <button
         v-if="currentChapter"
         class="status-item status-history-btn"
         :title="'Version history'"
         @click="showHistory = true"
-      >&#x23F1; History</button>
+      ><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path :d="mdiHistory"/></svg> History</button>
     </div>
   </div>
 
@@ -233,6 +233,18 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import {
+  mdiViewSplitVertical,
+  mdiLanguageMarkdown,
+  mdiApproximatelyEqual,
+  mdiEyeOutline,
+  mdiContentSaveOutline,
+  mdiBookOpenVariant,
+  mdiRobot,
+  mdiApplicationExport,
+  mdiHistory,
+  mdiTextBoxOutline,
+} from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useUIStore } from '@/stores/uiStore'

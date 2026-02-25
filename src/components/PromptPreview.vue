@@ -9,7 +9,7 @@
             <button class="pp-icon-btn" @click="copyPrompt" :title="copied ? 'Copied!' : 'Copy to clipboard'">
               {{ copied ? '✓' : '⎘' }}
             </button>
-            <button class="pp-close" @click="$emit('close')" title="Close">✕</button>
+            <button class="pp-close" @click="$emit('close')" title="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiClose"/></svg></button>
           </div>
         </div>
 
@@ -51,6 +51,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
+import { mdiClose } from '@mdi/js'
 import { useAIStore } from '@/stores/aiStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useAISuggestion } from '@/utils/useAISuggestion'

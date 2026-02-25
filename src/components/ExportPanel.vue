@@ -2,7 +2,7 @@
   <aside class="export-panel" v-if="isVisible">
     <div class="export-header">
       <h3>Export / Import</h3>
-      <button class="close-btn" @click="closePanel" title="Close">&#x2715;</button>
+      <button class="close-btn" @click="closePanel" title="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiClose"/></svg></button>
     </div>
 
     <div class="export-content">
@@ -12,21 +12,21 @@
         <div class="sec-label">Export story</div>
         <div class="btn-col">
           <button class="ex-btn" @click="doExport('story-md')" :disabled="busy">
-            <span class="ex-icon">📄</span>
+            <span class="ex-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiLanguageMarkdown"/></svg></span>
             <span class="ex-info">
               <span class="ex-name">Markdown</span>
               <span class="ex-desc">All chapters as one .md file</span>
             </span>
           </button>
           <button class="ex-btn" @click="doExport('story-html')" :disabled="busy">
-            <span class="ex-icon">🌐</span>
+            <span class="ex-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiLanguageHtml5"/></svg></span>
             <span class="ex-info">
               <span class="ex-name">HTML</span>
               <span class="ex-desc">Styled page, printable to PDF</span>
             </span>
           </button>
           <button class="ex-btn" @click="doExport('story-docx')" :disabled="busy">
-            <span class="ex-icon">📝</span>
+            <span class="ex-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiFileWordOutline"/></svg></span>
             <span class="ex-info">
               <span class="ex-name">Word (.docx)</span>
               <span class="ex-desc">Word-compatible document</span>
@@ -42,7 +42,7 @@
         <div v-else class="hint">No chapter selected</div>
         <div class="btn-col">
           <button class="ex-btn" @click="doExport('chapter-md')" :disabled="busy || !currentChapter">
-            <span class="ex-icon">📄</span>
+            <span class="ex-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiLanguageMarkdown"/></svg></span>
             <span class="ex-info">
               <span class="ex-name">Markdown</span>
               <span class="ex-desc">Current chapter as .md file</span>
@@ -70,14 +70,14 @@
         <div class="sec-label">Backup &amp; Restore</div>
         <div class="btn-col">
           <button class="ex-btn" @click="doBackup" :disabled="busy">
-            <span class="ex-icon">💾</span>
+            <span class="ex-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiDatabaseExportOutline"/></svg></span>
             <span class="ex-info">
               <span class="ex-name">Export backup</span>
               <span class="ex-desc">Full story + AI data to .json</span>
             </span>
           </button>
           <button class="ex-btn" @click="doRestoreBackup" :disabled="busy">
-            <span class="ex-icon">📂</span>
+            <span class="ex-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiDatabaseImportOutline"/></svg></span>
             <span class="ex-info">
               <span class="ex-name">Restore backup</span>
               <span class="ex-desc">Load a .json backup as new story</span>
@@ -109,6 +109,14 @@ import {
   type ExportMeta,
 } from '@/utils/exportImport'
 import { exportBackup, importBackup } from '@/utils/backupRestore'
+import {
+  mdiClose,
+  mdiLanguageMarkdown,
+  mdiLanguageHtml5,
+  mdiFileWordOutline,
+  mdiDatabaseExportOutline,
+  mdiDatabaseImportOutline,
+} from '@mdi/js'
 
 const uiStore     = useUIStore()
 const storyStore  = useStoryStore()

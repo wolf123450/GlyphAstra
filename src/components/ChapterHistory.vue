@@ -6,11 +6,11 @@
         <!-- Header -->
         <div class="hist-header">
           <div class="hist-title-row">
-            <span class="hist-icon">⏱</span>
+            <svg class="hist-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiHistory"/></svg>
             <h3 class="hist-title">Version History</h3>
             <span class="hist-subtitle">{{ chapterName }}</span>
           </div>
-          <button class="close-btn" @click="$emit('close')" title="Close">✕</button>
+          <button class="close-btn" @click="$emit('close')" title="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiClose"/></svg></button>
         </div>
 
         <!-- Body -->
@@ -56,7 +56,7 @@
                   </button>
                 </div>
                 <span class="snapshot-age">{{ formatDateFull(selectedEntry.savedAt) }}</span>
-                <button class="btn-restore" @click="restore">↩ Restore</button>
+                <button class="btn-restore" @click="restore"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path :d="mdiArrowULeftTop"/></svg> Restore</button>
               </div>
               <div class="preview-scroll">
                 <div
@@ -106,6 +106,7 @@ import { useEditorStore } from '@/stores/editorStore'
 import { getHistory, type HistoryEntry } from '@/utils/historyManager'
 import { renderMarkdown } from '@/utils/markdownRenderer'
 import { computeLineDiff, pairDelAdd, type DiffLine } from '@/utils/diffEngine'
+import { mdiHistory, mdiArrowULeftTop, mdiClose } from '@mdi/js'
 
 interface Props {
   show: boolean

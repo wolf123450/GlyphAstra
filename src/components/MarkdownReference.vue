@@ -4,7 +4,7 @@
       <div class="md-ref-modal" @keydown.escape="$emit('close')" tabindex="-1" ref="modalEl">
         <div class="md-ref-header">
           <span class="md-ref-title">Markdown Reference</span>
-          <button class="md-ref-close" @click="$emit('close')" title="Close (Esc)">✕</button>
+          <button class="md-ref-close" @click="$emit('close')" title="Close (Esc)"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiClose"/></svg></button>
         </div>
 
         <div class="md-ref-body">
@@ -279,6 +279,7 @@
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
+import { mdiClose } from '@mdi/js'
 
 const props = defineProps<{ show: boolean }>()
 defineEmits<{ close: [] }>()
