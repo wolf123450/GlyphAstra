@@ -5,7 +5,7 @@
 
         <!-- ── Input ─────────────────────────────────────────── -->
         <div class="search-input-row">
-          <span class="search-icon">⌕</span>
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiMagnify"/></svg>
           <input
             ref="inputEl"
             v-model="query"
@@ -32,7 +32,7 @@
             :class="{ active: showReplace }"
             @click="showReplace = !showReplace"
             title="Toggle replace (Alt+H)"
-          >⇄</button>
+          ><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiSwapHorizontal"/></svg></button>
         </div>
 
         <!-- ── Regex error ──────────────────────────────────── -->
@@ -40,7 +40,7 @@
 
         <!-- ── Replace row ─────────────────────────────────── -->
         <div v-if="showReplace" class="replace-row">
-          <span class="search-icon" style="opacity:0.4">⇄</span>
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="opacity:0.4"><path :d="mdiSwapHorizontal"/></svg>
           <input
             v-model="replaceText"
             class="search-input"
@@ -117,6 +117,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
+import { mdiMagnify, mdiSwapHorizontal } from '@mdi/js'
 import { useUIStore } from '@/stores/uiStore'
 import { useStoryStore } from '@/stores/storyStore'
 import { useEditorStore } from '@/stores/editorStore'

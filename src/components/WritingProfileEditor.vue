@@ -5,7 +5,7 @@
 
         <div class="wpe-header">
           <span class="wpe-title">{{ isNew ? 'New Writing Profile' : editingCustom ? 'Edit Profile' : 'View Profile' }}</span>
-          <button class="wpe-close" @click="cancel" title="Close">✕</button>
+          <button class="wpe-close" @click="cancel" title="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiClose"/></svg></button>
         </div>
 
         <div class="wpe-body">
@@ -99,6 +99,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
+import { mdiClose } from '@mdi/js'
 import { useAIStore, type WritingProfile } from '@/stores/aiStore'
 
 const props = defineProps<{

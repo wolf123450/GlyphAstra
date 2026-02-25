@@ -5,15 +5,22 @@
       class="notification"
       :class="`notification-${type}`"
     >
-      <span class="notification-icon">{{ getIcon() }}</span>
+      <span class="notification-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path :d="getIconPath()"/></svg></span>
       <span class="notification-message">{{ message }}</span>
-      <button class="notification-close" @click="hideNotification">×</button>
+      <button class="notification-close" @click="hideNotification"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiClose"/></svg></button>
     </div>
   </transition>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import {
+  mdiCheckCircleOutline,
+  mdiCloseCircleOutline,
+  mdiAlertCircleOutline,
+  mdiInformationOutline,
+  mdiClose,
+} from '@mdi/js'
 import { useUIStore } from '@/stores/uiStore'
 
 const uiStore = useUIStore()
@@ -22,18 +29,13 @@ const isVisible = computed(() => uiStore.isNotificationVisible)
 const message = computed(() => uiStore.notificationMessage)
 const type = computed(() => uiStore.notificationType)
 
-const getIcon = () => {
+const getIconPath = () => {
   switch (type.value) {
-    case 'success':
-      return '✓'
-    case 'error':
-      return '✕'
-    case 'warning':
-      return '⚠'
-    case 'info':
-      return 'ℹ'
-    default:
-      return '●'
+    case 'success': return mdiCheckCircleOutline
+    case 'error':   return mdiCloseCircleOutline
+    case 'warning': return mdiAlertCircleOutline
+    case 'info':    return mdiInformationOutline
+    default:        return mdiInformationOutline
   }
 }
 

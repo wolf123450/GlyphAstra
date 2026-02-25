@@ -189,7 +189,8 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 - [x] Inline links ([text](url)) — rendered clickable in preview; Ctrl+Click in seamless
 - [x] External links open in system browser via plugin-opener (never inside WebView)
 - [x] Internal `chapter://` links navigate within the app
-- [ ] Internal `story://` links open another story in the library from within chapter text (e.g. `[See Book 2](story://story-id)`) — see Phase 17.1
+- [x] Internal `story://` links — `[text](story://story-id)` or `[text](story://story-id/chapter-id)` — navigate to another story (optionally landing on a specific chapter); broken links shown with strikethrough in `--error-color`
+- [ ] `:icon name:` shorthand in markdown — e.g. `:PhGear:` or `:mdiCog:` renders the matching Phosphor/MDI icon inline; **deferred** pending icon library choice and consideration of export implications (icons would need to be stripped or converted for MD/HTML/DOCX export)
 - [ ] Images (![alt](url))
 - [ ] Tables (pipe syntax)
 
@@ -578,19 +579,21 @@ The current `prompt` field on `AIStyle` becomes a multi-sentence instruction blo
 - [ ] Accessibility (WCAG compliance)
 - ✅ Unit and integration test suite (Vitest, 149 tests across seamlessRenderer, editorCursor, CRLF tokenisation)
 
-### 11.x Icon Library Overhaul ⏳ NOT STARTED
+### 11.x Icon Library Overhaul 🟡 IN PROGRESS
 
 **Problem:** Several current icons are unsatisfying — the circled `+` for new chapters, sidebar expand/collapse arrows, export/import icon, save icon, settings gear, and the app icon itself. Unicode glyphs are limited and inconsistent across platforms.
 
 **Approach:**
-- Evaluate an SVG icon library: leading candidates are **Phosphor Icons** (MIT, 1,200+ icons, Vue/web component support, consistent weight/style) and **Material Design Icons** (community fork, 7,000+ icons, slightly heavier).
-- Both support the current black-and-white glyph aesthetic while offering much more variety than Unicode.
-- Before committing to specific icon changes, generate an in app preview grid of candidate icons from each library for user review and selection.
+- Both **Phosphor Icons** (`@phosphor-icons/vue`, MIT, ~1,200 icons, Vue 3 components, weight variants) and **Material Design Icons** (`@mdi/js`, ~7,000 SVG path strings) are now installed.
+- An in-app **Icon Gallery** (`IconGallery.vue`) is accessible from **Settings → Help → Browse icon gallery** for side-by-side comparison.
+- The gallery shows candidates for each UI slot (new chapter, settings, delete, edit, drag handle, save, export, sidebar, search) with all Phosphor weight variants selectable and multiple size options.
+- Click any candidate card to copy the import name to the clipboard.
 
 **Scope:**
-- [ ] Select icon library and install (e.g. `phosphor-vue` or inline SVG sprites)
-- [ ] Preview candidate replacements for: new-chapter button, sidebar collapse/expand, export, import, save, settings, and app icon — present options to user before committing
-- [ ] Replace icons across Sidebar, Editor header, ExportPanel, Settings modal
+- [x] Install `@phosphor-icons/vue` and `@mdi/js`
+- [x] Build in-app icon gallery (`IconGallery.vue`) — side-by-side comparison, Phosphor weight selector, size selector, copy-import-name on click
+- [x] Gallery accessible from Settings → Help tab
+- [ ] User selects preferred icons for each slot, then replace Unicode glyphs across Sidebar, Editor header, ExportPanel, Settings modal
 - [ ] Design new app icon (`.ico` / `.icns` / `.png` set) matching chosen aesthetic
 - [ ] Ensure icons respect the current CSS `--text-primary` / `--accent-color` variables so they work in both dark and light themes
 
