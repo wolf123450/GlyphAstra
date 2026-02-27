@@ -127,7 +127,6 @@ import {
   mdiPencilRuler,
   mdiFileEditOutline,
   mdiTextBoxEditOutline,
-  mdiPencilOutline,
   mdiWaves,
   mdiApproximatelyEqualBox,
   // ── theme toggle

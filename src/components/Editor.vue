@@ -112,7 +112,7 @@
         <p v-else class="toc-live-empty">No chapters yet &mdash; they&rsquo;ll appear here as you create them.</p>
       </div>
       <!-- ── Split view: active editor on the left, live preview on the right ── -->
-      <template v-else-if="splitViewActive && currentChapter?.chapterType !== 'toc'">
+      <template v-else-if="splitViewActive">
         <div class="split-editor">
           <EditorSeamless
             ref="splitEditorRef"
@@ -153,7 +153,7 @@
       <!-- ── Solo modes (unchanged) ──────────────────────────────────── -->
       <!-- Seamless Mode -->
       <EditorSeamless
-        v-else-if="renderMode === 'seamless' && currentChapter && currentChapter.chapterType !== 'toc'"
+        v-else-if="renderMode === 'seamless' && currentChapter"
         ref="soloSeamlessRef"
         :content="content"
         :cursorPos="cursorPosition"
@@ -178,7 +178,7 @@
       />
       <!-- Markdown Mode -->
       <EditorMarkdown
-        v-else-if="renderMode === 'markdown' && currentChapter && currentChapter.chapterType !== 'toc'"
+        v-else-if="renderMode === 'markdown' && currentChapter"
         ref="soloMarkdownRef"
         :content="content"
         :isReadOnly="isReadOnly"
@@ -200,7 +200,7 @@
       />
       <!-- Preview Mode -->
       <EditorPreview
-        v-else-if="renderMode === 'preview' && currentChapter && currentChapter.chapterType !== 'toc'"
+        v-else-if="renderMode === 'preview' && currentChapter"
         ref="soloPreviewRef"
         :content="content"
         @navigate-chapter="navigateToChapter"
