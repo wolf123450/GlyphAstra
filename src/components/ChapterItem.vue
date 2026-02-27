@@ -34,6 +34,10 @@
           <svg class="edit-icon" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiPencilOutline"/></svg>
         </span>
         <span v-if="chapter.isPlotOutline" class="badge badge-outline" title="Plot outline — injected into every AI prompt">▸ Outline</span>
+        <span v-else-if="chapter.chapterType === 'toc'" class="badge badge-toc" title="Table of Contents — auto-generates chapter list on export">&#x2261; TOC</span>
+        <span v-else-if="chapter.chapterType === 'cover'" class="badge badge-cover" title="Cover page">&#x25C6; Cover</span>
+        <span v-else-if="chapter.chapterType === 'license'" class="badge badge-license" title="License / legal block">&#x2A3E; License</span>
+        <span v-else-if="chapter.chapterType === 'illustration'" class="badge badge-illus" title="Illustration chapter">&#x25A1; Illus.</span>
       </div>
       <div class="chapter-meta">
         <span class="status" :class="`status-${chapter.status}`">
@@ -252,6 +256,22 @@ const onHandleDown = (e: MouseEvent) => {
 .badge-outline {
   background: color-mix(in srgb, var(--accent-color) 15%, transparent);
   color: var(--accent-color); border: 1px solid currentColor;
+}
+.badge-toc {
+  background: color-mix(in srgb, #7c5cbf 15%, transparent);
+  color: #7c5cbf; border: 1px solid currentColor;
+}
+.badge-cover {
+  background: color-mix(in srgb, #b08420 15%, transparent);
+  color: #b08420; border: 1px solid currentColor;
+}
+.badge-license {
+  background: color-mix(in srgb, #3a7d5a 15%, transparent);
+  color: #3a7d5a; border: 1px solid currentColor;
+}
+.badge-illus {
+  background: color-mix(in srgb, #1a6fa8 15%, transparent);
+  color: #1a6fa8; border: 1px solid currentColor;
 }
 
 .chapter-meta {

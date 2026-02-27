@@ -189,8 +189,10 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 - [x] Inline links ([text](url)) — rendered clickable in preview; Ctrl+Click in seamless
 - [x] External links open in system browser via plugin-opener (never inside WebView)
 - [x] Internal `chapter://` links navigate within the app
+- [ ] **In-chapter anchor links** (`chapter://id#anchor`) — extend the `chapter://` scheme with an optional `#fragment` so authors can link to a specific heading or named location within a chapter (e.g. `chapter://bibliography-chapter#ref-smith2020`); headings in preview automatically get slugified `id` attributes; bibliography and endnote entries get `id="ref-{key}"` anchors; `navigateToChapter` extended to scroll to the target element after navigation
 - [x] Internal `story://` links — `[text](story://story-id)` or `[text](story://story-id/chapter-id)` — navigate to another story (optionally landing on a specific chapter); broken links shown with strikethrough in `--error-color`
 - [ ] `:icon name:` shorthand in markdown — e.g. `:PhGear:` or `:mdiCog:` renders the matching Phosphor/MDI icon inline; **deferred** pending icon library choice and consideration of export implications (icons would need to be stripped or converted for MD/HTML/DOCX export)
+- [ ] **Footnotes** (`[^1]` inline marker + `[^1]: footnote text` definition at end of chapter) — rendered at chapter bottom in preview; Pandoc-compatible syntax; see 12.8 for full spec
 - [ ] Images (![alt](url))
 - [ ] Tables (pipe syntax)
 
@@ -557,6 +559,46 @@ The current `prompt` field on `AIStyle` becomes a multi-sentence instruction blo
 - [x] Backup & Restore section added to `ExportPanel.vue`
 - [ ] Auto-backup on close or timer (Phase 11)
 
+### 10.6 EPUB Export ⏳ NOT STARTED
+
+EPUB 3.0 is the standard format for e-readers (Kindle via conversion, Kobo, Apple Books, etc.). It is a ZIP archive containing XHTML chapter files, a CSS stylesheet, an OPF package manifest, and a `nav.xhtml` navigation document.
+
+**Library:** `epub-gen-memory` (pure-JS, no native deps, outputs `Uint8Array`; written via existing `writeBinaryAbsolute`). Fallback option: manual ZIP construction with `jszip` + hand-crafted OPF/NCX if `epub-gen-memory` proves limiting.
+
+#### Core output
+- [ ] `exportStoryToEpub(meta, chapters)` added to `exportImport.ts`
+- [ ] Save dialog defaults to `<story-title>.epub`; written via `writeFile(Uint8Array)`
+- [ ] EPUB 3.0 with fallback EPUB 2 NCX for broad reader compatibility
+- [ ] Story title, genre, tone injected as EPUB metadata (`dc:title`, `dc:subject`, `dc:description`)
+- [ ] A generated UUID used as the required `dc:identifier`; stable across re-exports (derived from story ID)
+- [ ] Language defaults to `en`; future: per-story language setting
+
+#### Chapter rendering
+- [ ] Each chapter becomes an XHTML spine item; chapter order matches sidebar order
+- [ ] Chapter headings (`chapterLabel` prefix when set) → `<h1>` in XHTML
+- [ ] Chapter content passed through `renderMarkdown(..., 'preview')` → HTML, then serialized as valid XHTML (self-closing tags, namespace on `<html>`)
+- [ ] **TOC chapter** → generates the EPUB `nav.xhtml` navigation document (`epub:type="toc"`); entries are `<a href="chapterN.xhtml">` internal links (same slug scheme as HTML/DOCX export); the nav document is also inserted as a readable spine item
+- [ ] **Cover chapter** → XHTML with a `.epub-cover` class; large centered title block; styled for e-reader display
+- [ ] **License chapter** → XHTML with `.epub-license` class; small-print styling
+- [ ] **Illustration chapter** → embeds image file as an EPUB media item (read from disk via `readAbsoluteFile`); `<img>` in XHTML with `alt` from caption; caption as `<figcaption>`; falls back to placeholder text if image file not found
+- [ ] `chapter://` internal links in chapter content rewritten to `chapterN.xhtml` EPUB-internal hrefs before XHTML serialization (uses the same slug/id mapping as the HTML export's anchor system)
+
+#### Styling
+- [ ] Embedded CSS optimized for e-readers: `font-family: serif`, `line-height: 1.6`, `max-width: 100%`, no fixed pixel widths
+- [ ] `.epub-cover`, `.epub-license`, `figure`, `figcaption` classes match the HTML export styles adapted for EPUB constraints
+- [ ] No `@media print` rules (not relevant for EPUB); `@media` not used (e-readers ignore it)
+
+#### Export panel integration
+- [ ] "Export as EPUB" button added to `ExportPanel.vue` alongside existing format buttons
+- [ ] Uses `mdiBookOpenPageVariant` (or nearest available MDI icon) for the button
+- [ ] Same success/error notification pattern as other export formats
+
+#### Technical notes
+- `epub-gen-memory` installed via `npm install epub-gen-memory`; no Rust/Cargo changes needed
+- Illustration image embedding requires `fs:allow-home-read-recursive` (already granted) to read the image bytes
+- `chapter://` link rewriting happens in a pre-pass over each chapter's rendered HTML before it is handed to the EPUB builder; the same `slugify()` + `buildTocData()` helpers from `exportImport.ts` are reused
+- Future: per-story cover image (Upload cover art in story metadata → embedded as `cover-image` EPUB manifest item)
+
 ### Technical Notes
 - `plugin-dialog` Rust crate added to `Cargo.toml`, registered in `lib.rs`
 - Capabilities: `dialog:allow-open`, `dialog:allow-save`, `fs:allow-home-read-recursive`, `fs:allow-home-write-recursive`
@@ -565,6 +607,7 @@ The current `prompt` field on `AIStyle` becomes a multi-sentence instruction blo
 - `uiStore.activePanel` extended with `'export'` type
 - `ExportPanel.vue` shown as right panel (same architecture as `AIPanel.vue`)
 - Export button `⬡` added to editor header
+- **Bibliography & footnote export** — see Phase 12.8 for the source-of-truth spec. Summary: Markdown uses Pandoc `[^n]` syntax; HTML uses `<sup><a>` + `<section class="footnotes">` at chapter end + `id` anchors on bibliography entries; DOCX uses native Word footnotes (`FootnoteReferenceRun`) + formatted bibliography paragraphs; EPUB uses `epub:type="footnote"` footnotes with backlinks + `id`-anchored bibliography entries; `chapter://id#anchor` internal links rewritten to format-appropriate hrefs in all exporters
 
 ---
 
@@ -631,12 +674,16 @@ Substantial standalone features grouped to avoid fragmented implementation.
 - [x] Survives chapter switches within a session (stack keyed by chapter ID; `init` is a no-op if the chapter already has a stack)
 - [x] `Ctrl+Z` / `Ctrl+Shift+Z` (also `Ctrl+Y`); pre-structural snapshot emitted before Enter/Delete/Tab/paste/cut
 
-### 12.4 Special Chapter Types (UI & Export Rendering)
-- [ ] **Table of Contents** — auto-generated from chapter titles; renders as a formatted list in preview/export
-- [ ] **Cover** — full-page image or styled title block in export
-- [ ] **License / Publisher Info** — formatted legal block
-- [ ] **Illustration** — embeds an image file; caption field; rendered inline in preview and export
-- [ ] Chapter type icons shown in sidebar next to title
+### 12.4 Special Chapter Types (UI & Export Rendering) ✅ COMPLETE
+- [x] **Table of Contents** — auto-generated from chapter titles; renders as a formatted list in preview/export
+- [x] **Cover** — full-page image or styled title block in export
+- [x] **License / Publisher Info** — formatted legal block
+- [x] **Illustration** — embeds an image file; caption field; rendered inline in preview and export
+- [x] Chapter type icons shown in sidebar (badges in ChapterItem) next to title
+- [x] `chapterType` + `illustrationPath` + `illustrationCaption` persisted in story data
+- [x] 6-option type picker in Chapter Properties (Normal / Plot Outline / Contents / Cover / License / Illustration)
+- [x] Type banners shown in editor for TOC and Illustration chapters
+- [x] All three exporters (Markdown, HTML, DOCX) handle each chapter type correctly
 
 ### 12.5 Translations
 - [ ] A chapter can have one or more translation variants (language tag + content)
@@ -661,6 +708,76 @@ Substantial standalone features grouped to avoid fragmented implementation.
 - [x] Input auto-selects all text on activation for fast replacement
 - [x] No rename occurs if the trimmed value is empty or unchanged
 - [x] Visual affordance: cursor changes to `text` on hover over the title span
+
+### 12.8 Bibliography, Citations & Footnotes ⏳ NOT STARTED
+
+Supports academic, non-fiction, and heavily-researched creative work. Three interlocking features: a **Bibliography chapter type** for the reference list, in-text **citation references** that link to it, and **footnotes** for inline asides. Requires the `chapter://id#anchor` scheme extension (also listed in Phase 4.5) as its cross-linking foundation.
+
+#### In-chapter anchor link scheme extension
+- [ ] Extend `chapter://` to support `chapter://chapter-id#anchor-slug`; `navigateToChapter` splits on `#` and, after switching to the chapter, scrolls the preview/seamless view to the element with that `id`
+- [ ] Headings in `markdownRenderer` / `seamlessRenderer` preview output gain auto-slugified `id` attributes (same `slugify()` helper used by the exporters)
+- [ ] Broken anchor fragments (heading removed) degrade gracefully — navigation still switches to the chapter, scroll step is skipped silently
+- [ ] `EditorPreview.vue` and `EditorSeamless.vue` handle the fragment part of `chapter://` clicks
+
+#### Footnote markdown syntax
+- [ ] `[^key]` inline marker — inserts a numbered superscript; key can be numeric (`[^1]`) or a meaningful string (`[^smith2020]`)
+- [ ] `[^key]: Footnote text` definition block at end of chapter; multi-line supported with indented continuation
+- [ ] `markdownRenderer` renders markers as `<sup><a href="#fn-key" id="fnref-key">N</a></sup>` and appends a `<section class="footnotes"><ol>…</ol></section>` at chapter end
+- [ ] Each footnote entry includes a `↩` backlink to its inline marker
+- [ ] Footnote markers in seamless mode render as styled superscripts; definition lines are visually de-emphasized (smaller, dimmer)
+- [ ] Footnote numbering resets to 1 per chapter in all display modes
+
+#### Bibliography chapter type
+- [ ] New `chapterType: 'bibliography'` added to `Chapter` type and all data/serialization layers
+- [ ] 7th option in Chapter Properties type picker: `📚 Bibliography`; corresponding `badge-bibliography` chip in `ChapterItem.vue`
+- [ ] Editor for bibliography chapters shows a **structured citation list UI** instead of a plain text editor: list of citation cards (formatted per active style), **Add citation** button, drag-to-reorder, delete per entry
+- [ ] `CitationEditor.vue` modal: form fields per `CitationEntry` type (author list, title, year, journal, volume, issue, pages, publisher, DOI, URL, etc.); field set adapts to citation type
+- [ ] `citations?: CitationEntry[]` field on `Chapter` type — persisted in story data; raw `content` holds the rendered reference list as formatted text (regenerated on save) for plain-text export fallback
+- [ ] `CitationEntry` interface:
+  ```typescript
+  interface CitationEntry {
+    key: string           // cite key, e.g. 'smith2020' — used in [@smith2020] references
+    type: 'book' | 'article' | 'website' | 'chapter' | 'conference' | 'thesis' | 'other'
+    authors: string[]     // ["Last, First", …]
+    title: string
+    year?: number
+    publisher?: string
+    city?: string
+    journal?: string
+    volume?: string
+    issue?: string
+    pages?: string        // '123–145' or '123'
+    edition?: string
+    editors?: string[]    // for edited volumes
+    doi?: string
+    url?: string
+    accessDate?: string   // ISO date, for URL citations
+    additionalFields?: Record<string, string>
+  }
+  ```
+
+#### Citation styles
+- [ ] `citationStyle: 'apa' | 'mla' | 'chicago-author-date' | 'chicago-notes' | 'turabian' | 'ieee'` added to story metadata; default `'apa'`; selector in Story Overview or story metadata panel
+- [ ] `src/utils/citationFormatter.ts` — `formatInText(entry, style)` and `formatReference(entry, style)` for all six styles
+- [ ] **APA 7th**: `(Author, Year)` in-text; `Author, A. A. (Year). *Title*. Publisher.` reference
+- [ ] **MLA 9th**: `(Author page)` in-text; `Author. *Title*. Publisher, Year.` reference
+- [ ] **Chicago Author-Date**: `(Author Year, page)` in-text; `Author. Year. *Title*. Publisher.` reference
+- [ ] **Chicago Notes / Turabian**: `[@key]` references become footnote entries rather than inline citations; shortened repeat citations (`Ibid.`); bibliography entry identical to Chicago Author-Date format
+- [ ] **IEEE**: `[1]` numeric bracket in-text; `[1] A. Author, "Title," *Journal*, vol. V, no. N, pp. P, Year.` reference
+- [ ] `[@key]` syntax in markdown — renderer looks up entry by key in all bibliography chapters of the current story, formats per active style; unknown keys render in `--error-color` as `[?key]`
+- [ ] Clicking a rendered `[@key]` in preview navigates to the bibliography chapter and scrolls to that entry via `chapter://biblio-chapter-id#ref-key`
+
+#### Endnotes chapter type
+- [ ] `chapterType: 'endnotes'` — live-generated panel (same pattern as TOC chapter) aggregating all `[^key]` footnote definitions from preceding chapters in order
+- [ ] Each entry shows its source chapter name and the footnote text; clicking the chapter name navigates there
+- [ ] On export the endnotes chapter renders the aggregated list; per-chapter footnotes are suppressed in chapter bodies when an endnotes chapter is present
+
+#### Export handling
+- [ ] **Markdown**: `[^key]` and `[@key]` preserved verbatim (Pandoc-compatible); bibliography entries rendered as the formatted reference list under the chapter heading
+- [ ] **HTML**: `[^key]` → `<sup><a href="#fn-key">N</a></sup>` + `<section class="footnotes">` at chapter end with backlinks; bibliography entries get `id="ref-{key}"` anchors; `[@key]` in-text citations rendered and hyperlinked to the bibliography entry anchor
+- [ ] **DOCX**: `[^key]` uses `docx` `FootnoteReferenceRun` + footnotes section for native Word footnotes (Chicago Notes style uses this path automatically); APA/MLA/IEEE render as parenthetical `TextRun`s instead; bibliography chapter as styled paragraph list; `[@key]` links encoded as `InternalHyperlink` to the bibliography bookmark
+- [ ] **EPUB**: footnotes use `epub:type="footnote"` aside elements with `↩` backlinks; bibliography entries get `id` anchors; `chapter://id#ref-key` links rewritten to `chapterN.xhtml#ref-key` in the pre-pass
+- [ ] Per-export **citation style override**: selector in `ExportPanel.vue` defaulting to the story-level setting, so authors can export in APA for one publisher and Chicago for another without touching story metadata
 
 ---
 
@@ -801,9 +918,9 @@ Higher-level metadata for multi-book series — builds on 17.1.
 - ✅ **Phase 7**: Advanced AI - 90% (writing profiles, context builder, summaries, chapter metadata editor done; parallel suggestions pending)
 - 🟡 **Phase 8**: Search - 90% (full-text search, TOC, replace, regex, case-sensitive done; badge + advanced filters pending)
 - ✅ **Phase 9**: Settings & Customization - COMPLETE (5-tab modal, all settings persisted, custom theme colors)
-- 🟡 **Phase 10**: Export & Data Management - 95% (MD/HTML/DOCX/import/backup/restore done; auto-backup timer pending)
+- 🟡 **Phase 10**: Export & Data Management - 95% (MD/HTML/DOCX/import/backup/restore done; EPUB export + auto-backup timer pending)
 - ⏳ **Phase 11**: Performance & Polish - NOT STARTED (icon overhaul planned)
-- ✅ **Phase 12**: Chapter Management - IN PROGRESS (12.1 drag-to-reorder, 12.2 version history, 12.3 session undo/redo, 12.6 inline title editing, 12.7 custom labels/numbering done; 12.4–12.5 not started)
+- ✅ **Phase 12**: Chapter Management - IN PROGRESS (12.1 drag-to-reorder, 12.2 version history, 12.3 session undo/redo, 12.4 special chapter types, 12.6 inline title editing, 12.7 custom labels/numbering done; 12.5 translations + 12.8 bibliography/footnotes not started)
 - ✅ **Phase 14**: Help & Onboarding - COMPLETE (14.1 tour, 14.2 demo story, 14.3 read-only flag, 14.4 Help settings tab)
 - ⏳ **Phase 13**: Advanced Features - NOT STARTED
 - ⏳ **Phase 14**: Help & Onboarding - NOT STARTED

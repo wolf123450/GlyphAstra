@@ -29,6 +29,9 @@ export interface Chapter {
   isPlotOutline?: boolean;       // inject as outline layer in AI context
   contextTags?: string[];        // e.g. ['POV: Alice', 'Timeline A']; empty = always included
   isReadOnly?: boolean;          // editor disabled (used by help story chapters)
+  chapterType?: 'toc' | 'cover' | 'license' | 'illustration'  // absent/normal = regular chapter
+  illustrationPath?: string       // illustration chapters: local file path
+  illustrationCaption?: string    // illustration chapters: caption text
 }
 
 export interface Character {

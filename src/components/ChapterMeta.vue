@@ -6,7 +6,7 @@
         <!-- Header -->
         <div class="meta-header">
           <h2 class="meta-title">Chapter Properties</h2>
-          <button class="close-btn" @click="close" title="Close (Esc)">&#x2715;</button>
+          <button class="close-btn" @click="close" title="Close (Esc)"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiClose"/></svg></button>
         </div>
 
         <div class="meta-body">
@@ -46,8 +46,9 @@
               v-model="draft.chapterLabel"
               class="field-input"
               type="text"
-              placeholder="e.g. Prologue, Chapter 4, Part II… (leave blank for auto-numbering)"
+              placeholder="e.g. Prologue, Chapter 4, Part II…"
             />
+            <p class="field-hint">Chapters with a label are excluded from auto-numbering; only unlabeled chapters receive a number.</p>
             <div class="label-preset-row">
               <button class="label-preset" @click="draft.chapterLabel = 'Prologue'">Prologue</button>
               <button class="label-preset" @click="draft.chapterLabel = 'Epilogue'">Epilogue</button>
@@ -56,6 +57,9 @@
               <button class="label-preset" @click="draft.chapterLabel = 'Part I'">Part I</button>
               <button class="label-preset" @click="draft.chapterLabel = 'Part II'">Part II</button>
               <button class="label-preset" @click="draft.chapterLabel = 'Part III'">Part III</button>
+              <button class="label-preset label-preset--contents" @click="draft.chapterLabel = 'Contents'">&#x2261; Contents</button>
+              <button class="label-preset label-preset--cover" @click="draft.chapterLabel = 'Cover'">&#x25C6; Cover</button>
+              <button class="label-preset label-preset--license" @click="draft.chapterLabel = 'License'">&#x2A3E; License</button>
               <button v-if="draft.chapterLabel" class="label-preset label-preset--clear" @click="draft.chapterLabel = ''">&#x2715; Clear</button>
             </div>
           </div>
@@ -63,25 +67,36 @@
           <!-- Chapter Type -->
           <div class="field-group">
             <label class="field-label">Chapter type</label>
-            <div class="pill-row">
-              <button
-                class="pill"
-                :class="{ active: !draft.isPlotOutline }"
-                @click="draft.isPlotOutline = false"
-              >Normal</button>
-              <button
-                class="pill pill-outline"
-                :class="{ active: draft.isPlotOutline }"
-                @click="draft.isPlotOutline = true"
-                title="Injected as the story outline layer in every AI prompt"
-              >&#x25B8; Plot Outline</button>
+            <div class="pill-row type-row">
+              <button class="pill" :class="{ active: effectiveType === 'normal' }" @click="setEffectiveType('normal')">Normal</button>
+              <button class="pill pill-outline" :class="{ active: effectiveType === 'plot-outline' }" @click="setEffectiveType('plot-outline')" title="Injected as the story outline layer in every AI prompt">&#x25B8; Plot Outline</button>
+              <button class="pill pill-toc" :class="{ active: effectiveType === 'toc' }" @click="setEffectiveType('toc')" title="Auto-generates a chapter list on export">&#x2261; Contents</button>
+              <button class="pill pill-cover" :class="{ active: effectiveType === 'cover' }" @click="setEffectiveType('cover')" title="Styled as a cover page in export">&#x25C6; Cover</button>
+              <button class="pill pill-license" :class="{ active: effectiveType === 'license' }" @click="setEffectiveType('license')" title="Rendered as a legal / license block">&#x2A3E; License</button>
+              <button class="pill pill-illustration" :class="{ active: effectiveType === 'illustration' }" @click="setEffectiveType('illustration')" title="Exports as an image with caption">&#x25A1; Illustration</button>
             </div>
-            <p v-if="draft.isPlotOutline" class="field-hint">
+            <p v-if="effectiveType === 'plot-outline'" class="field-hint">
               This chapter's content will be injected as a story outline in every AI prompt.
               <template v-if="otherOutlineChapter">
-                <strong>Warning:</strong> "{{ otherOutlineChapter.name }}" is also marked as a plot outline — only the first will be used.
+                <strong>Warning:</strong> &#x201C;{{ otherOutlineChapter.name }}&#x201D; is also marked as a plot outline &#x2014; only the first will be used.
               </template>
             </p>
+            <p v-if="effectiveType === 'toc'" class="field-hint">
+              The editor shows a live, auto-updating table of contents while you write.
+              On HTML and DOCX export, chapter headings become clickable links.
+              On Markdown export, a plain numbered list is used.
+            </p>
+            <template v-if="effectiveType === 'illustration'">
+              <div class="field-group" style="margin-top:10px;margin-bottom:0">
+                <label class="field-label">Image path</label>
+                <input v-model="draft.illustrationPath" class="field-input" type="text" placeholder="Absolute or relative path to the image file" />
+              </div>
+              <div class="field-group" style="margin-top:8px;margin-bottom:0">
+                <label class="field-label">Caption <span class="label-hint">(optional)</span></label>
+                <input v-model="draft.illustrationCaption" class="field-input" type="text" placeholder="Caption shown below the image" />
+              </div>
+              <p class="field-hint">HTML export embeds the image via &lt;img src&gt;. DOCX export shows a text placeholder.</p>
+            </template>
           </div>
 
           <!-- Context Tags -->
@@ -187,6 +202,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
+import { mdiClose } from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useAIStore } from '@/stores/aiStore'
 import { triggerSummary } from '@/utils/summaryManager'
@@ -218,6 +234,9 @@ interface DraftState {
   summary: string
   summaryPaused: boolean
   summaryManuallyEdited: boolean
+  chapterType: 'normal' | 'toc' | 'cover' | 'license' | 'illustration'
+  illustrationPath: string
+  illustrationCaption: string
 }
 
 const draft = ref<DraftState>({
@@ -230,6 +249,9 @@ const draft = ref<DraftState>({
   summary: '',
   summaryPaused: false,
   summaryManuallyEdited: false,
+  chapterType: 'normal',
+  illustrationPath: '',
+  illustrationCaption: '',
 })
 
 // ─── Source chapter ───────────────────────────────────────────────────────────
@@ -253,6 +275,9 @@ watch(
         summary:               ch.summary ?? '',
         summaryPaused:         ch.summaryPaused ?? false,
         summaryManuallyEdited: ch.summaryManuallyEdited ?? false,
+        chapterType:           (ch.chapterType ?? 'normal') as DraftState['chapterType'],
+        illustrationPath:      ch.illustrationPath ?? '',
+        illustrationCaption:   ch.illustrationCaption ?? '',
       }
     }
   },
@@ -273,6 +298,28 @@ const otherOutlineChapter = computed(() =>
     ? storyStore.chapters.find(c => c.id !== props.chapterId && c.isPlotOutline)
     : null
 )
+
+// ─── Effective chapter type (unified Normal+PlotOutline+TOC+Cover+License+Illustration) ──────
+
+type EffectiveType = 'normal' | 'plot-outline' | 'toc' | 'cover' | 'license' | 'illustration'
+
+const effectiveType = computed<EffectiveType>(() => {
+  if (draft.value.isPlotOutline) return 'plot-outline'
+  return (draft.value.chapterType === 'normal' ? 'normal' : draft.value.chapterType) as EffectiveType
+})
+
+const setEffectiveType = (t: EffectiveType) => {
+  draft.value.isPlotOutline = t === 'plot-outline'
+  if (t === 'normal' || t === 'plot-outline') {
+    draft.value.chapterType = 'normal'
+  } else {
+    draft.value.chapterType = t as DraftState['chapterType']
+  }
+  if (t !== 'illustration') {
+    draft.value.illustrationPath    = ''
+    draft.value.illustrationCaption = ''
+  }
+}
 
 // ─── Tag input ────────────────────────────────────────────────────────────────
 
@@ -362,6 +409,9 @@ const saveChapter = () => {
     summary:               draft.value.summary,
     summaryPaused:         draft.value.summaryPaused,
     summaryManuallyEdited: draft.value.summaryManuallyEdited,
+    chapterType:           draft.value.chapterType === 'normal' ? undefined : draft.value.chapterType,
+    illustrationPath:      draft.value.illustrationPath.trim() || undefined,
+    illustrationCaption:   draft.value.illustrationCaption.trim() || undefined,
   })
 }
 
@@ -467,6 +517,15 @@ onUnmounted(() => {
 .pill:hover  { border-color: var(--accent-color); color: var(--accent-color); }
 .pill.active { background: var(--accent-color); border-color: var(--accent-color); color: #fff; }
 .pill-outline { border-style: dashed; }
+.pill-toc.active         { background: #7c5cbf; border-color: #7c5cbf; color: #fff; }
+.pill-toc:hover          { border-color: #7c5cbf; color: #7c5cbf; }
+.pill-cover.active       { background: #b08420; border-color: #b08420; color: #fff; }
+.pill-cover:hover        { border-color: #b08420; color: #b08420; }
+.pill-license.active     { background: #3a7d5a; border-color: #3a7d5a; color: #fff; }
+.pill-license:hover      { border-color: #3a7d5a; color: #3a7d5a; }
+.pill-illustration.active { background: #1a6fa8; border-color: #1a6fa8; color: #fff; }
+.pill-illustration:hover  { border-color: #1a6fa8; color: #1a6fa8; }
+.type-row { flex-wrap: wrap; }
 .pill-status-draft.active       { background: var(--status-draft-bg); border-color: var(--status-draft-bg); color: var(--status-draft-fg); }
 .pill-status-in-progress.active { background: var(--status-progress-bg); border-color: var(--status-progress-bg); color: var(--status-progress-fg); }
 .pill-status-complete.active    { background: var(--status-complete-bg); border-color: var(--status-complete-bg); color: var(--status-complete-fg); }
@@ -486,6 +545,12 @@ onUnmounted(() => {
 .label-preset:hover { border-color: var(--accent-color); color: var(--accent-color); }
 .label-preset--clear { color: var(--error-color); border-color: currentColor; }
 .label-preset--clear:hover { background: color-mix(in srgb, var(--error-color) 10%, transparent); }
+.label-preset--contents { color: #7c5cbf; border-color: currentColor; }
+.label-preset--contents:hover { background: color-mix(in srgb, #7c5cbf 12%, transparent); }
+.label-preset--cover { color: #b08420; border-color: currentColor; }
+.label-preset--cover:hover { background: color-mix(in srgb, #b08420 12%, transparent); }
+.label-preset--license { color: #3a7d5a; border-color: currentColor; }
+.label-preset--license:hover { background: color-mix(in srgb, #3a7d5a 12%, transparent); }
 
 /* Tag chips */
 .tag-editor { position: relative; }
