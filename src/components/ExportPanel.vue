@@ -32,6 +32,13 @@
               <span class="ex-desc">Word-compatible document</span>
             </span>
           </button>
+          <button class="ex-btn" @click="doExport('story-epub')" :disabled="busy">
+            <span class="ex-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiBookOpenPageVariant"/></svg></span>
+            <span class="ex-info">
+              <span class="ex-name">EPUB (.epub)</span>
+              <span class="ex-desc">E-reader compatible ebook</span>
+            </span>
+          </button>
         </div>
       </section>
 
@@ -104,6 +111,7 @@ import {
   exportChapterToMarkdown,
   exportStoryToHTML,
   exportStoryToDocx,
+  exportStoryToEpub,
   importMarkdownAsChapter,
   type ExportChapter,
   type ExportMeta,
@@ -114,6 +122,7 @@ import {
   mdiLanguageMarkdown,
   mdiLanguageHtml5,
   mdiFileWordOutline,
+  mdiBookOpenPageVariant,
   mdiDatabaseExportOutline,
   mdiDatabaseImportOutline,
 } from '@mdi/js'
@@ -169,6 +178,8 @@ const doExport = async (kind: string) => {
       ok = await exportStoryToHTML(buildMeta(), buildChapters())
     } else if (kind === 'story-docx') {
       ok = await exportStoryToDocx(buildMeta(), buildChapters())
+    } else if (kind === 'story-epub') {
+      ok = await exportStoryToEpub(buildMeta(), buildChapters())
     } else if (kind === 'chapter-md') {
       const ch = currentChapter.value
       if (ch) ok = await exportChapterToMarkdown(ch.name, editorStore.content)

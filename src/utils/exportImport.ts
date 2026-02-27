@@ -14,7 +14,8 @@
  */
 
 import { save, open } from '@tauri-apps/plugin-dialog'
-import { writeTextFile, readTextFile, writeFile } from '@tauri-apps/plugin-fs'
+import { writeTextFile, readTextFile, writeFile, readFile } from '@tauri-apps/plugin-fs'
+import epub from 'epub-gen-memory/bundle'
 import {
   Document, Packer, Paragraph, TextRun,
   HeadingLevel, AlignmentType,
@@ -363,6 +364,168 @@ export async function exportStoryToDocx(
 
   const doc = new Document({ sections: [{ children }] })
   const blob = await Packer.toBlob(doc)
+  const arrayBuffer = await blob.arrayBuffer()
+  await writeFile(path, new Uint8Array(arrayBuffer))
+  return true
+}
+
+// ── EPUB Export ──────────────────────────────────────────────────────────────
+
+const EPUB_CSS = `
+  body { font-family: Georgia, 'Times New Roman', serif; line-height: 1.7; margin: 1.5em; }
+  h1 { font-family: sans-serif; font-size: 1.8em; margin-bottom: 0.4em; }
+  h2, h3, h4 { font-family: sans-serif; }
+  p { margin: 0.8em 0; text-indent: 1.2em; }
+  p:first-child, h1 + p, h2 + p, h3 + p { text-indent: 0; }
+  strong { font-weight: bold; }
+  em { font-style: italic; }
+  code { font-family: monospace; font-size: 0.9em; background: #f4f4f4; padding: 0 3px; }
+  blockquote { border-left: 3px solid #ccc; padding-left: 1em; margin: 1em 0; color: #555; }
+  ul, ol { padding-left: 1.6em; }
+  li { margin: 0.3em 0; }
+  .cover-block { text-align: center; padding: 4em 1em; }
+  .cover-block h1 { font-size: 2.2em; border-bottom: none; }
+  .license-block { font-size: 0.88em; color: #555; }
+  figure { text-align: center; margin: 2em 0; }
+  figcaption { font-size: 0.9em; font-style: italic; color: #666; margin-top: 0.5em; }
+  img { max-width: 100%; height: auto; }
+  ol.epub-toc-list { list-style: decimal; padding-left: 1.4em; }
+  ol.epub-toc-list li { margin: 0.4em 0; }
+`
+
+/**
+ * Post-processes HTML from renderMarkdown('preview') for EPUB output.
+ * The renderer emits raw escaped text with \n separators that collapse in HTML;
+ * this wraps blank-line-separated prose blocks in <p> tags while leaving
+ * block-level elements (headings, lists, pre, blockquote, etc.) unchanged.
+ */
+function paragraphifyHtml(html: string): string {
+  const BLOCK = /^<(h[1-6]|ul|ol|pre|blockquote|hr|table|figure|div|p)[\s>\/]/i
+  return html
+    .split(/\n{2,}/)
+    .map(segment => {
+      const trimmed = segment.replace(/\n/g, ' ').trim()
+      if (!trimmed) return ''
+      if (BLOCK.test(trimmed)) return trimmed
+      return `<p>${trimmed}</p>`
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
+/** Read a local file and return a base64 data-URL, for embedding illustrations. */
+async function readImageAsDataUrl(path: string): Promise<string | null> {
+  try {
+    const bytes = await readFile(path)
+    // Chunked btoa to avoid stack overflow on large images
+    let binary = ''
+    const chunk = 8192
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
+    }
+    const base64 = btoa(binary)
+    const ext = path.split('.').pop()?.toLowerCase() ?? ''
+    const mime = ext === 'png' ? 'image/png'
+      : ext === 'gif' ? 'image/gif'
+      : ext === 'webp' ? 'image/webp'
+      : ext === 'svg' ? 'image/svg+xml'
+      : 'image/jpeg'
+    return `data:${mime};base64,${base64}`
+  } catch {
+    return null
+  }
+}
+
+export async function exportStoryToEpub(
+  meta: ExportMeta,
+  chapters: ExportChapter[]
+): Promise<boolean> {
+  const path = await save({
+    title: 'Export story as EPUB',
+    defaultPath: `${safeFilename(meta.title)}.epub`,
+    filters: [{ name: 'EPUB eBook', extensions: ['epub'] }],
+  })
+  if (!path) return false
+
+  const sorted = [...chapters].sort((a, b) => a.order - b.order)
+
+  type EpubChapter = {
+    title: string
+    content: string
+    excludeFromToc?: boolean
+    beforeToc?: boolean
+    filename?: string
+  }
+
+  let chIdx = 0
+  const epubChapters: EpubChapter[] = []
+
+  for (const ch of sorted) {
+    const heading = chapterHeading(ch)
+
+    // TOC chapters are skipped — epub-gen-memory auto-generates a linked
+    // navigation TOC from chapter titles, which is preferable to our static list.
+    if (ch.chapterType === 'toc') continue
+
+    if (ch.chapterType === 'cover') {
+      const body = paragraphifyHtml(renderMarkdown(ch.content, 0, 'preview'))
+      epubChapters.push({
+        title: heading,
+        content: `<div class="cover-block"><h1>${escHtml(heading)}</h1>${body}</div>`,
+        excludeFromToc: true,
+        beforeToc: true,
+        filename: 'epub-cover',
+      })
+
+    } else if (ch.chapterType === 'license') {
+      const body = paragraphifyHtml(renderMarkdown(ch.content, 0, 'preview'))
+      epubChapters.push({
+        title: heading,
+        content: `<div class="license-block"><h1>${escHtml(heading)}</h1>${body}</div>`,
+        filename: 'epub-license',
+      })
+
+    } else if (ch.chapterType === 'illustration') {
+      let imgHtml = ''
+      if (ch.illustrationPath) {
+        const dataUrl = await readImageAsDataUrl(ch.illustrationPath)
+        if (dataUrl) {
+          const cap = ch.illustrationCaption
+            ? `<figcaption>${escHtml(ch.illustrationCaption)}</figcaption>`
+            : ''
+          imgHtml = `<figure><img src="${dataUrl}" alt="${escHtml(ch.illustrationCaption ?? '')}">${cap}</figure>`
+        } else {
+          imgHtml = `<p><em>[Illustration: ${escHtml(ch.illustrationPath)} — file not found]</em></p>`
+        }
+      }
+      const extra = ch.content.trim() ? paragraphifyHtml(renderMarkdown(ch.content, 0, 'preview')) : ''
+      epubChapters.push({
+        title: heading,
+        content: `<h1>${escHtml(heading)}</h1>${imgHtml}${extra}`,
+        filename: `epub-illus-${chIdx++}`,
+      })
+
+    } else {
+      // Normal / plot-outline chapters
+      const body = paragraphifyHtml(renderMarkdown(ch.content, 0, 'preview'))
+      epubChapters.push({
+        title: heading,
+        content: `<h1>${escHtml(heading)}</h1>${body}`,
+        filename: `epub-ch-${chIdx++}`,
+      })
+    }
+  }
+
+  const blob = await epub({
+    title: meta.title,
+    description: meta.summary ?? '',
+    lang: 'en',
+    css: EPUB_CSS,
+    version: 3,
+    prependChapterTitles: false,
+    numberChaptersInTOC: false,
+  }, epubChapters) as Blob
+
   const arrayBuffer = await blob.arrayBuffer()
   await writeFile(path, new Uint8Array(arrayBuffer))
   return true
