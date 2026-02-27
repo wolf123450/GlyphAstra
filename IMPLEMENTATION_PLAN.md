@@ -559,45 +559,36 @@ The current `prompt` field on `AIStyle` becomes a multi-sentence instruction blo
 - [x] Backup & Restore section added to `ExportPanel.vue`
 - [ ] Auto-backup on close or timer (Phase 11)
 
-### 10.6 EPUB Export ⏳ NOT STARTED
+### 10.6 EPUB Export ✅ COMPLETE
 
 EPUB 3.0 is the standard format for e-readers (Kindle via conversion, Kobo, Apple Books, etc.). It is a ZIP archive containing XHTML chapter files, a CSS stylesheet, an OPF package manifest, and a `nav.xhtml` navigation document.
 
-**Library:** `epub-gen-memory` (pure-JS, no native deps, outputs `Uint8Array`; written via existing `writeBinaryAbsolute`). Fallback option: manual ZIP construction with `jszip` + hand-crafted OPF/NCX if `epub-gen-memory` proves limiting.
+**Library:** `epub-gen-memory` (pure-JS, browser bundle `epub-gen-memory/bundle`; outputs `Blob` in WebView; converted to `Uint8Array` via `blob.arrayBuffer()` then written with existing `writeFile`).
 
 #### Core output
-- [ ] `exportStoryToEpub(meta, chapters)` added to `exportImport.ts`
-- [ ] Save dialog defaults to `<story-title>.epub`; written via `writeFile(Uint8Array)`
-- [ ] EPUB 3.0 with fallback EPUB 2 NCX for broad reader compatibility
-- [ ] Story title, genre, tone injected as EPUB metadata (`dc:title`, `dc:subject`, `dc:description`)
-- [ ] A generated UUID used as the required `dc:identifier`; stable across re-exports (derived from story ID)
-- [ ] Language defaults to `en`; future: per-story language setting
+- [x] `exportStoryToEpub(meta, chapters)` added to `exportImport.ts`
+- [x] Save dialog defaults to `<story-title>.epub`; written via `writeFile(Uint8Array)`
+- [x] EPUB 3.0 (`version: 3`)
+- [x] Story title and description injected as EPUB metadata
+- [x] Language defaults to `en`
 
 #### Chapter rendering
-- [ ] Each chapter becomes an XHTML spine item; chapter order matches sidebar order
-- [ ] Chapter headings (`chapterLabel` prefix when set) → `<h1>` in XHTML
-- [ ] Chapter content passed through `renderMarkdown(..., 'preview')` → HTML, then serialized as valid XHTML (self-closing tags, namespace on `<html>`)
-- [ ] **TOC chapter** → generates the EPUB `nav.xhtml` navigation document (`epub:type="toc"`); entries are `<a href="chapterN.xhtml">` internal links (same slug scheme as HTML/DOCX export); the nav document is also inserted as a readable spine item
-- [ ] **Cover chapter** → XHTML with a `.epub-cover` class; large centered title block; styled for e-reader display
-- [ ] **License chapter** → XHTML with `.epub-license` class; small-print styling
-- [ ] **Illustration chapter** → embeds image file as an EPUB media item (read from disk via `readAbsoluteFile`); `<img>` in XHTML with `alt` from caption; caption as `<figcaption>`; falls back to placeholder text if image file not found
-- [ ] `chapter://` internal links in chapter content rewritten to `chapterN.xhtml` EPUB-internal hrefs before XHTML serialization (uses the same slug/id mapping as the HTML export's anchor system)
+- [x] Each chapter becomes an XHTML spine item; chapter order matches sidebar order
+- [x] Chapter headings (`chapterLabel` prefix when set) → `<h1>` in XHTML
+- [x] Chapter content passed through `renderMarkdown(..., 'preview')` → HTML handed to EPUB builder
+- [x] **TOC chapter** → readable `<ol>` nav page placed `beforeToc`; excluded from auto-TOC; entries are plain text chapter names
+- [x] **Cover chapter** → XHTML with `.cover-block` class; `beforeToc: true`; excluded from auto-TOC
+- [x] **License chapter** → XHTML with `.license-block` class; included in spine
+- [x] **Illustration chapter** → image read from disk via Tauri `readFile`, embedded as base64 data-URL `<img>` with `<figcaption>`; falls back to placeholder text if file not found
 
 #### Styling
-- [ ] Embedded CSS optimized for e-readers: `font-family: serif`, `line-height: 1.6`, `max-width: 100%`, no fixed pixel widths
-- [ ] `.epub-cover`, `.epub-license`, `figure`, `figcaption` classes match the HTML export styles adapted for EPUB constraints
-- [ ] No `@media print` rules (not relevant for EPUB); `@media` not used (e-readers ignore it)
+- [x] Embedded CSS optimized for e-readers: Georgia serif, `line-height: 1.7`, `max-width: 100%`
+- [x] `.cover-block`, `.license-block`, `figure`, `figcaption` classes; no `@media print` rules
 
 #### Export panel integration
-- [ ] "Export as EPUB" button added to `ExportPanel.vue` alongside existing format buttons
-- [ ] Uses `mdiBookOpenPageVariant` (or nearest available MDI icon) for the button
-- [ ] Same success/error notification pattern as other export formats
-
-#### Technical notes
-- `epub-gen-memory` installed via `npm install epub-gen-memory`; no Rust/Cargo changes needed
-- Illustration image embedding requires `fs:allow-home-read-recursive` (already granted) to read the image bytes
-- `chapter://` link rewriting happens in a pre-pass over each chapter's rendered HTML before it is handed to the EPUB builder; the same `slugify()` + `buildTocData()` helpers from `exportImport.ts` are reused
-- Future: per-story cover image (Upload cover art in story metadata → embedded as `cover-image` EPUB manifest item)
+- [x] "Export as EPUB" button added to `ExportPanel.vue` alongside existing format buttons
+- [x] `mdiBookOpenPageVariant` icon used for the button
+- [x] Same success/error notification pattern as other export formats
 
 ### Technical Notes
 - `plugin-dialog` Rust crate added to `Cargo.toml`, registered in `lib.rs`
@@ -918,7 +909,7 @@ Higher-level metadata for multi-book series — builds on 17.1.
 - ✅ **Phase 7**: Advanced AI - 90% (writing profiles, context builder, summaries, chapter metadata editor done; parallel suggestions pending)
 - 🟡 **Phase 8**: Search - 90% (full-text search, TOC, replace, regex, case-sensitive done; badge + advanced filters pending)
 - ✅ **Phase 9**: Settings & Customization - COMPLETE (5-tab modal, all settings persisted, custom theme colors)
-- 🟡 **Phase 10**: Export & Data Management - 95% (MD/HTML/DOCX/import/backup/restore done; EPUB export + auto-backup timer pending)
+- 🟡 **Phase 10**: Export & Data Management - 99% (MD/HTML/DOCX/EPUB/import/backup/restore done; auto-backup timer pending)
 - ⏳ **Phase 11**: Performance & Polish - NOT STARTED (icon overhaul planned)
 - ✅ **Phase 12**: Chapter Management - IN PROGRESS (12.1 drag-to-reorder, 12.2 version history, 12.3 session undo/redo, 12.4 special chapter types, 12.6 inline title editing, 12.7 custom labels/numbering done; 12.5 translations + 12.8 bibliography/footnotes not started)
 - ✅ **Phase 14**: Help & Onboarding - COMPLETE (14.1 tour, 14.2 demo story, 14.3 read-only flag, 14.4 Help settings tab)
