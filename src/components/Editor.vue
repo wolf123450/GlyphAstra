@@ -84,9 +84,35 @@
       </div>
     </div>
 
+    <!-- Chapter type banners -->
+      <div v-if="currentChapter?.chapterType === 'toc'" class="chapter-type-banner banner-toc">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:6px"><path :d="mdiFormatListNumbered"/></svg>
+        <strong>Table of Contents</strong> &mdash; On export, this chapter’s content is replaced with an auto-generated chapter list. Text written here is not included in the export.
+      </div>
+      <div v-if="currentChapter?.chapterType === 'illustration'" class="chapter-type-banner banner-illustration">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:6px"><path :d="mdiImageOutline"/></svg>
+        <strong>Illustration</strong> &mdash; Set the image path and caption in <em>Chapter Properties</em>. Any text here appears after the image in the export.
+      </div>
     <div class="editor-body" :class="{ 'editor-body--split': splitViewActive }">
+      <!-- ── Live TOC panel replaces editor for Contents chapters ────────── -->
+      <div v-if="currentChapter?.chapterType === 'toc'" class="toc-live-panel">
+        <div class="toc-live-header">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiFormatListNumbered"/></svg>
+          Table of Contents
+          <span class="toc-live-badge">live &mdash; click any entry to navigate &bull; updates as chapters change</span>
+        </div>
+        <ol class="toc-live-list" v-if="liveTocEntries.length">
+          <li v-for="entry in liveTocEntries" :key="entry.id" class="toc-live-item"
+              @click="navigateToChapter(entry.id)"
+              :title="'Go to: ' + entry.display">
+            <span class="toc-num">{{ entry.num }}.</span>
+            <span class="toc-name">{{ entry.display }}</span>
+          </li>
+        </ol>
+        <p v-else class="toc-live-empty">No chapters yet &mdash; they&rsquo;ll appear here as you create them.</p>
+      </div>
       <!-- ── Split view: active editor on the left, live preview on the right ── -->
-      <template v-if="splitViewActive">
+      <template v-else-if="splitViewActive && currentChapter?.chapterType !== 'toc'">
         <div class="split-editor">
           <EditorSeamless
             ref="splitEditorRef"
@@ -127,7 +153,7 @@
       <!-- ── Solo modes (unchanged) ──────────────────────────────────── -->
       <!-- Seamless Mode -->
       <EditorSeamless
-        v-else-if="renderMode === 'seamless' && currentChapter"
+        v-else-if="renderMode === 'seamless' && currentChapter && currentChapter.chapterType !== 'toc'"
         ref="soloSeamlessRef"
         :content="content"
         :cursorPos="cursorPosition"
@@ -152,7 +178,7 @@
       />
       <!-- Markdown Mode -->
       <EditorMarkdown
-        v-else-if="renderMode === 'markdown' && currentChapter"
+        v-else-if="renderMode === 'markdown' && currentChapter && currentChapter.chapterType !== 'toc'"
         ref="soloMarkdownRef"
         :content="content"
         :isReadOnly="isReadOnly"
@@ -174,7 +200,7 @@
       />
       <!-- Preview Mode -->
       <EditorPreview
-        v-else-if="renderMode === 'preview' && currentChapter"
+        v-else-if="renderMode === 'preview' && currentChapter && currentChapter.chapterType !== 'toc'"
         ref="soloPreviewRef"
         :content="content"
         @navigate-chapter="navigateToChapter"
@@ -244,6 +270,8 @@ import {
   mdiApplicationExport,
   mdiHistory,
   mdiTextBoxOutline,
+  mdiFormatListNumbered,
+  mdiImageOutline,
 } from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useEditorStore } from '@/stores/editorStore'
@@ -266,6 +294,19 @@ const editorStore = useEditorStore()
 const uiStore = useUIStore()
 
 const currentChapter = computed(() => storyStore.currentChapter)
+
+/** Reactive list of all non-TOC chapters in sidebar order — drives the live TOC panel. */
+const liveTocEntries = computed(() => {
+  let num = 0
+  return storyStore.chapters
+    .filter(c => c.chapterType !== 'toc')
+    .map(c => {
+      const display = c.chapterLabel && c.chapterLabel !== c.name
+        ? `${c.chapterLabel}: ${c.name}`
+        : c.chapterLabel || c.name
+      return { id: c.id, display, num: ++num }
+    })
+})
 const isDirty = computed(() => editorStore.isDirty)
 const isReadOnly = computed(() => currentChapter.value?.isReadOnly ?? false)
 const isOverviewOpen = computed(() => uiStore.activePanel === 'overview')
@@ -764,6 +805,79 @@ const saveChapter = async () => {
   overflow: hidden;
   padding: var(--spacing-md);
   position: relative;
+}
+
+.chapter-type-banner {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+.banner-toc {
+  background: color-mix(in srgb, #7c5cbf 12%, transparent);
+  border: 1px solid color-mix(in srgb, #7c5cbf 35%, transparent);
+  color: color-mix(in srgb, #7c5cbf 90%, currentColor);
+}
+.banner-illustration {
+  background: color-mix(in srgb, #1a6fa8 12%, transparent);
+  border: 1px solid color-mix(in srgb, #1a6fa8 35%, transparent);
+  color: color-mix(in srgb, #1a6fa8 90%, currentColor);
+}
+
+/* Live TOC panel */
+.toc-live-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-md);
+}
+.toc-live-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #7c5cbf;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid color-mix(in srgb, #7c5cbf 25%, transparent);
+}
+.toc-live-badge {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.toc-live-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.toc-live-item {
+  display: flex;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 5px;
+  font-size: 14px;
+  color: var(--text-primary);
+  transition: background var(--transition-fast);
+  cursor: pointer;
+  user-select: none;
+}
+.toc-live-item:hover { background: var(--bg-tertiary); }
+.toc-live-item:hover .toc-name { color: var(--accent-color); text-decoration: underline; }
+.toc-num {
+  color: var(--text-tertiary);
+  min-width: 2em;
+  text-align: right;
+  flex-shrink: 0;
+}
+.toc-live-empty {
+  color: var(--text-tertiary);
+  font-style: italic;
+  font-size: 13px;
+  text-align: center;
+  margin-top: 40px;
 }
 
 .editor-empty {

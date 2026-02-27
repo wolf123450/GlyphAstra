@@ -18,6 +18,7 @@ import { writeTextFile, readTextFile, writeFile } from '@tauri-apps/plugin-fs'
 import {
   Document, Packer, Paragraph, TextRun,
   HeadingLevel, AlignmentType,
+  BookmarkStart, BookmarkEnd, InternalHyperlink,
 } from 'docx'
 import { renderMarkdown } from './markdownRenderer'
 
@@ -28,6 +29,9 @@ export interface ExportChapter {
   content: string
   order: number
   label?: string   // chapterLabel override (e.g. 'Prologue', 'Chapter 4'); absent = use name only
+  chapterType?: 'toc' | 'cover' | 'license' | 'illustration'
+  illustrationPath?: string
+  illustrationCaption?: string
 }
 
 export interface ExportMeta {
@@ -47,6 +51,40 @@ function escHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+/** DOM/DOCX safe anchor slug from a heading string. */
+function slugify(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'ch'
+}
+
+export interface TocEntry { text: string; slug: string }
+
+/**
+ * Builds numbered TOC entries for all non-TOC chapters, in sidebar order.
+ * Also returns a Map<chapter, slug> so callers can annotate headings.
+ */
+function buildTocData(chapters: ExportChapter[]): {
+  entries: TocEntry[]
+  slugMap: Map<ExportChapter, string>
+} {
+  const nonToc = [...chapters]
+    .filter(c => c.chapterType !== 'toc')
+    .sort((a, b) => a.order - b.order)
+
+  const entries: TocEntry[] = []
+  const slugMap = new Map<ExportChapter, string>()
+  nonToc.forEach((c, i) => {
+    const slug = `ch${i}-${slugify(chapterHeading(c))}`
+    entries.push({ text: `${i + 1}. ${chapterHeading(c)}`, slug })
+    slugMap.set(c, slug)
+  })
+  return { entries, slugMap }
+}
+
+/** Plain text list for Markdown export. */
+function generateTocItems(chapters: ExportChapter[]): string[] {
+  return buildTocData(chapters).entries.map(e => e.text)
+}
+
 // ── Markdown Export ───────────────────────────────────────────────────────────
 
 function chapterHeading(ch: ExportChapter): string {
@@ -56,13 +94,26 @@ function chapterHeading(ch: ExportChapter): string {
 }
 
 function buildMarkdownDoc(meta: ExportMeta, chapters: ExportChapter[]): string {
+  const sorted = [...chapters].sort((a, b) => a.order - b.order)
+  const tocItems = generateTocItems(chapters)
   const lines: string[] = [`# ${meta.title}`, '']
   if (meta.genre) lines.push(`**Genre:** ${meta.genre}  `)
   if (meta.tone)  lines.push(`**Tone:** ${meta.tone}  `)
   if (meta.summary) lines.push('', meta.summary)
   lines.push('', '---', '')
-  for (const ch of [...chapters].sort((a, b) => a.order - b.order)) {
-    lines.push(`## ${chapterHeading(ch)}`, '', ch.content.trim(), '', '---', '')
+  for (const ch of sorted) {
+    lines.push(`## ${chapterHeading(ch)}`)
+    lines.push('')
+    if (ch.chapterType === 'toc') {
+      lines.push(tocItems.join('\n'))
+    } else if (ch.chapterType === 'illustration') {
+      if (ch.illustrationPath) lines.push(`![${ch.illustrationCaption ?? ''}](${ch.illustrationPath})`)
+      if (ch.illustrationCaption) lines.push(`*${ch.illustrationCaption}*`)
+      if (ch.content.trim()) lines.push('', ch.content.trim())
+    } else {
+      lines.push(ch.content.trim())
+    }
+    lines.push('', '---', '')
   }
   return lines.join('\n')
 }
@@ -114,6 +165,17 @@ const HTML_STYLE = `
   blockquote { border-left: 3px solid #ccc; padding-left: 1.2em; color: #555; margin: 1.5em 0; }
   ul { padding-left: 1.6em; }
   hr { border: none; border-top: 1px solid #e0e0e0; margin: 3em 0; }
+  nav.toc { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 1.5em 2em; margin: 2em 0; }
+  nav.toc h2 { margin-top: 0; border-bottom: none; font-size: 1.1em; }
+  nav.toc ol { margin: 0; padding-left: 1.4em; }
+  nav.toc a { color: #333; text-decoration: none; }
+  nav.toc a:hover { text-decoration: underline; }
+  .cover-block { text-align: center; padding: 6em 2em; border-bottom: 2px solid #ccc; margin-bottom: 4em; }
+  .cover-block h2 { font-size: 2em; border-bottom: none; margin-top: 0; }
+  .license-block { font-size: 0.88em; color: #555; border: 1px solid #ddd; border-radius: 4px; padding: 1.2em 1.6em; margin: 2em 0; }
+  .illustration-block figure { margin: 2em 0; text-align: center; }
+  .illustration-block figure img { max-width: 100%; height: auto; }
+  .illustration-block figcaption { font-size: 0.9em; color: #666; font-style: italic; margin-top: 0.5em; }
   @media print {
     h2 { page-break-before: always; }
     h1 { page-break-before: avoid; }
@@ -137,11 +199,34 @@ export async function exportStoryToHTML(
     (n, c) => n + c.content.split(/\s+/).filter(Boolean).length, 0
   )
   const sorted = [...chapters].sort((a, b) => a.order - b.order)
+  const { entries: tocEntries, slugMap } = buildTocData(chapters)
 
   const body = sorted
-    .map(ch =>
-      `<h2>${escHtml(chapterHeading(ch))}</h2>\n${renderMarkdown(ch.content, 0, 'preview')}`
-    )
+    .map(ch => {
+      const heading = escHtml(chapterHeading(ch))
+      if (ch.chapterType === 'toc') {
+        const items = tocEntries
+          .map(e => `<li><a href="#${e.slug}">${escHtml(e.text.replace(/^\d+\.\s*/, ''))}</a></li>`)
+          .join('\n          ')
+        return `<nav class="toc"><h2>${heading}</h2><ol>\n          ${items}\n        </ol></nav>`
+      }
+      const slug = slugMap.get(ch)
+      const idAttr = slug ? ` id="${slug}"` : ''
+      if (ch.chapterType === 'cover') {
+        return `<div class="cover-block"><h2${idAttr}>${heading}</h2>${renderMarkdown(ch.content, 0, 'preview')}</div>`
+      }
+      if (ch.chapterType === 'license') {
+        return `<div class="license-block"><h2${idAttr}>${heading}</h2>${renderMarkdown(ch.content, 0, 'preview')}</div>`
+      }
+      if (ch.chapterType === 'illustration') {
+        const imgPath = ch.illustrationPath ? `file:///${ch.illustrationPath.replace(/\\/g, '/')}` : ''
+        const caption = ch.illustrationCaption ? `<figcaption>${escHtml(ch.illustrationCaption)}</figcaption>` : ''
+        const img = imgPath ? `<figure><img src="${escHtml(imgPath)}" alt="${escHtml(ch.illustrationCaption ?? '')}">${caption}</figure>` : ''
+        const extra = ch.content.trim() ? renderMarkdown(ch.content, 0, 'preview') : ''
+        return `<div class="illustration-block"><h2${idAttr}>${heading}</h2>${img}${extra}</div>`
+      }
+      return `<h2${idAttr}>${heading}</h2>\n${renderMarkdown(ch.content, 0, 'preview')}`
+    })
     .join('\n<hr>\n')
 
   const html = `<!DOCTYPE html>
@@ -214,15 +299,64 @@ export async function exportStoryToDocx(
 
   // Chapters
   const sorted = [...chapters].sort((a, b) => a.order - b.order)
+  const { entries: tocEntries, slugMap } = buildTocData(chapters)
+  let bmId = 0
   for (const ch of sorted) {
-    children.push(
-      new Paragraph({ text: chapterHeading(ch), heading: HeadingLevel.HEADING_1, pageBreakBefore: children.length > 2 })
-    )
-    const cleaned = stripMarkdown(ch.content)
-    for (const block of cleaned.split(/\n\n+/)) {
-      const line = block.replace(/\n/g, ' ').trim()
-      if (line) {
-        children.push(new Paragraph({ children: [new TextRun({ text: line })] }))
+    const isPageBreak = children.length > 2
+    const headingText = chapterHeading(ch)
+    const slug = slugMap.get(ch)
+    if (slug) {
+      // Non-TOC heading: wrap in a named bookmark for internal linking
+      children.push(new Paragraph({
+        children: [
+          new BookmarkStart(slug, bmId),
+          new TextRun({ text: headingText }),
+          new BookmarkEnd(bmId),
+        ],
+        heading: HeadingLevel.HEADING_1,
+        pageBreakBefore: isPageBreak,
+      }))
+      bmId++
+    } else {
+      // TOC heading: no bookmark needed
+      children.push(new Paragraph({
+        children: [new TextRun({ text: headingText })],
+        heading: HeadingLevel.HEADING_1,
+        pageBreakBefore: isPageBreak,
+      }))
+    }
+    if (ch.chapterType === 'toc') {
+      for (const entry of tocEntries) {
+        children.push(new Paragraph({
+          children: [
+            new InternalHyperlink({
+              anchor: entry.slug,
+              children: [new TextRun({ text: entry.text })],
+            }),
+          ],
+        }))
+      }
+    } else if (ch.chapterType === 'illustration') {
+      if (ch.illustrationPath) {
+        children.push(new Paragraph({ children: [new TextRun({ text: `[Illustration: ${ch.illustrationPath}]`, italics: true, color: '666666' })] }))
+      }
+      if (ch.illustrationCaption) {
+        children.push(new Paragraph({ children: [new TextRun({ text: ch.illustrationCaption, italics: true, color: '666666' })] }))
+      }
+      if (ch.content.trim()) {
+        const cleaned = stripMarkdown(ch.content)
+        for (const block of cleaned.split(/\n\n+/)) {
+          const line = block.replace(/\n/g, ' ').trim()
+          if (line) children.push(new Paragraph({ children: [new TextRun({ text: line })] }))
+        }
+      }
+    } else {
+      const cleaned = stripMarkdown(ch.content)
+      for (const block of cleaned.split(/\n\n+/)) {
+        const line = block.replace(/\n/g, ' ').trim()
+        if (line) {
+          children.push(new Paragraph({ children: [new TextRun({ text: line })] }))
+        }
       }
     }
   }

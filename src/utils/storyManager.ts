@@ -38,6 +38,9 @@ export interface SerializedStory {
     summaryPaused?: boolean
     summaryManuallyEdited?: boolean
     isReadOnly?: boolean
+    chapterType?: 'toc' | 'cover' | 'license' | 'illustration'
+    illustrationPath?: string
+    illustrationCaption?: string
   }>
   characters: Array<{
     id: string
@@ -107,6 +110,9 @@ export function serializeStory(
       ...(ch.summaryPaused         != null  && { summaryPaused:         ch.summaryPaused }),
       ...(ch.summaryManuallyEdited != null  && { summaryManuallyEdited: ch.summaryManuallyEdited }),
       ...(ch.isReadOnly            != null  && { isReadOnly:            ch.isReadOnly }),
+      ...(ch.chapterType         != null  && { chapterType:         ch.chapterType }),
+      ...(ch.illustrationPath    != null  && { illustrationPath:    ch.illustrationPath }),
+      ...(ch.illustrationCaption != null  && { illustrationCaption: ch.illustrationCaption }),
     })),
     characters: characters.map((char: any) => ({
       id: char.id,
