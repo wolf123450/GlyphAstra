@@ -64,9 +64,9 @@ import { computed, ref, watch, nextTick, onUnmounted } from 'vue'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useStoryStore } from '@/stores/storyStore'
-import { storageManager } from '@/utils/storage'
-import { resolveLocalImages } from '@/utils/imageUtils'
-import { tokenizeMarkdown, parseImgDims } from '@/utils/seamlessRenderer'
+import { storageManager } from '@/utils/storage/storage'
+import { resolveLocalImages } from '@/utils/media/imageUtils'
+import { tokenizeMarkdown, parseImgDims } from '@/utils/editor/seamlessRenderer'
 import { sanitizeHtml } from '@/utils/sanitize'
 import { logger } from '@/utils/logger'
 import { mdiLockOutline, mdiLockOpenVariant } from '@mdi/js'
@@ -76,7 +76,7 @@ import {
   setCursorPosition,
   getSelectionRange,
   updateTokenVisibility,
-} from '@/utils/editorCursor'
+} from '@/utils/editor/editorCursor'
 
 interface Props {
   content: string

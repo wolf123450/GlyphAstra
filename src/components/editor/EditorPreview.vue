@@ -5,10 +5,10 @@
 <script setup lang="ts">
 import { ref, watch, computed, nextTick } from 'vue'
 import { openUrl } from '@tauri-apps/plugin-opener'
-import { tokenizeMarkdown, renderPreview } from '@/utils/seamlessRenderer'
-import { storageManager } from '@/utils/storage'
+import { tokenizeMarkdown, renderPreview } from '@/utils/editor/seamlessRenderer'
+import { storageManager } from '@/utils/storage/storage'
 import { useStoryStore } from '@/stores/storyStore'
-import { resolveLocalImages } from '@/utils/imageUtils'
+import { resolveLocalImages } from '@/utils/media/imageUtils'
 import { sanitizeHtml } from '@/utils/sanitize'
 import { logger } from '@/utils/logger'
 

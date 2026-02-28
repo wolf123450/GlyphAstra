@@ -103,10 +103,10 @@
 import { ref, computed, watch } from 'vue'
 import { useStoryStore } from '@/stores/storyStore'
 import { useEditorStore } from '@/stores/editorStore'
-import { getHistory, type HistoryEntry } from '@/utils/historyManager'
-import { renderMarkdown } from '@/utils/markdownRenderer'
+import { getHistory, type HistoryEntry } from '@/utils/story/historyManager'
+import { renderMarkdown } from '@/utils/editor/markdownRenderer'
 import { sanitizeHtml } from '@/utils/sanitize'
-import { computeLineDiff, pairDelAdd, type DiffLine } from '@/utils/diffEngine'
+import { computeLineDiff, pairDelAdd, type DiffLine } from '@/utils/editor/diffEngine'
 import { mdiHistory, mdiArrowULeftTop, mdiClose } from '@mdi/js'
 
 interface Props {

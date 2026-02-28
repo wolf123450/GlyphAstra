@@ -16,7 +16,7 @@
  *                      (even if character delta is large)
  */
 
-import { readFile, writeFileContent } from '@/utils/filesystem'
+import { readFile, writeFileContent } from '@/utils/storage/filesystem'
 import type { Chapter } from '@/stores/storyStore'
 
 // ─── Types ───────────────────────────────────────────────────────────────────

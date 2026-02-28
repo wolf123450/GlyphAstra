@@ -148,10 +148,11 @@ import { mdiPlusCircleOutline, mdiCog, mdiChevronLeft, mdiChevronRight, mdiDelet
 import { useStoryStore } from '@/stores/storyStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useEditorStore } from '@/stores/editorStore'
-import { storageManager } from '@/utils/storage'
-import { HELP_STORY_ID } from '@/utils/helpStory'
-import ChapterItem from './ChapterItem.vue'
-import ChapterMeta from './ChapterMeta.vue'
+import { storageManager } from '@/utils/storage/storage'
+import { HELP_STORY_ID } from '@/utils/story/helpStory'
+import { loadOrCreateHelpStory } from '@/utils/story/helpStoryService'
+import ChapterItem from './story/ChapterItem.vue'
+import ChapterMeta from './story/ChapterMeta.vue'
 
 const storyStore = useStoryStore()
 const editorStore = useEditorStore()
@@ -432,7 +433,7 @@ const toggleSettings = () => {
 
 const openHelpStory = async () => {
   if (storyStore.currentStoryId !== HELP_STORY_ID) {
-    await storyStore.loadOrCreateHelpStory()
+    await loadOrCreateHelpStory()
     if (storyStore.chapters.length > 0) {
       storyStore.setCurrentChapter(storyStore.chapters[0].id)
     }

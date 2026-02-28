@@ -87,17 +87,17 @@ All four implementations have been consolidated into a single `escapeHtml()` fun
 
 **Recommendation**: Implement a unified persistence facade with atomic save semantics and conflict detection.
 
-### 3.2 Inconsistent Persistence Patterns Across Stores
+### 3.2 ~~Inconsistent Persistence Patterns Across Stores~~ ✅ FIXED
+
+`aiStore` now uses a single debounced `watch()` that persists all AI settings to one localStorage key (`blockbreaker_ai_settings`) — matching the pattern used by `settingsStore`. Legacy migration reads old individual keys on first load. `storyStore` delegates to `persistenceService.ts` for file-based persistence.
 
 | Store | Strategy |
 |---|---|
-| `aiStore` | Manual `localStorage.setItem` in each setter |
+| `aiStore` | ~~Manual `localStorage.setItem` in each setter~~ → Single debounced watcher (300ms) |
 | `settingsStore` | Deep watcher auto-persists |
-| `storyStore` | Async dual-write (FS + localStorage) |
+| `storyStore` | ~~Async dual-write (FS + localStorage)~~ → Delegates to `persistenceService` |
 | `editorStore` | No persistence (relies on external callbacks) |
 | `uiStore` | No persistence (sidebar width, panel state lost on refresh) |
-
-This inconsistency means some state survives restart while other state doesn't, creating unpredictable UX.
 
 ### 3.3 Inconsistent Module Patterns
 
@@ -109,10 +109,10 @@ The codebase uses four different patterns for stateful modules:
 
 This makes lifecycle, testability, and cleanup behaviors hard to reason about.
 
-### 3.4 Tight Coupling in Utility Modules
+### 3.4 ~~Tight Coupling in Utility Modules~~ ✅ PARTIALLY FIXED
 
-- `contextBuilder.ts` directly imports and calls 3 Pinia stores — making it impossible to unit test without mocking all three.
-- `summaryManager.ts` couples store, API provider, and timer logic in one module with module-level state.
+- ~~`contextBuilder.ts` directly imports and calls 3 Pinia stores~~ → Now accepts a `ContextInput` interface; store assembly happens in `useAISuggestion.ts`.
+- ~~`summaryManager.ts` couples store, API provider, and timer logic~~ → Now accepts a `SummaryDeps` interface with a `depsFromStores()` factory for production use.
 - `imageUtils.ts` and `imagePackManager.ts` duplicate code (MIME map, `isAbsolutePath`, base64 conversion) rather than sharing a common base.
 
 ### 3.5 Self-Import Anti-Pattern in Error Handler
@@ -218,9 +218,9 @@ None of the providers implement retries for transient failures (429, 503). All c
 
 `settingsStore.ts` — `watch(settings, ..., { deep: true })` triggers on any nested change. Every keystroke in the shortcuts editor serializes the entire settings object and re-applies all CSS variables. Consider debouncing.
 
-### 5.11 Oversized Stores
+### 5.11 ~~Oversized Stores~~ ✅ FIXED
 
-`storyStore.ts` (~500 lines) handles metadata CRUD, chapter CRUD, character CRUD, dual-layer persistence, help story lifecycle, backup/restore, chapter reordering, context tags, and image cache eviction. Consider splitting into `chapterStore`, `persistenceService`, and `helpStoryManager`.
+`storyStore.ts` — Help story lifecycle extracted to `helpStoryService.ts`. Save/load/delete persistence logic extracted to `persistenceService.ts` with shape validation. Store now exposes `replaceChapters`/`replaceCharacters` for service-layer use. ~120 lines of help story code removed from the store.
 
 ---
 
@@ -292,9 +292,9 @@ Notifications use `z-index: 1000` while modals use `z-index: 9999–10000`. Noti
 | History snapshots (20 per chapter) | `historyManager.ts` | Full content strings |
 | Thinking buffer (no size cap) | `api/ollama.ts` | Unbounded accumulation |
 
-### 7.2 Partial-Write Corruption Risk
+### 7.2 ~~Partial-Write Corruption Risk~~ ✅ FIXED
 
-`fileStorage.ts` — `saveStory()` writes metadata then iterates chapters sequentially. If a chapter write fails mid-loop, earlier chapters are persisted, leaving the story in an inconsistent state on disk. No atomic/transactional save.
+`fileStorage.ts` — `saveStory()` now writes chapters first, metadata last (transactional ordering). `filesystem.ts` — `writeFileContent()` uses atomic writes: content is written to a `.tmp` file then renamed into place via `@tauri-apps/plugin-fs` `rename()`. `fs:allow-rename` capability added.
 
 ### 7.3 Summary Manager Timer Accumulation
 
@@ -334,9 +334,9 @@ Both `markdownRenderer.ts` and `seamlessRenderer.ts` define `export type RenderM
 
 ## 8. Tauri Backend (Rust)
 
-### 8.1 New `reqwest::Client` Per Call
+### 8.1 ~~New `reqwest::Client` Per Call~~ ✅ FIXED
 
-`lib.rs` — `fetch_url_bytes` creates a new `reqwest::Client` on every invocation. `Client` is designed to be reused (connection pooling). Use `tauri::State<reqwest::Client>` or a `once_cell::Lazy` static.
+`lib.rs` — A shared `HttpClient(Client)` struct is now built once in `run()` with a 30-second timeout and registered via `.manage()`. All three commands accept `State<'_, HttpClient>` for connection pooling.
 
 ### 8.2 ~~No Response Size Limit~~ ✅ FIXED
 
@@ -558,9 +558,9 @@ There's no crash reporting, error telemetry, or analytics integration. The `erro
 | 13 | Add data validation on story/settings load | §5.8 | ✅ |
 | 14 | Fix OnboardingTour listener registration (move to `onMounted`) | §6.2 | ✅ |
 | 15 | Fix Sidebar drag listener leak on unmount | §6.2 | ✅ |
-| 16 | Implement atomic/transactional file saves | §7.2 | deferred |
+| 16 | Implement atomic/transactional file saves | §7.2 | ✅ |
 | 17 | Fix notification timer stacking | §5.7 | ✅ |
-| 18 | Reuse `reqwest::Client` via Tauri state | §8.1 | deferred |
+| 18 | Reuse `reqwest::Client` via Tauri state | §8.1 | ✅ |
 | 19 | Add response size limit to `fetch_url_bytes` | §8.2 | ✅ (done in P0-3) |
 | 20 | Consolidate 4 HTML escape functions into one | §2.10 | ✅ |
 
@@ -593,10 +593,10 @@ There's no crash reporting, error telemetry, or analytics integration. The `erro
 |---|---|---|---|
 | 39 | Extract duplicated SSE parsing, `splitPrompt`, system prompt | §4.4 | ✅ |
 | 40 | Split oversized components (Settings, EditorSeamless, Editor) | §6.1 | |
-| 41 | Split oversized stores (storyStore, aiStore) | §5.11 | |
+| 41 | Split oversized stores (storyStore, aiStore) | §5.11 | ✅ |
 | 42 | Remove dead code (greet, renderSeamless, unused configs) | §7.6, §8.4 | ✅ |
-| 43 | Unify persistence patterns across stores | §3.2 | |
-| 44 | Add dependency injection to contextBuilder/summaryManager | §3.4 | |
+| 43 | Unify persistence patterns across stores | §3.2 | ✅ |
+| 44 | Add dependency injection to contextBuilder/summaryManager | §3.4 | ✅ |
 | 45 | Reduce `any` usage in storyManager, keyboard, storage | §7 | ✅ |
 | 46 | Deduplicate CSS (close-btn, pill, btn-sm, hint, sec-label, muted) | §6.8 | ✅ |
 | 47 | Add `@media` responsive rules for min-width case | §10.1 | ✅ |

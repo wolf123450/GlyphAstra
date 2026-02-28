@@ -16,9 +16,36 @@
  *   8. Prompt separators / markers              (always)
  */
 
-import { useStoryStore, type Chapter } from '@/stores/storyStore'
-import { useAIStore } from '@/stores/aiStore'
-import { useSettingsStore } from '@/stores/settingsStore'
+import type { Chapter } from '@/stores/storyStore'
+import type { WritingProfile } from '@/stores/aiStore'
+
+// ─── DI interface ─────────────────────────────────────────────────────────────
+
+/**
+ * All data required to build the AI context prompt.
+ * Callers assemble this from stores (or test fixtures) and pass it in,
+ * keeping this module decoupled from Pinia.
+ */
+export interface ContextInput {
+  /** Story metadata fields. */
+  title: string
+  genre: string
+  tone: string
+  narrativeVoice: string
+  summary: string
+  /** All chapters in order. */
+  chapters: Chapter[]
+  /** Active context-tag filter (empty = include all). */
+  activeContextTags: string[]
+  /** The resolved writing profile (or undefined if none). */
+  profile: WritingProfile | undefined
+  /** How many tokens the user wants in the suggestion. */
+  suggestionTokens: number
+  /** Maximum context window in tokens. */
+  contextWindowSize: number
+  /** Whether to include future chapter summaries. */
+  includeFutureChapters: boolean
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -74,24 +101,19 @@ function summaryBlock(ch: Chapter, label: string): string {
  *
  * @param textBefore  - Everything in the current chapter before the cursor.
  * @param currentChapterId - The chapter currently open in the editor (may be '').
- * @returns Complete prompt string ready to pass to OllamaClient.generateStream().
+ * @param input - All store-derived data needed for the prompt (see ContextInput).
+ * @returns Complete prompt string ready to pass to the provider's streamCompletion().
  */
-export function buildContext(textBefore: string, currentChapterId: string): string {
-  const storyStore    = useStoryStore()
-  const aiStore       = useAIStore()
-  const settingsStore = useSettingsStore()
-
-  const meta       = storyStore.metadata
-  const profile    = aiStore.getStyle(aiStore.currentStyle)
-  const tokens     = aiStore.suggestionTokens
-  const activeTags = storyStore.activeContextTags
-  const settings   = settingsStore.settings
+export function buildContext(textBefore: string, currentChapterId: string, input: ContextInput): string {
+  const { title, genre, tone, narrativeVoice, summary: premise,
+          chapters: allChapters, activeContextTags: activeTags,
+          profile, suggestionTokens: tokens,
+          contextWindowSize, includeFutureChapters } = input
 
   /** Hard limit in characters for the whole prompt. */
-  const maxChars = settings.contextWindowSize * CHARS_PER_TOKEN
+  const maxChars = contextWindowSize * CHARS_PER_TOKEN
 
   // ── Separate chapters by role ──────────────────────────────────────────────
-  const allChapters = storyStore.chapters
   const currentIdx  = allChapters.findIndex(c => c.id === currentChapterId)
 
   const plotOutlines   = allChapters.filter(c => c.isPlotOutline && isTagVisible(c, activeTags))
@@ -125,11 +147,11 @@ export function buildContext(textBefore: string, currentChapterId: string): stri
     'You are an inline creative writing assistant embedded in a text editor.',
     lengthInstruction(tokens),
   ]
-  if (meta.title) fixedLines.push(`Story title: "${meta.title}".`)
-  if (meta.genre) fixedLines.push(`Genre: ${meta.genre}.`)
-  if (meta.tone)  fixedLines.push(`Tone: ${meta.tone}.`)
-  if (meta.narrativeVoice) fixedLines.push(`Narrative voice: ${meta.narrativeVoice}.`)
-  if (meta.summary) fixedLines.push(`Premise: ${meta.summary}`)
+  if (title) fixedLines.push(`Story title: "${title}".`)
+  if (genre) fixedLines.push(`Genre: ${genre}.`)
+  if (tone)  fixedLines.push(`Tone: ${tone}.`)
+  if (narrativeVoice) fixedLines.push(`Narrative voice: ${narrativeVoice}.`)
+  if (premise) fixedLines.push(`Premise: ${premise}`)
   if (profile)    fixedLines.push('', `Writing style instructions: ${profile.prompt}`)
 
   const fixedBlock  = fixedLines.join('\n')
@@ -172,7 +194,7 @@ export function buildContext(textBefore: string, currentChapterId: string): stri
   }
 
   // ── Layer 3: Future chapter summaries (if enabled, lowest priority) ───────
-  if (settings.includeFutureChapters && futureChapters.length > 0 && budget > 0) {
+  if (includeFutureChapters && futureChapters.length > 0 && budget > 0) {
     const header = '\n--- PLANNED EVENTS (DO NOT REPEAT — these happen after the current scene) ---'
     let block = header
     for (const ch of futureChapters) {

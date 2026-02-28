@@ -384,12 +384,13 @@ import { useUIStore } from '@/stores/uiStore'
 import { useSettingsStore, CUSTOMIZABLE_VARS, type CustomizableVar } from '@/stores/settingsStore'
 import { useStoryStore } from '@/stores/storyStore'
 import { useAIStore } from '@/stores/aiStore'
+import { loadOrCreateHelpStory, resetHelpStory } from '@/utils/story/helpStoryService'
 import { makeProvider, PROVIDER_META, ALL_PROVIDER_IDS } from '@/api/providers'
 import type { ProviderId } from '@/api/providers'
 import { version as appVersion } from '../../package.json'
 // Dev-only: lazy-load IconGallery so it is tree-shaken in production builds
 const IconGallery = import.meta.env.DEV
-  ? defineAsyncComponent(() => import('./IconGallery.vue'))
+  ? defineAsyncComponent(() => import('./export/IconGallery.vue'))
   : null
 
 const uiStore = useUIStore()
@@ -540,7 +541,7 @@ function close() {
 
 async function openHelpStory() {
   close()
-  await storyStore.loadOrCreateHelpStory()
+  await loadOrCreateHelpStory()
   const chapters = storyStore.chapters
   if (chapters.length > 0) {
     storyStore.setCurrentChapter(chapters[0].id)
@@ -548,7 +549,7 @@ async function openHelpStory() {
 }
 
 async function resetHelpContent() {
-  await storyStore.resetHelpStory()
+  await resetHelpStory()
   uiStore.showNotification('Help story reference chapters have been reset.', 'success')
 }
 

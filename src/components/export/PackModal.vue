@@ -90,8 +90,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { mdiArchive, mdiImageBrokenVariant } from '@mdi/js'
-import { packAllImages } from '@/utils/imagePackManager'
-import type { PackResult } from '@/utils/imagePackManager'
+import { packAllImages } from '@/utils/media/imagePackManager'
+import type { PackResult } from '@/utils/media/imagePackManager'
 import { useStoryStore } from '@/stores/storyStore'
 
 const props = defineProps<{

@@ -8,7 +8,7 @@ import {
   clear,
   canUndo,
   canRedo,
-} from '../utils/undoManager'
+} from '../utils/editor/undoManager'
 
 // The module keeps state in module-level Maps, so we need to clear between tests
 beforeEach(() => {

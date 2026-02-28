@@ -18,7 +18,8 @@ import { makeProvider } from '@/api/providers'
 import type { ProviderId } from '@/api/providers'
 import { useAIStore } from '@/stores/aiStore'
 import { useStoryStore } from '@/stores/storyStore'
-import { buildContext } from '@/utils/contextBuilder'
+import { useSettingsStore } from '@/stores/settingsStore'
+import { buildContext, type ContextInput } from './contextBuilder'
 import { logger } from '@/utils/logger'
 
 const MAX_SUGGESTIONS = 3
@@ -49,8 +50,9 @@ function trimContextOverlap(textBefore: string, response: string): string {
 }
 
 export function useAISuggestion() {
-  const aiStore    = useAIStore()
-  const storyStore = useStoryStore()
+  const aiStore       = useAIStore()
+  const storyStore     = useStoryStore()
+  const settingsStore  = useSettingsStore()
 
   const suggestions    = ref<string[]>([])
   const currentIndex   = ref(0)
@@ -76,7 +78,22 @@ export function useAISuggestion() {
   }
 
   const buildPrompt = (textBefore: string): string => {
-    return buildContext(textBefore, storyStore.currentChapterId ?? '')
+    const meta = storyStore.metadata
+    const settings = settingsStore.settings
+    const input: ContextInput = {
+      title: meta.title,
+      genre: meta.genre,
+      tone: meta.tone,
+      narrativeVoice: meta.narrativeVoice,
+      summary: meta.summary,
+      chapters: storyStore.chapters,
+      activeContextTags: storyStore.activeContextTags,
+      profile: aiStore.getStyle(aiStore.currentStyle),
+      suggestionTokens: aiStore.suggestionTokens,
+      contextWindowSize: settings.contextWindowSize,
+      includeFutureChapters: settings.includeFutureChapters,
+    }
+    return buildContext(textBefore, storyStore.currentChapterId ?? '', input)
   }
 
   /** Returns the last prompt sent to the model (for the prompt preview UI). */

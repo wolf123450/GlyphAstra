@@ -17,7 +17,7 @@
  */
 
 import { save, open } from '@tauri-apps/plugin-dialog'
-import { writeAbsoluteFile, readAbsoluteFile } from '@/utils/filesystem'
+import { writeAbsoluteFile, readAbsoluteFile } from './filesystem'
 import type { Chapter, Character, StoryMetadata } from '@/stores/storyStore'
 
 // ─── Public types ────────────────────────────────────────────────────────────

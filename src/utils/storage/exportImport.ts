@@ -21,8 +21,8 @@ import {
   HeadingLevel, AlignmentType,
   BookmarkStart, BookmarkEnd, InternalHyperlink,
 } from 'docx'
-import { renderMarkdown } from './markdownRenderer'
-import { getPackedDataUrl } from './imagePackManager'
+import { renderMarkdown } from '@/utils/editor/markdownRenderer'
+import { getPackedDataUrl } from '@/utils/media/imagePackManager'
 
 // ─────────────────────────────────────────────────────────────────────────────
 
