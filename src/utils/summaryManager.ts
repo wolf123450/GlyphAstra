@@ -20,7 +20,8 @@
  */
 
 import { watch } from 'vue'
-import { ollamaClient } from '@/api/ollama'
+import { makeProvider } from '@/api/providers'
+import type { ProviderId } from '@/api/providers'
 import { useAIStore } from '@/stores/aiStore'
 import { useStoryStore } from '@/stores/storyStore'
 
@@ -64,7 +65,30 @@ function contentHash(text: string): string {
 }
 
 /**
- * Prompt sent to Ollama for summarisation.
+ * Collect all stream chunks into a single string.
+ * Works for every provider since they all implement streamCompletion.
+ */
+async function generateFull(
+  aiStore: ReturnType<typeof useAIStore>,
+  prompt: string,
+): Promise<string> {
+  const pid   = aiStore.activeProviderId as ProviderId
+  // Use the dedicated summary model if set; fall back to completions model.
+  const model = aiStore.summaryProviderModel[pid] ?? aiStore.currentModel
+  if (!model) throw new Error('No model configured for summary generation')
+
+  const provider = makeProvider(pid, aiStore.providerApiKeys)
+  let result = ''
+  await provider.streamCompletion(
+    prompt,
+    { model, temperature: 0.3, maxTokens: SUMMARY_MAX_TOKENS },
+    (chunk) => { result += chunk },
+  )
+  return result.trim()
+}
+
+/**
+ * Prompt sent to the model for summarisation.
  * Kept concise so small models can handle it reliably.
  */
 function buildSummaryPrompt(chapterName: string, content: string): string {
@@ -95,12 +119,11 @@ async function autoSummariseChapter(chapterId: string): Promise<void> {
   const aiStore    = useAIStore()
 
   const ch = storyStore.getChapterById(chapterId)
-  if (!ch)                      return
-  if (ch.summaryPaused)        return
-  if (ch.summaryManuallyEdited) return
-  if (!aiStore.isConnected)    return
-  if (!aiStore.currentModel)   return
-  if (inFlight.has(chapterId)) return
+  if (!ch)                       return
+  if (ch.summaryPaused)          return
+  if (ch.summaryManuallyEdited)  return
+  if (!aiStore.canGenerate)      return   // works for both Ollama and cloud
+  if (inFlight.has(chapterId))   return
 
   const content = ch.content ?? ''
   if (content.trim().length < 20) return   // not enough text to summarise
@@ -124,22 +147,14 @@ async function autoSummariseChapter(chapterId: string): Promise<void> {
   console.log(`[summaryManager] Generating summary for chapter "${ch.name}"…`)
 
   try {
-    const prompt = buildSummaryPrompt(ch.name, content)
-    const summary = await ollamaClient.generate({
-      model:       aiStore.currentModel,
-      prompt,
-      stream:      false,
-      num_predict: SUMMARY_MAX_TOKENS,
-      temperature: 0.3,   // low temperature for factual summaries
-    })
-
-    const trimmedSummary = summary.trim()
+    const prompt        = buildSummaryPrompt(ch.name, content)
+    const trimmedSummary = await generateFull(aiStore, prompt)
     if (!trimmedSummary) return
 
     storyStore.updateChapter(chapterId, {
-      summary:             trimmedSummary,
-      summaryGeneratedAt:  Date.now(),
-      summaryContentHash:  hash,
+      summary:               trimmedSummary,
+      summaryGeneratedAt:    Date.now(),
+      summaryContentHash:    hash,
       summaryManuallyEdited: false,
     })
 
@@ -166,9 +181,8 @@ export async function triggerSummary(chapterId: string): Promise<void> {
 
   const ch = storyStore.getChapterById(chapterId)
   if (!ch)                      return
-  if (!aiStore.isConnected)    return
-  if (!aiStore.currentModel)   return
-  if (inFlight.has(chapterId)) return
+  if (!aiStore.canGenerate)     return   // works for both Ollama and cloud
+  if (inFlight.has(chapterId))  return
 
   const content = ch.content ?? ''
   if (content.trim().length < 20) return
@@ -178,16 +192,8 @@ export async function triggerSummary(chapterId: string): Promise<void> {
   console.log(`[summaryManager] Manual regeneration for chapter "${ch.name}"…`)
 
   try {
-    const prompt  = buildSummaryPrompt(ch.name, content)
-    const summary = await ollamaClient.generate({
-      model:       aiStore.currentModel,
-      prompt,
-      stream:      false,
-      num_predict: SUMMARY_MAX_TOKENS,
-      temperature: 0.3,
-    })
-
-    const trimmedSummary = summary.trim()
+    const prompt         = buildSummaryPrompt(ch.name, content)
+    const trimmedSummary = await generateFull(aiStore, prompt)
     if (!trimmedSummary) return
 
     storyStore.updateChapter(chapterId, {

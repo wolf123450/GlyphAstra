@@ -14,7 +14,8 @@
  */
 
 import { ref, computed } from 'vue'
-import { ollamaClient } from '@/api/ollama'
+import { makeProvider } from '@/api/providers'
+import type { ProviderId } from '@/api/providers'
 import { useAIStore } from '@/stores/aiStore'
 import { useStoryStore } from '@/stores/storyStore'
 import { buildContext } from '@/utils/contextBuilder'
@@ -94,7 +95,7 @@ export function useAISuggestion() {
    * first suggestion appears quickly, with extras added in the background.
    */
   const trigger = async (textBefore: string) => {
-    if (!aiStore.isConnected) return
+    if (!aiStore.canGenerate) return
     clear()
     isGenerating.value = true
 
@@ -109,6 +110,12 @@ export function useAISuggestion() {
     console.log('tokens:', tokens, '| stop:', stop)
     console.groupEnd()
 
+    // Instantiate once per trigger — avoids recreating on each suggestion loop
+    const provider = makeProvider(
+      aiStore.activeProviderId as ProviderId,
+      aiStore.providerApiKeys
+    )
+
     for (let i = 0; i < MAX_SUGGESTIONS; i++) {
       if (!isGenerating.value) break // user dismissed mid-generation
 
@@ -117,13 +124,12 @@ export function useAISuggestion() {
         let buffer      = ''   // holds initial chars until overlap check is done
         let trimApplied = false
 
-        await ollamaClient.generateStream(
+        await provider.streamCompletion(
+          prompt,
           {
-            model: aiStore.currentModel,
-            prompt,
-            stream: true,
+            model:       aiStore.currentModel,
             temperature: 0.7 + i * 0.12,
-            num_predict: tokens,
+            maxTokens:   tokens,
             stop,
           },
           (chunk) => {

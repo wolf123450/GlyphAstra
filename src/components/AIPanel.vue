@@ -7,23 +7,135 @@
 
     <div class="ai-content">
 
-      <!-- Connection -->
+      <!-- Provider selection -->
       <section class="ai-section">
-        <div class="sec-label">Ollama</div>
-        <div class="connection-row">
-          <span class="dot" :class="isConnected ? 'dot-on' : 'dot-off'"></span>
-          <span class="conn-label">{{ isConnected ? 'Connected' : 'Offline' }}</span>
-          <button class="btn-sm" @click="checkConn" :disabled="checking">
-            {{ checking ? '…' : '⟳' }}
-          </button>
+        <div class="sec-label">AI Provider</div>
+        <div class="provider-pills">
+          <button
+            v-for="pid in ALL_PROVIDER_IDS"
+            :key="pid"
+            class="pill"
+            :class="{ active: aiStore.activeProviderId === pid }"
+            @click="selectProvider(pid)"
+          >{{ PROVIDER_META[pid].name }}</button>
         </div>
-        <div v-if="!isConnected" class="hint">Run <code>ollama serve</code> to start</div>
-        <div v-if="isConnected" class="field-row">
-          <span class="field-label">Model</span>
-          <select v-model="selectedModel" class="field-select" @change="aiStore.setCurrentModel(selectedModel)">
-            <option v-for="m in modelList" :key="m" :value="m">{{ m }}</option>
-          </select>
-        </div>
+
+        <!-- Ollama subsection -->
+        <template v-if="aiStore.activeProviderId === 'ollama'">
+          <div class="connection-row">
+            <span class="dot" :class="isConnected ? 'dot-on' : 'dot-off'"></span>
+            <span class="conn-label">{{ isConnected ? 'Connected' : 'Offline' }}</span>
+            <button class="btn-sm" @click="checkConn" :disabled="checking">
+              {{ checking ? '…' : '⟳' }}
+            </button>
+          </div>
+          <div v-if="!isConnected" class="hint">Run <code>ollama serve</code> to start</div>
+          <div v-if="isConnected" class="field-row">
+            <span class="field-label">Model</span>
+            <select v-model="selectedModel" class="field-select" @change="aiStore.setProviderModel('ollama', selectedModel)">
+              <option v-for="m in modelList" :key="m" :value="m">{{ m }}</option>
+            </select>
+          </div>
+          <div v-if="isConnected && modelList.length" class="field-row">
+            <span class="field-label">Summary</span>
+            <select v-model="selectedSummaryModel" class="field-select" @change="aiStore.setSummaryModel('ollama', selectedSummaryModel)">
+              <option v-for="m in modelList" :key="m" :value="m">{{ m }}</option>
+            </select>
+          </div>
+        </template>
+
+        <!-- Cloud provider subsection -->
+        <template v-else>
+          <!-- Status row: connection dot + key config toggle -->
+          <div class="connection-row">
+            <span class="dot" :class="hasKey ? (testResult === false ? 'dot-off' : 'dot-dim') : 'dot-off'"></span>
+            <span class="conn-label">
+              {{ hasKey ? (testResult === true ? 'Connected' : testResult === false ? 'Error' : 'Key set') : 'No API key' }}
+            </span>
+            <button
+              class="btn-icon key-toggle-btn"
+              :class="{ active: keyExpanded }"
+              @click="keyExpanded = !keyExpanded"
+              :title="keyExpanded ? 'Hide API key settings' : 'Configure API key'"
+            >
+              <svg class="mdi-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path :d="mdiTune" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Collapsible API key drawer -->
+          <Transition name="key-expand">
+            <div v-if="keyExpanded" class="key-drawer">
+              <div class="field-row">
+                <span class="field-label">API Key</span>
+                <input
+                  type="password"
+                  class="field-input"
+                  :placeholder="PROVIDER_META[aiStore.activeProviderId as ProviderId].hint"
+                  :value="aiStore.providerApiKeys[aiStore.activeProviderId] ?? ''"
+                  @change="(e) => onApiKeyChange((e.target as HTMLInputElement).value)"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="key-actions">
+                <button class="btn-sm" @click="testCloudConn" :disabled="testing || !hasKey">
+                  {{ testing ? '…' : 'Test' }}
+                </button>
+                <span
+                  v-if="testResult !== null"
+                  class="dot"
+                  :class="testResult ? 'dot-on' : 'dot-off'"
+                  :title="testResult ? 'Connected' : 'Connection failed'"
+                ></span>
+                <a
+                  :href="PROVIDER_META[aiStore.activeProviderId as ProviderId].docsUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="docs-link"
+                >Get API key →</a>
+              </div>
+            </div>
+          </Transition>
+
+          <!-- Model selector -->
+          <div v-if="modelsLoading" class="hint">Loading models…</div>
+          <template v-else-if="cloudModelList.length > 0">
+            <div class="field-row">
+              <span class="field-label">Model</span>
+              <select
+                v-model="selectedModel"
+                class="field-select"
+                @change="aiStore.setProviderModel(aiStore.activeProviderId as ProviderId, selectedModel)"
+              >
+                <option v-for="m in cloudModelList" :key="m.id" :value="m.id">{{ m.name }}</option>
+              </select>
+            </div>
+            <div v-if="selectedModelInfo?.pricing" class="pricing-badge"
+                 data-tooltip="Pricing sourced from public documentation — not guaranteed to be current.">
+              <span class="pricing-in">{{ formatPrice(selectedModelInfo.pricing.inputPer1M) }} in</span>
+              <span class="pricing-sep">/</span>
+              <span class="pricing-out">{{ formatPrice(selectedModelInfo.pricing.outputPer1M) }} out</span>
+              <span class="pricing-unit">per 1M tokens ⓘ</span>
+            </div>
+            <!-- Summary model -->
+            <div class="field-row">
+              <span class="field-label">Summary</span>
+              <select v-model="selectedSummaryModel" class="field-select"
+                      @change="aiStore.setSummaryModel(aiStore.activeProviderId as ProviderId, selectedSummaryModel)">
+                <option v-for="m in cloudModelList" :key="m.id" :value="m.id">{{ m.name }}</option>
+              </select>
+            </div>
+            <div v-if="selectedSummaryModelInfo?.pricing" class="pricing-badge"
+                 data-tooltip="Pricing sourced from public documentation — not guaranteed to be current.">
+              <span class="pricing-in">{{ formatPrice(selectedSummaryModelInfo.pricing.inputPer1M) }} in</span>
+              <span class="pricing-sep">/</span>
+              <span class="pricing-out">{{ formatPrice(selectedSummaryModelInfo.pricing.outputPer1M) }} out</span>
+              <span class="pricing-unit">per 1M tokens ⓘ</span>
+            </div>
+          </template>
+          <div v-else-if="!hasKey" class="hint muted">Enter an API key above to load models.</div>
+        </template>
       </section>
 
       <!-- Writing Profiles -->
@@ -128,11 +240,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useUIStore } from '@/stores/uiStore'
 import { useAIStore } from '@/stores/aiStore'
 import { useStoryStore } from '@/stores/storyStore'
 import { ollamaClient } from '@/api/ollama'
+import { makeProvider, PROVIDER_META, ALL_PROVIDER_IDS } from '@/api/providers'
+import type { ProviderId, ModelInfo } from '@/api/providers'
+import { mdiTune } from '@mdi/js'
 import WritingProfileEditor from './WritingProfileEditor.vue'
 import PromptPreview from './PromptPreview.vue'
 
@@ -161,10 +276,41 @@ const toggleContextTag = (tag: string) => {
   }
 }
 
-const checking      = ref(false)
-const modelList     = ref<string[]>([])
-const selectedModel = ref(aiStore.currentModel)
-const selectedStyle = ref(aiStore.currentStyle)
+const checking        = ref(false)
+const modelList       = ref<string[]>([])
+const cloudModelList  = ref<ModelInfo[]>([])
+const modelsLoading   = ref(false)
+// Initialise from per-provider saved selection, falling back to the global currentModel
+const selectedModel   = ref(
+  aiStore.providerCurrentModel[aiStore.activeProviderId] ?? aiStore.currentModel
+)
+const selectedSummaryModel = ref(
+  aiStore.summaryProviderModel[aiStore.activeProviderId] ??
+  aiStore.providerCurrentModel[aiStore.activeProviderId] ??
+  aiStore.currentModel
+)
+const selectedStyle   = ref(aiStore.currentStyle)
+
+// Cloud provider state
+const testing      = ref(false)
+const testResult   = ref<boolean | null>(null)
+const keyExpanded  = ref(false)   // API key drawer: collapsed by default
+
+const hasKey = computed(() => {
+  const id = aiStore.activeProviderId
+  return id !== 'ollama' && (aiStore.providerApiKeys[id] ?? '').trim().length > 0
+})
+
+const selectedModelInfo = computed(() =>
+  cloudModelList.value.find(m => m.id === selectedModel.value)
+)
+const selectedSummaryModelInfo = computed(() =>
+  cloudModelList.value.find(m => m.id === selectedSummaryModel.value)
+)
+
+function formatPrice(usd: number): string {
+  return usd < 0.01 ? `$${(usd * 1000).toFixed(2)}m` : `$${usd.toFixed(usd < 1 ? 3 : 2)}`
+}
 
 const showProfileEditor  = ref(false)
 const editingProfileName = ref<string | null>(null)
@@ -185,15 +331,108 @@ const checkConn = async () => {
     aiStore.setConnected(ok)
     if (ok) {
       modelList.value = await ollamaClient.listModels()
-      if (modelList.value.length && !modelList.value.includes(selectedModel.value)) {
-        selectedModel.value = modelList.value[0]
-        aiStore.setCurrentModel(selectedModel.value)
-      }
+      if (modelList.value.length) {
+        const remembered = aiStore.providerCurrentModel['ollama']
+        if (remembered && modelList.value.includes(remembered)) {
+          selectedModel.value = remembered
+        } else if (!modelList.value.includes(selectedModel.value)) {
+          selectedModel.value = modelList.value[0]
+        }
+        aiStore.setProviderModel('ollama', selectedModel.value)        // Summary model
+        const remSum = aiStore.summaryProviderModel['ollama']
+        if (remSum && modelList.value.includes(remSum)) {
+          selectedSummaryModel.value = remSum
+        } else if (!selectedSummaryModel.value || !modelList.value.includes(selectedSummaryModel.value)) {
+          selectedSummaryModel.value = selectedModel.value
+        }
+        aiStore.setSummaryModel('ollama', selectedSummaryModel.value)      }
     }
   } finally {
     checking.value = false
   }
 }
+
+const loadCloudModels = async (pid: ProviderId) => {
+  if (pid === 'ollama') return
+  modelsLoading.value = true
+  try {
+    const provider = makeProvider(pid, aiStore.providerApiKeys)
+    cloudModelList.value = await provider.listModels()
+    if (cloudModelList.value.length) {
+      const ids = cloudModelList.value.map(m => m.id)
+      // Prefer the last model used with this specific provider
+      const remembered = aiStore.providerCurrentModel[pid]
+      if (remembered && ids.includes(remembered)) {
+        selectedModel.value = remembered
+      } else if (!ids.includes(selectedModel.value)) {
+        // Current global model isn't valid for this provider — pick first
+        selectedModel.value = cloudModelList.value[0].id
+        aiStore.setProviderModel(pid, selectedModel.value)
+      }
+      // Sync global currentModel to whatever is selected for this provider
+      aiStore.setProviderModel(pid, selectedModel.value)
+      // Summary model
+      const remSum = aiStore.summaryProviderModel[pid]
+      if (remSum && ids.includes(remSum)) {
+        selectedSummaryModel.value = remSum
+      } else if (!selectedSummaryModel.value || !ids.includes(selectedSummaryModel.value)) {
+        selectedSummaryModel.value = selectedModel.value
+      }
+      aiStore.setSummaryModel(pid, selectedSummaryModel.value)
+    }
+  } finally {
+    modelsLoading.value = false
+  }
+}
+
+const selectProvider = async (pid: ProviderId) => {
+  testResult.value = null
+  keyExpanded.value = false   // collapse key drawer when switching providers
+  aiStore.setActiveProvider(pid)
+  if (pid === 'ollama') {
+    await checkConn()
+  } else {
+    await loadCloudModels(pid)
+  }
+}
+
+const onApiKeyChange = async (key: string) => {
+  const pid = aiStore.activeProviderId as ProviderId
+  aiStore.setApiKey(pid, key)
+  testResult.value = null
+  // Refresh model list — providers that can fetch live models (OpenAI, Google) need the key
+  if (key.trim()) {
+    await loadCloudModels(pid)
+  }
+}
+
+const testCloudConn = async () => {
+  const pid = aiStore.activeProviderId as ProviderId
+  testing.value = true
+  testResult.value = null
+  try {
+    const provider = makeProvider(pid, aiStore.providerApiKeys)
+    testResult.value = await provider.isAvailable()
+  } catch {
+    testResult.value = false
+  } finally {
+    testing.value = false
+  }
+}
+
+// Reload cloud model list whenever activeProviderId changes (e.g. restored from storage)
+watch(
+  () => aiStore.activeProviderId,
+  (pid) => {
+    // Restore per-provider model selection before loading (so loadCloudModels can find it)
+    const saved = aiStore.providerCurrentModel[pid]
+    if (saved) selectedModel.value = saved
+    const savedSum = aiStore.summaryProviderModel[pid]
+    if (savedSum) selectedSummaryModel.value = savedSum
+    if (pid !== 'ollama') loadCloudModels(pid as ProviderId)
+  },
+  { immediate: false }
+)
 
 const selectProfile = (name: string) => {
   selectedStyle.value = name
@@ -217,7 +456,13 @@ const onProfileSaved = (name: string) => {
 
 const closePanel = () => uiStore.setActivePanel('editor')
 
-onMounted(() => { checkConn() })
+onMounted(async () => {
+  if (aiStore.activeProviderId === 'ollama') {
+    await checkConn()
+  } else {
+    await loadCloudModels(aiStore.activeProviderId as ProviderId)
+  }
+})
 </script>
 
 <style scoped>
@@ -353,4 +598,84 @@ kbd {
 /* context tags */
 .context-tag-pills { display: flex; flex-wrap: wrap; gap: 4px; }
 .muted { color: var(--text-tertiary); font-size: 11px; }
+
+/* provider pills */
+.provider-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* key config toggle button */
+.key-toggle-btn {
+  margin-left: auto;
+  display: flex; align-items: center; justify-content: center;
+  padding: 3px; border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+.key-toggle-btn .mdi-icon {
+  width: 16px; height: 16px;
+  fill: currentColor; display: block;
+}
+.key-toggle-btn.active { color: var(--accent-color); }
+
+/* key drawer collapse/expand transition */
+.key-expand-enter-active,
+.key-expand-leave-active {
+  transition: max-height 0.22s ease, opacity 0.22s ease;
+  overflow: hidden;
+  max-height: 120px;
+}
+.key-expand-enter-from,
+.key-expand-leave-to { max-height: 0; opacity: 0; }
+
+/* key drawer inner container */
+.key-drawer {
+  display: flex; flex-direction: column; gap: var(--spacing-sm);
+  padding-top: 2px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* pricing badge — CSS tooltip (no delay) */
+.pricing-badge {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--text-tertiary);
+  position: relative; cursor: help;
+}
+.pricing-badge[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute; bottom: calc(100% + 4px); left: 0;
+  background: var(--bg-tertiary); border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm); padding: 4px 8px;
+  font-size: 11px; color: var(--text-secondary); white-space: nowrap;
+  pointer-events: none; opacity: 0;
+  transition: opacity 0.05s 0s;
+  z-index: 100;
+}
+.pricing-badge[data-tooltip]:hover::after { opacity: 1; }
+.pricing-in  { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.pricing-out { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.pricing-sep { color: var(--border-color); }
+.pricing-unit { font-size: 10px; opacity: 0.7; }
+
+/* dot-dim: key is set but not verified */
+.dot-dim { background: var(--text-tertiary); }
+
+/* field input (API key) */
+.field-input {
+  min-width: 0; flex: 1;
+  padding: 4px 6px; background: var(--bg-secondary);
+  border: 1px solid var(--border-color); border-radius: var(--radius-sm);
+  color: var(--text-primary); font-size: 12px;
+  font-family: monospace;
+}
+.field-input::placeholder { color: var(--text-tertiary); font-family: sans-serif; }
+
+/* API key action row */
+.key-actions {
+  display: flex; align-items: center; gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+.docs-link {
+  margin-left: auto;
+  font-size: 11px; color: var(--accent-color);
+  text-decoration: none;
+}
+.docs-link:hover { text-decoration: underline; }
 </style>
