@@ -7,7 +7,7 @@ export type RenderMode = 'markdown' | 'seamless' | 'preview'
 
 export interface Token {
   type: 'text' | 'header' | 'bold' | 'italic' | 'code' | 'strikethrough' | 'listItem'
-      | 'fencedCode' | 'orderedList' | 'blockquote' | 'hr' | 'link' | 'table'
+      | 'fencedCode' | 'orderedList' | 'blockquote' | 'hr' | 'link' | 'image' | 'table'
   start: number
   end: number
   level?: number   // for headers (1-6) and blockquotes (nesting depth)
@@ -15,6 +15,8 @@ export interface Token {
   order?: number   // for orderedList: the numeric counter (1, 2, 3 …)
   language?: string // for fencedCode: language tag after the opening ```
   url?: string     // for link: the href in [text](url)
+  dimW?: string    // for image: parsed width from alt suffix (e.g. "300" or "50%")
+  dimH?: string    // for image: parsed height from alt suffix
   content: string  // raw content including markers
   rendered: string // HTML rendering
   text: string     // plain text for cursor positioning
@@ -265,6 +267,31 @@ export function tokenizeMarkdown(content: string): Token[] {
         continue
       }
 
+      // Check for image (![alt](url)) — must precede link check since '![' starts with '!'
+      // Alt may contain optional dimension suffix: "alt|w300", "alt|h200", "alt|w300 h200", "alt|w50%"
+      const imgMatch = remaining.match(/^!\[([^\]]*)\]\(([^)]+)\)/)
+      if (imgMatch) {
+        const rawAlt = imgMatch[1]
+        // Strip any surrounding quotes the author added around the path
+        const src    = imgMatch[2].trim().replace(/^["']|["']$/g, '')
+        const { cleanAlt, dimW, dimH } = parseImgDims(rawAlt)
+        const start  = currentLineStart + col
+        const end    = start + imgMatch[0].length
+        tokens.push({
+          type: 'image',
+          url: src,
+          start,
+          end,
+          content: imgMatch[0],
+          text: rawAlt,   // keep raw alt (with dims) as text so source display is unchanged
+          rendered: renderImageHtml(src, cleanAlt, dimW, dimH),
+          dimW,
+          dimH,
+        })
+        col += imgMatch[0].length
+        continue
+      }
+
       // Check for inline link ([text](url))
       const linkMatch = remaining.match(/^\[([^\]]+)\]\(([^)]+)\)/)
       if (linkMatch) {
@@ -506,14 +533,70 @@ function escapeHtml(text: string): string {
 }
 
 /**
+ * Parse the optional dimension suffix from an image alt string.
+ * Syntax: alt text, optionally followed by |w300, |h200, |w300 h200, |w50%, etc.
+ * e.g. "My photo|w480"    → { cleanAlt: 'My photo', dimW: '480' }
+ *      "Cover|w300 h200" → { cleanAlt: 'Cover', dimW: '300', dimH: '200' }
+ *      "Banner|w50%"     → { cleanAlt: 'Banner', dimW: '50%' }
+ */
+export function parseImgDims(rawAlt: string): { cleanAlt: string; dimW?: string; dimH?: string } {
+  const barIdx = rawAlt.indexOf('|')
+  if (barIdx < 0) return { cleanAlt: rawAlt }
+  const cleanAlt = rawAlt.slice(0, barIdx).trim()
+  const dimStr   = rawAlt.slice(barIdx + 1)
+  const wm = dimStr.match(/\bw(\d+%?)/i)
+  const hm = dimStr.match(/\bh(\d+%?)/i)
+  return { cleanAlt, dimW: wm ? wm[1] : undefined, dimH: hm ? hm[1] : undefined }
+}
+
+/**
+ * Build the HTML size attribute(s) string for an <img> element.
+ * Pixel values → `width`/`height` HTML attributes (matches CSS `[width]` selector).
+ * Percentage values → inline `style` attribute.
+ * When both W and H are given, use style so exact H overrides CSS `height:auto`.
+ */
+export function imgSizeAttr(dimW?: string, dimH?: string): string {
+  if (!dimW && !dimH) return ''
+  if (dimW && dimH) {
+    const wVal = dimW.endsWith('%') ? dimW : `${dimW}px`
+    const hVal = dimH.endsWith('%') ? dimH : `${dimH}px`
+    return ` style="width:${wVal};height:${hVal}"`
+  }
+  if (dimW) return dimW.endsWith('%') ? ` style="width:${dimW}"` : ` width="${dimW}"`
+  // H-only: must use style attribute; CSS `height:auto` rules override HTML height attr
+  return dimH!.endsWith('%') ? ` style="height:${dimH}"` : ` style="height:${dimH}px"`
+}
+
+/**
+ * Render an image src as an <img> tag.
+ * - Remote URLs (http/https): rendered directly with src.
+ * - Local paths: src is left empty; data-local-src carries the original path so
+ *   resolveLocalImages() in the Vue component can swap in a data URL after mount.
+ * Optional width/height are emitted via imgSizeAttr.
+ */
+function renderImageHtml(src: string, alt: string, dimW?: string, dimH?: string): string {
+  const sizeAttr = imgSizeAttr(dimW, dimH)
+  if (/^https?:\/\//i.test(src)) {
+    return `<img class="md-image" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy"${sizeAttr}>`
+  }
+  return `<img class="md-image md-image-local" data-local-src="${escapeHtml(src)}" src="" alt="${escapeHtml(alt)}"${sizeAttr}>`
+}
+
+/**
  * Render inline markdown formatting into clean HTML tags.
  * Used for block-level token.rendered values (headers, list items, blockquotes)
  * so that bold/italic/etc. work correctly in preview mode.
  */
 function renderInlineHtml(text: string): string {
-  // Order matters: ** before *, ~~ before general text
-  const parts = text.split(/(\*\*.*?\*\*|~~.*?~~|\*.*?\*|`.*?`|\[[^\]]+\]\([^)]+\))/)
+  // Order matters: images before links (![), ** before *, ~~ before general text
+  const parts = text.split(/(!\[[^\]]*\]\([^)]+\)|\*\*.*?\*\*|~~.*?~~|\*.*?\*|`.*?`|\[[^\]]+\]\([^)]+\))/)
   return parts.map(part => {
+    const img = part.match(/^!\[([^\]]*)\]\(([^)]+)\)$/)
+    if (img) {
+      const src = img[2].trim().replace(/^["']|["']$/g, '')
+      const { cleanAlt, dimW, dimH } = parseImgDims(img[1])
+      return renderImageHtml(src, cleanAlt, dimW, dimH)
+    }
     const bold = part.match(/^\*\*(.*)\*\*$/)
     if (bold) return `<strong>${escapeHtml(bold[1])}</strong>`
     const strike = part.match(/^~~(.*)~~$/)

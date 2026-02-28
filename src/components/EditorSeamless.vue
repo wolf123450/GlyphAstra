@@ -14,18 +14,60 @@
       @keydown="handleKeydown"
       @keyup="onKeyup"
       @mouseup="onCursorActivity"
+      @mouseover="handleEditorMouseover"
+      @mouseleave="handleEditorMouseleave"
       @paste="handlePaste"
       @cut="handleCut"
     ></div>
   </div>
+
+  <!-- ── WYSIWYG image resize overlay ──────────────────────────────────────── -->
+  <Teleport to="body">
+    <div
+      v-if="imgOv"
+      class="img-ov"
+      :style="ovStyle"
+    >
+      <!-- Dimensions label + ratio lock toggle -->
+      <div class="img-ov-topbar"
+           @mouseenter="_ovHovered = true"
+           @mouseleave="_ovHovered = false">
+        <span class="img-ov-dims">{{ ovLabel }}</span>
+        <button
+          class="img-ov-lock"
+          :class="{ unlocked: !imgOv.locked }"
+          :title="imgOv.locked ? 'Aspect ratio locked — click to free' : 'Aspect ratio free — click to lock'"
+          @click.stop="imgOv.locked = !imgOv.locked"
+          tabindex="-1"
+        >
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true">
+            <path :d="imgOv.locked ? mdiLockOutline : mdiLockOpenVariant"/>
+          </svg>
+        </button>
+      </div>
+      <!-- SE corner drag handle -->
+      <div
+        class="img-ov-handle"
+        @mouseenter="_ovHovered = true"
+        @mouseleave="_ovHovered = false"
+        @pointerdown="onHandleDown"
+        @pointermove="onHandleMove"
+        @pointerup="onHandleUp"
+        @pointercancel="onHandleUp"
+      ></div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref, watch, nextTick, onUnmounted } from 'vue'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useStoryStore } from '@/stores/storyStore'
 import { storageManager } from '@/utils/storage'
-import { tokenizeMarkdown } from '@/utils/seamlessRenderer'
+import { resolveLocalImages } from '@/utils/imageUtils'
+import { tokenizeMarkdown, parseImgDims } from '@/utils/seamlessRenderer'
+import { mdiLockOutline, mdiLockOpenVariant } from '@mdi/js'
 import {
   buildStructuredHTML,
   getCursorOffset,
@@ -68,6 +110,35 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 const settingsStore = useSettingsStore()
+const storyStore = useStoryStore()
+
+// ─── Image resize overlay state ─────────────────────────────────────
+interface ImgOv {
+  imgEl:    HTMLImageElement   // the <img> inside the token
+  start:    number             // token char start in content
+  end:      number             // token char end in content
+  src:      string             // clean image src (no surrounding quotes)
+  cleanAlt: string             // alt text without |dims suffix
+  naturalW: number             // img.naturalWidth  (0 = not loaded yet)
+  naturalH: number             // img.naturalHeight
+  locked:   boolean            // true = maintain aspect ratio when dragging
+}
+const imgOv    = ref<ImgOv | null>(null)
+const ovRect   = ref<{ left: number; top: number; width: number; height: number } | null>(null)
+
+// Non-reactive drag bookkeeping (avoids unnecessary reactivity overhead)
+let _drag = { active: false, startX: 0, startY: 0, startW: 0, startH: 0 }
+let _ovHovered = false
+
+const ovStyle = computed(() => {
+  if (!ovRect.value) return {}
+  const { left, top, width, height } = ovRect.value
+  return { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` }
+})
+const ovLabel = computed(() => {
+  if (!ovRect.value) return ''
+  return `${Math.round(ovRect.value.width)} × ${Math.round(ovRect.value.height)}`
+})
 
 const editorInput = ref<HTMLDivElement | null>(null)
 let selectionStart = 0
@@ -171,6 +242,12 @@ const livePos = () => getCursorOffset(container(), sel())
 
 watch(() => props.cursorPos, () => {
   if (!editorInput.value) return
+  // Dismiss overlay when cursor moves inside the image token (it will go source mode)
+  if (imgOv.value) {
+    const { start, end } = imgOv.value
+    const pos = props.cursorPos
+    if (pos >= start && pos <= end) dismissImgOv()
+  }
   updateTokenVisibility(container(), props.cursorPos, mode())
 })
 
@@ -188,6 +265,7 @@ watch(
 
       updateTokenVisibility(container(), target, mode())
       annotateStoryLinks(container())
+      resolveLocalImages(container(), storyStore.currentStoryId).catch(console.error)
       setCursorPosition(container(), props.content.length, target, sel())
 
       selectionStart = target
@@ -218,33 +296,177 @@ watch(
 // ─── Cursor tracking events ────────────────────────────────────────
 
 /**
- * Handle Ctrl+click on a rendered link token.
- * External URLs open in the system browser; chapter:// links navigate to a chapter; story:// links open a story.
+ * Show the resize overlay when the mouse enters a rendered image.
+ * Does NOT move the cursor or affect editor state.
+ */
+const handleEditorMouseover = (event: MouseEvent) => {
+  const target = event.target as HTMLElement
+  const imageToken = target.closest<HTMLElement>('.token-image')
+  if (imageToken) {
+    _ovHovered = false
+    const imgEl = imageToken.querySelector('img.md-image') as HTMLImageElement | null
+    // Only refresh if it's a different image (or first show)
+    if (imgEl && (!imgOv.value || imgOv.value.imgEl !== imgEl)) {
+      showImgOverlay(imageToken)
+    }
+  }
+}
+
+/** Dismiss overlay when mouse leaves the editor area (not while dragging or overlay hovered) */
+const handleEditorMouseleave = () => {
+  // Brief delay allows mouse to move to the topbar (positioned above the editor bounds)
+  setTimeout(() => {
+    if (!_drag.active && !_ovHovered) dismissImgOv()
+  }, 80)
+}
+
+const refreshOvRect = () => {
+  if (!imgOv.value) return
+  const r = imgOv.value.imgEl.getBoundingClientRect()
+  ovRect.value = { left: r.left, top: r.top, width: r.width, height: r.height }
+}
+
+/**
+ * Open the grab-handle overlay for the given .token-image span.
+ * Cursor is moved to just before the token so it never sits "inside" the image.
+ */
+const showImgOverlay = (tokenEl: HTMLElement) => {
+  const imgEl = tokenEl.querySelector('img.md-image') as HTMLImageElement | null
+  if (!imgEl) return
+  const start = parseInt(tokenEl.getAttribute('data-start') ?? '0')
+  const end   = parseInt(tokenEl.getAttribute('data-end')   ?? '0')
+  const raw   = props.content.slice(start, end)
+  const m     = raw.match(/^!\[([^\]]*)\]\(([^)]+)\)/)
+  if (!m) return
+  const src = m[2].trim().replace(/^["']|["']$/g, '')
+  const { cleanAlt, dimW, dimH } = parseImgDims(m[1])
+  // Infer initial lock state from the stored dims:
+  // if BOTH W and H are explicitly saved the user previously unlocked → start unlocked.
+  // Preserve the previous lock state when re-hovering the exact same img element.
+  const prevLocked = (imgOv.value?.imgEl === imgEl) ? imgOv.value!.locked : undefined
+  const defaultLocked = prevLocked ?? !(dimW && dimH)
+  imgOv.value = {
+    imgEl, start, end, src, cleanAlt,
+    naturalW: imgEl.naturalWidth,
+    naturalH: imgEl.naturalHeight,
+    locked: defaultLocked,
+  }
+  refreshOvRect()
+  // Do NOT move cursor — hover should never disrupt typing position
+}
+
+// Dismiss overlay. Only clean up drag-induced inline styles if one was in progress
+// (pre-existing styles like style="width:300px;height:200px" must NOT be cleared).
+const dismissImgOv = () => {
+  if (_drag.active && imgOv.value) {
+    const { imgEl } = imgOv.value
+    imgEl.style.maxWidth  = ''
+    imgEl.style.maxHeight = ''
+    imgEl.style.width     = ''
+    imgEl.style.height    = ''
+    _drag.active = false
+  }
+  imgOv.value  = null
+  ovRect.value = null
+}
+
+// ─── Pointer drag handlers (bound to the SE resize handle) ───────────────────
+
+const onHandleDown = (e: PointerEvent) => {
+  if (!imgOv.value) return
+  ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
+  const { imgEl } = imgOv.value
+  _drag.active  = true
+  _drag.startX  = e.clientX
+  _drag.startY  = e.clientY
+  _drag.startW  = imgEl.offsetWidth
+  _drag.startH  = imgEl.offsetHeight
+  // Remove CSS size caps during interactive drag
+  imgEl.style.maxWidth  = 'none'
+  imgEl.style.maxHeight = 'none'
+  e.preventDefault()
+}
+
+const onHandleMove = (e: PointerEvent) => {
+  if (!_drag.active || !imgOv.value) return
+  const { imgEl, locked, naturalW, naturalH } = imgOv.value
+  const newW = Math.max(20, _drag.startW + (e.clientX - _drag.startX))
+  const newH = Math.max(20, _drag.startH + (e.clientY - _drag.startY))
+  if (locked && naturalW > 0 && naturalH > 0) {
+    imgEl.style.width  = `${newW}px`
+    imgEl.style.height = 'auto'
+  } else if (!locked) {
+    imgEl.style.width  = `${newW}px`
+    imgEl.style.height = `${newH}px`
+  } else {
+    imgEl.style.width  = `${newW}px`
+    imgEl.style.height = 'auto'
+  }
+  refreshOvRect()
+}
+
+const onHandleUp = () => {
+  if (!_drag.active || !imgOv.value) return
+  _drag.active = false
+  const { imgEl, start, end, cleanAlt, src, locked } = imgOv.value
+  // Restore CSS caps
+  imgEl.style.maxWidth  = ''
+  imgEl.style.maxHeight = ''
+  const newW = Math.round(imgEl.offsetWidth)
+  const newH = Math.round(imgEl.offsetHeight)
+  // locked → only store W (CSS height:auto handles aspect ratio)
+  // unlocked → always store both W and H explicitly
+  const dimStr = locked ? `w${newW}` : `w${newW} h${newH}`
+  // Clear inline styles — re-render will use the attribute-based size instead
+  imgEl.style.width  = ''
+  imgEl.style.height = ''
+  emit('snapshot')
+  const newToken   = `![${cleanAlt}|${dimStr}](${src})`
+  const newContent = props.content.slice(0, start) + newToken + props.content.slice(end)
+  emit('update:content', newContent)
+  imgOv.value = null
+  ovRect.value = null
+}
+
+// Track overlay position on scroll / resize while it is open
+const _ovScrollListener = () => refreshOvRect()
+watch(imgOv, (val) => {
+  if (val) {
+    window.addEventListener('scroll', _ovScrollListener, { passive: true, capture: true })
+    window.addEventListener('resize', _ovScrollListener, { passive: true })
+  } else {
+    window.removeEventListener('scroll', _ovScrollListener, { capture: true })
+    window.removeEventListener('resize', _ovScrollListener)
+  }
+})
+onUnmounted(() => {
+  window.removeEventListener('scroll', _ovScrollListener, { capture: true })
+  window.removeEventListener('resize', _ovScrollListener)
+})
+
+/**
+ * Handle clicks inside the editor.
+ * Clicking the editor places the cursor normally and switches any image under it to source view.
+ * Ctrl+click on links navigates. The image overlay is dismissed on click.
  */
 const handleEditorClick = (event: MouseEvent) => {
+  const target = event.target as HTMLElement
+
+  // Dismiss overlay when clicking — clicking moves cursor, image will go source mode
+  if (imgOv.value) dismissImgOv()
+
   if (event.ctrlKey || event.metaKey) {
-    const target = event.target as HTMLElement
-    // Use [data-url] selector so it works regardless of rendered/source class state.
-    // (mouseup fires before click and may toggle the rendered class via updateTokenVisibility)
-    const linkSpan = target.closest<HTMLElement>('[data-url]')
+    const linkSpan = target.closest<HTMLElement>('.token-link[data-url]')
     if (linkSpan) {
       const url = linkSpan.getAttribute('data-url') ?? ''
-      if (url.startsWith('chapter://')) {
-        emit('navigate-chapter', url.slice('chapter://'.length))
-        return
-      }
-      if (url.startsWith('story://')) {
-        emit('navigate-story', url.slice('story://'.length))
-        return
-      }
-      if (url.startsWith('http://') || url.startsWith('https://')) {
-        openUrl(url).catch(console.error)
-        return
-      }
+      if (url.startsWith('chapter://')) { emit('navigate-chapter', url.slice('chapter://'.length)); return }
+      if (url.startsWith('story://'))   { emit('navigate-story',   url.slice('story://'.length)); return }
+      if (url.startsWith('http://') || url.startsWith('https://')) { openUrl(url).catch(console.error); return }
     }
   }
   onCursorActivity()
 }
+
 
 const onCursorActivity = () => {
   if (isUpdatingDOM) return
@@ -274,6 +496,13 @@ const handleKeydown = (event: KeyboardEvent) => {
 
   // Read-only chapters: block all editing interactions
   if (props.isReadOnly) return
+
+  // Close image overlay on Escape
+  if (event.key === 'Escape' && imgOv.value) {
+    dismissImgOv()
+    event.preventDefault()
+    return
+  }
 
   // ── Session undo/redo ──────────────────────────────────────────────
   // Note: event.key is uppercase ('Z') when Shift is held, so compare lowercase.
@@ -683,6 +912,47 @@ defineExpose({ scrollEl: editorInput })
   display: none !important;
 }
 
+/* ── Rendered: inline image ────────────────────────────────── */
+.editor-input :deep(.token-image.rendered .marker) { display: none; }
+.editor-input :deep(.token-image.rendered .content) { display: none; }
+/* Image render spans are data-ghost for cursor math but must receive mouse events
+   so the mouseover overlay trigger works on the visible image area. */
+.editor-input :deep(.token-image .image-render) {
+  display: none;
+  pointer-events: none;   /* not rendered — suppress events */
+}
+.editor-input :deep(.token-image.rendered .image-render) {
+  display: inline-block;
+  vertical-align: middle;
+  pointer-events: auto;   /* rendered — enable mouse events so hover detection works */
+}
+/* Default cap for images without any explicit size */
+.editor-input :deep(.token-image.rendered .image-render img.md-image:not([width]):not([style])) {
+  max-height: 160px;
+  max-width: min(100%, 480px);
+}
+/* Images with any explicit dimension — remove caps to honour author-set size */
+.editor-input :deep(.token-image.rendered .image-render img.md-image[width]),
+.editor-input :deep(.token-image.rendered .image-render img.md-image[style]) {
+  max-height: unset;
+  max-width: unset;
+}
+.editor-input :deep(.token-image.rendered .image-render img.md-image) {
+  height: auto;
+  border-radius: 4px;
+  vertical-align: middle;
+  cursor: pointer;
+  display: block;
+}
+/* Broken local image (file not found after resolution attempt) */
+.editor-input :deep(.token-image.rendered .image-render img.md-image-broken) {
+  min-width: 80px;
+  min-height: 40px;
+  border: 2px dashed var(--error-color);
+  opacity: 0.5;
+  cursor: pointer;
+}
+
 /* ── Rendered: inline link ──────────────────────────────── */
 .editor-input :deep(.token-link.rendered .marker) { display: none; }
 .editor-input :deep(.token-link.rendered .content) {
@@ -736,6 +1006,7 @@ defineExpose({ scrollEl: editorInput })
 .editor-input :deep(.token-ordered.source),
 .editor-input :deep(.token-fenced.source),
 .editor-input :deep(.token-table.source),
+.editor-input :deep(.token-image.source),
 .editor-input :deep(.token-link.source) {
   font-weight: normal !important;
   font-style: normal !important;
@@ -784,5 +1055,71 @@ defineExpose({ scrollEl: editorInput })
 @keyframes pulse {
   0%, 100% { opacity: 0.3; }
   50%       { opacity: 0.6; }
+}
+</style>
+
+<!-- Grab-handle image overlay (teleported to <body> — cannot be scoped) -->
+<style>
+/* Outer selection frame — sits exactly over the rendered image */
+.img-ov {
+  position: fixed;
+  z-index: 9900;
+  pointer-events: none;           /* overlay itself is transparent to clicks … */
+  border: 2px solid var(--accent-color);
+  border-radius: 3px;
+  box-sizing: border-box;
+}
+/* … except for the children that need interaction */
+.img-ov > * { pointer-events: auto; }
+
+/* Top-left info bar */
+.img-ov-topbar {
+  position: absolute;
+  top: -26px;
+  left: -2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent-color);
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px 3px 0 0;
+  white-space: nowrap;
+  user-select: none;
+}
+.img-ov-lock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 1px;
+  border-radius: 3px;
+  color: #fff;
+  opacity: 0.75;
+  transition: opacity 0.1s, background 0.1s;
+}
+.img-ov-lock:hover {
+  opacity: 1;
+  background: rgba(255,255,255,0.15);
+}
+.img-ov-lock.unlocked { opacity: 0.45; }
+.img-ov-lock.unlocked:hover { opacity: 0.85; }
+
+/* SE corner drag handle */
+.img-ov-handle {
+  position: absolute;
+  bottom: -6px;
+  right: -6px;
+  width: 14px;
+  height: 14px;
+  background: var(--accent-color);
+  border: 2px solid #fff;
+  border-radius: 3px;
+  cursor: nwse-resize;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  touch-action: none;      /* required for Pointer Events to work on touch */
 }
 </style>
