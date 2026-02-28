@@ -3,10 +3,10 @@
  * Handles persistence of story data to browser localStorage
  */
 
-import type { SerializedStory } from './storyManager'
-import { validateStoryData } from './storyManager'
-import { errorHandler, ErrorType } from './error'
-import { logger } from './logger'
+import type { SerializedStory } from '@/utils/story/storyManager'
+import { validateStoryData } from '@/utils/story/storyManager'
+import { errorHandler, ErrorType } from '../error'
+import { logger } from '../logger'
 
 const STORAGE_PREFIX = 'blockbreaker_story_'
 const PROJECTS_LIST_KEY = 'blockbreaker_projects_list'

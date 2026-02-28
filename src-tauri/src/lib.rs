@@ -1,5 +1,11 @@
 // HTTP proxy commands for CORS bypass and Ollama connectivity
 
+use reqwest::Client;
+use tauri::State;
+
+/// Shared HTTP client — connection-pooled, reused across all commands.
+struct HttpClient(Client);
+
 /// Allowed URL schemes for fetch_url_bytes.
 /// Only HTTPS and HTTP are permitted; file://, data:, javascript: etc. are blocked.
 fn is_allowed_url(url: &str) -> Result<(), String> {
@@ -21,8 +27,8 @@ fn is_allowed_url(url: &str) -> Result<(), String> {
 const MAX_RESPONSE_BYTES: usize = 50 * 1024 * 1024;
 
 #[tauri::command]
-async fn check_ollama_connection() -> Result<bool, String> {
-    match reqwest::get("http://localhost:11434/api/tags").await {
+async fn check_ollama_connection(http: State<'_, HttpClient>) -> Result<bool, String> {
+    match http.0.get("http://localhost:11434/api/tags").send().await {
         Ok(response) => Ok(response.status().is_success()),
         Err(_) => Ok(false),
     }
@@ -32,15 +38,10 @@ async fn check_ollama_connection() -> Result<bool, String> {
 /// Returns the response body as a base64-encoded string plus the Content-Type header.
 /// Only http:// and https:// URLs are allowed. Response size is capped.
 #[tauri::command]
-async fn fetch_url_bytes(url: String) -> Result<(String, String), String> {
+async fn fetch_url_bytes(url: String, http: State<'_, HttpClient>) -> Result<(String, String), String> {
     is_allowed_url(&url)?;
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
-
-    let response = client
+    let response = http.0
         .get(&url)
         .send()
         .await
@@ -83,8 +84,8 @@ async fn fetch_url_bytes(url: String) -> Result<(String, String), String> {
 }
 
 #[tauri::command]
-async fn list_ollama_models() -> Result<Vec<String>, String> {
-    match reqwest::get("http://localhost:11434/api/tags").await {
+async fn list_ollama_models(http: State<'_, HttpClient>) -> Result<Vec<String>, String> {
+    match http.0.get("http://localhost:11434/api/tags").send().await {
         Ok(response) => {
             match response.json::<serde_json::Value>().await {
                 Ok(data) => {
@@ -108,7 +109,13 @@ async fn list_ollama_models() -> Result<Vec<String>, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let client = Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("failed to build HTTP client");
+
     tauri::Builder::default()
+        .manage(HttpClient(client))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())

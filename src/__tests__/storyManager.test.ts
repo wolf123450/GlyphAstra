@@ -5,7 +5,7 @@ import {
   calculateTotalWordCount,
   generateDefaultProjectName,
   validateStoryData,
-} from '../utils/storyManager'
+} from '../utils/story/storyManager'
 import type { StoryMetadata, Chapter, Character } from '@/stores/storyStore'
 
 // Freeze time for deterministic tests

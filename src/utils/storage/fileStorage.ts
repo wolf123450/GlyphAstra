@@ -8,7 +8,7 @@
  *   stories/{storyId}/chapters/{id}.md    ← each chapter's content
  */
 
-import type { SerializedStory } from "./storyManager";
+import type { SerializedStory } from "@/utils/story/storyManager";
 import {
   readFile,
   writeFileContent,
@@ -16,7 +16,7 @@ import {
   listDirectory,
 } from "./filesystem";
 import { remove, BaseDirectory } from "@tauri-apps/plugin-fs";
-import { logger } from './logger';
+import { logger } from '../logger';
 
 const STORIES_ROOT = "stories";
 
@@ -32,13 +32,22 @@ function chapterPath(storyId: string, chapterId: string) {
 
 /**
  * Persist a complete story (metadata + characters + all chapters) to disk.
+ * Writes are atomic (write-to-tmp, then rename) via writeFileContent.
+ * Chapters are written first; the metadata file is written last so that
+ * if a crash occurs mid-save, the metadata won't reference chapters that
+ * haven't been fully persisted yet.
  */
 export async function saveStory(
   storyId: string,
   story: SerializedStory
 ): Promise<boolean> {
   try {
-    // Save story metadata + character list (no chapter content here)
+    // Phase 1: Save each chapter's content (all must succeed before metadata)
+    for (const ch of story.chapters) {
+      await writeFileContent(chapterPath(storyId, ch.id), ch.content ?? "");
+    }
+
+    // Phase 2: Save story metadata + character list (no chapter content here)
     const meta = {
       metadata: story.metadata,
       characters: story.characters,
@@ -47,11 +56,6 @@ export async function saveStory(
       lastSaved: new Date().toISOString(),
     };
     await writeFileContent(storyMetaPath(storyId), JSON.stringify(meta, null, 2));
-
-    // Save each chapter's content as a separate .md file
-    for (const ch of story.chapters) {
-      await writeFileContent(chapterPath(storyId, ch.id), ch.content ?? "");
-    }
 
     logger.info('FileStorage', `Saved story: ${storyId}`);
     return true;

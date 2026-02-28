@@ -23,8 +23,46 @@ import { watch } from 'vue'
 import { makeProvider } from '@/api/providers'
 import type { ProviderId } from '@/api/providers'
 import { useAIStore } from '@/stores/aiStore'
-import { useStoryStore } from '@/stores/storyStore'
+import { useStoryStore, type Chapter } from '@/stores/storyStore'
 import { logger } from '@/utils/logger'
+
+// ─── DI interface ─────────────────────────────────────────────────────────────
+
+/**
+ * Dependencies for summary generation, passed into the core functions
+ * so they stay decoupled from Pinia stores and are testable in isolation.
+ */
+export interface SummaryDeps {
+  getChapter: (id: string) => Chapter | undefined
+  updateChapter: (id: string, updates: Partial<Chapter>) => void
+  canGenerate: boolean
+  generateSummary: (prompt: string) => Promise<string>
+}
+
+/** Build a SummaryDeps from live stores. */
+function depsFromStores(): SummaryDeps {
+  const storyStore = useStoryStore()
+  const aiStore    = useAIStore()
+  const pid        = aiStore.activeProviderId as ProviderId
+  const model      = aiStore.summaryProviderModel[pid] ?? aiStore.currentModel
+
+  return {
+    getChapter:    (id) => storyStore.getChapterById(id),
+    updateChapter: (id, updates) => storyStore.updateChapter(id, updates),
+    canGenerate:   aiStore.canGenerate,
+    generateSummary: async (prompt: string): Promise<string> => {
+      if (!model) throw new Error('No model configured for summary generation')
+      const provider = makeProvider(pid, aiStore.providerApiKeys)
+      let result = ''
+      await provider.streamCompletion(
+        prompt,
+        { model, temperature: 0.3, maxTokens: SUMMARY_MAX_TOKENS },
+        (chunk) => { result += chunk },
+      )
+      return result.trim()
+    },
+  }
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -69,29 +107,6 @@ function contentHash(text: string): string {
 }
 
 /**
- * Collect all stream chunks into a single string.
- * Works for every provider since they all implement streamCompletion.
- */
-async function generateFull(
-  aiStore: ReturnType<typeof useAIStore>,
-  prompt: string,
-): Promise<string> {
-  const pid   = aiStore.activeProviderId as ProviderId
-  // Use the dedicated summary model if set; fall back to completions model.
-  const model = aiStore.summaryProviderModel[pid] ?? aiStore.currentModel
-  if (!model) throw new Error('No model configured for summary generation')
-
-  const provider = makeProvider(pid, aiStore.providerApiKeys)
-  let result = ''
-  await provider.streamCompletion(
-    prompt,
-    { model, temperature: 0.3, maxTokens: SUMMARY_MAX_TOKENS },
-    (chunk) => { result += chunk },
-  )
-  return result.trim()
-}
-
-/**
  * Prompt sent to the model for summarisation.
  * Kept concise so small models can handle it reliably.
  */
@@ -117,16 +132,16 @@ function buildSummaryPrompt(chapterName: string, content: string): string {
 /**
  * Run auto-summary for a single chapter.
  * Skips if: no model, paused, manual edit, cooldown active, in-flight, or hash unchanged.
+ *
+ * @param chapterId  - Chapter to summarise.
+ * @param deps       - Injected dependencies (defaults to live stores).
  */
-async function autoSummariseChapter(chapterId: string): Promise<void> {
-  const storyStore = useStoryStore()
-  const aiStore    = useAIStore()
-
-  const ch = storyStore.getChapterById(chapterId)
+async function autoSummariseChapter(chapterId: string, deps: SummaryDeps = depsFromStores()): Promise<void> {
+  const ch = deps.getChapter(chapterId)
   if (!ch)                       return
   if (ch.summaryPaused)          return
   if (ch.summaryManuallyEdited)  return
-  if (!aiStore.canGenerate)      return   // works for both Ollama and cloud
+  if (!deps.canGenerate)         return
   if (inFlight.has(chapterId))   return
 
   const content = ch.content ?? ''
@@ -152,10 +167,10 @@ async function autoSummariseChapter(chapterId: string): Promise<void> {
 
   try {
     const prompt        = buildSummaryPrompt(ch.name, content)
-    const trimmedSummary = await generateFull(aiStore, prompt)
+    const trimmedSummary = await deps.generateSummary(prompt)
     if (!trimmedSummary) return
 
-    storyStore.updateChapter(chapterId, {
+    deps.updateChapter(chapterId, {
       summary:               trimmedSummary,
       summaryGeneratedAt:    Date.now(),
       summaryContentHash:    hash,
@@ -178,14 +193,14 @@ async function autoSummariseChapter(chapterId: string): Promise<void> {
  * Manually trigger a summary regeneration for a chapter,
  * bypassing cooldown and manual-edit guard.
  * Useful for the "Regenerate" button in the Chapter Metadata Editor.
+ *
+ * @param chapterId  - Chapter to summarise.
+ * @param deps       - Injected dependencies (defaults to live stores).
  */
-export async function triggerSummary(chapterId: string): Promise<void> {
-  const storyStore = useStoryStore()
-  const aiStore    = useAIStore()
-
-  const ch = storyStore.getChapterById(chapterId)
+export async function triggerSummary(chapterId: string, deps: SummaryDeps = depsFromStores()): Promise<void> {
+  const ch = deps.getChapter(chapterId)
   if (!ch)                      return
-  if (!aiStore.canGenerate)     return   // works for both Ollama and cloud
+  if (!deps.canGenerate)        return
   if (inFlight.has(chapterId))  return
 
   const content = ch.content ?? ''
@@ -197,10 +212,10 @@ export async function triggerSummary(chapterId: string): Promise<void> {
 
   try {
     const prompt         = buildSummaryPrompt(ch.name, content)
-    const trimmedSummary = await generateFull(aiStore, prompt)
+    const trimmedSummary = await deps.generateSummary(prompt)
     if (!trimmedSummary) return
 
-    storyStore.updateChapter(chapterId, {
+    deps.updateChapter(chapterId, {
       summary:               trimmedSummary,
       summaryGeneratedAt:    Date.now(),
       summaryContentHash:    hash,

@@ -205,7 +205,7 @@ import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { mdiClose } from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useAIStore } from '@/stores/aiStore'
-import { triggerSummary } from '@/utils/summaryManager'
+import { triggerSummary } from '@/utils/ai/summaryManager'
 
 interface Props {
   show: boolean

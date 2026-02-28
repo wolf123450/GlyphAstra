@@ -14,10 +14,11 @@ import {
   readDir,
   exists,
   remove,
+  rename,
   BaseDirectory,
 } from "@tauri-apps/plugin-fs";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { logger } from './logger';
+import { logger } from '../logger';
 
 export interface FileEntry {
   name: string;
@@ -48,7 +49,9 @@ export async function readFile(filePath: string): Promise<string | null> {
 }
 
 /**
- * Write (overwrite) a text file, creating parent dirs as needed.
+ * Atomically write (overwrite) a text file, creating parent dirs as needed.
+ * Writes to a `.tmp` sibling first, then renames over the target so that a
+ * crash mid-write never leaves a half-written file.
  */
 export async function writeFileContent(
   filePath: string,
@@ -58,7 +61,12 @@ export async function writeFileContent(
   if (parts.length > 1) {
     await ensureDir(parts.slice(0, -1).join("/"));
   }
-  await writeTextFile(filePath, content, { baseDir: BASE });
+  const tmpPath = filePath + '.tmp';
+  await writeTextFile(tmpPath, content, { baseDir: BASE });
+  await rename(tmpPath, filePath, {
+    oldPathBaseDir: BASE,
+    newPathBaseDir: BASE,
+  });
 }
 
 /**

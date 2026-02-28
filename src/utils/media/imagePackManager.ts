@@ -9,7 +9,7 @@
  * render time by checking the pack before falling back to live resolution.
  */
 
-import { readFile as fsReadFile, writeFileContent } from './filesystem'
+import { readFile as fsReadFile, writeFileContent } from '@/utils/storage/filesystem'
 import { readFile as tauriFsReadFile, BaseDirectory } from '@tauri-apps/plugin-fs'
 import { invoke } from '@tauri-apps/api/core'
 

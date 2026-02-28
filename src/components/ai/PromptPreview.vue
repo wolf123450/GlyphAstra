@@ -54,7 +54,7 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { mdiClose } from '@mdi/js'
 import { useAIStore } from '@/stores/aiStore'
 import { useEditorStore } from '@/stores/editorStore'
-import { useAISuggestion } from '@/utils/useAISuggestion'
+import { useAISuggestion } from '@/utils/ai/useAISuggestion'
 
 const props = defineProps<{ show: boolean }>()
 defineEmits<{ close: [] }>()

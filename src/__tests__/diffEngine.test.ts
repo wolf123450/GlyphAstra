@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeLineDiff, charSegments, pairDelAdd, fullDiff } from '@/utils/diffEngine'
+import { computeLineDiff, charSegments, pairDelAdd, fullDiff } from '@/utils/editor/diffEngine'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 

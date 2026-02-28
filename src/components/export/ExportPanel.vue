@@ -115,8 +115,8 @@ import {
   importMarkdownAsChapter,
   type ExportChapter,
   type ExportMeta,
-} from '@/utils/exportImport'
-import { exportBackup, importBackup } from '@/utils/backupRestore'
+} from '@/utils/storage/exportImport'
+import { exportBackup, importBackup } from '@/utils/storage/backupRestore'
 import { logger } from '@/utils/logger'
 import {
   mdiClose,

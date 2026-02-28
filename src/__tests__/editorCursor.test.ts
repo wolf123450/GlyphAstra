@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { tokenizeMarkdown } from '../utils/seamlessRenderer'
+import { tokenizeMarkdown } from '../utils/editor/seamlessRenderer'
 import {
   buildStructuredHTML,
   getCursorOffset,
@@ -16,7 +16,7 @@ import {
   updateTokenVisibility,
   countTextUpTo,
   findTokenSpan,
-} from '../utils/editorCursor'
+} from '../utils/editor/editorCursor'
 
 // ─── Helpers ───────────────────────────────────────────────────────
 

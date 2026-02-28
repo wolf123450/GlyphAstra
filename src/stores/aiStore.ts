@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 
 const PROFILES_STORAGE_KEY = "blockbreaker_writing_profiles";
 
@@ -91,31 +91,6 @@ const BUILTIN_PROFILES: WritingProfile[] = [
   },
 ];
 
-function loadProfiles(): WritingProfile[] {
-  try {
-    const saved = localStorage.getItem(PROFILES_STORAGE_KEY);
-    if (saved) {
-      const custom: WritingProfile[] = JSON.parse(saved);
-      return [...BUILTIN_PROFILES, ...custom.map((p) => ({ ...p, isCustom: true }))];
-    }
-  } catch {
-    // ignore
-  }
-  return [...BUILTIN_PROFILES];
-}
-
-function saveCustomProfiles(profiles: WritingProfile[]) {
-  const custom = profiles.filter((p) => p.isCustom);
-  localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(custom));
-}
-
-const MODEL_STORAGE_KEY          = 'blockbreaker_current_model'
-const ACTIVE_PROVIDER_KEY        = 'blockbreaker_active_provider'
-const PROVIDER_KEYS_STORAGE_KEY  = 'blockbreaker_provider_keys'
-const PROVIDER_ENABLED_KEY       = 'blockbreaker_provider_enabled'
-const PROVIDER_MODEL_KEY         = 'blockbreaker_provider_models'
-const SUMMARY_MODEL_KEY          = 'blockbreaker_summary_models'
-
 type ProviderId = 'ollama' | 'openai' | 'anthropic' | 'google'
 
 // ── Basic obfuscation for API keys at rest in localStorage ─────────────────
@@ -135,54 +110,154 @@ function deobfuscate(obfuscated: string): string {
   try { return decodeURIComponent(escape(atob(decoded))) } catch { return '' }
 }
 
-function loadProviderKeys(): Record<string, string> {
-  try {
-    const raw = localStorage.getItem(PROVIDER_KEYS_STORAGE_KEY) ?? '{}'
-    const stored = JSON.parse(raw)
-    // Deobfuscate values; handles both legacy plaintext and obfuscated keys
-    const result: Record<string, string> = {}
-    for (const [k, v] of Object.entries(stored)) {
-      const val = v as string
-      // Legacy plaintext keys start with known prefixes; obfuscated ones don't
-      if (val.startsWith('sk-') || val.startsWith('AI') || val.length === 0) {
-        result[k] = val // legacy plaintext — will be re-saved as obfuscated on next setApiKey
-      } else {
-        result[k] = deobfuscate(val)
-      }
+// ── Unified persistence ────────────────────────────────────────────────────
+// All mutable AI settings are written to a single localStorage key via a
+// debounced watcher (same pattern as settingsStore).  Legacy per-field keys
+// are read once as a migration fallback.
+
+const AI_STORAGE_KEY = 'blockbreaker_ai_settings'
+
+// Legacy keys — read-only, used for one-time migration
+const LEGACY_MODEL_KEY           = 'blockbreaker_current_model'
+const LEGACY_ACTIVE_PROVIDER_KEY = 'blockbreaker_active_provider'
+const LEGACY_PROVIDER_KEYS_KEY   = 'blockbreaker_provider_keys'
+const LEGACY_PROVIDER_ENABLED    = 'blockbreaker_provider_enabled'
+const LEGACY_PROVIDER_MODEL      = 'blockbreaker_provider_models'
+const LEGACY_SUMMARY_MODEL       = 'blockbreaker_summary_models'
+
+interface PersistedAIState {
+  currentModel: string
+  activeProviderId: ProviderId
+  providerApiKeys: Record<string, string>   // stored obfuscated
+  providerEnabled: Record<string, boolean>
+  providerCurrentModel: Record<string, string>
+  summaryProviderModel: Record<string, string>
+  customProfiles: Array<Omit<WritingProfile, 'isCustom'>>
+}
+
+/** Deobfuscate an API-keys record, handling both legacy plaintext and obfuscated values. */
+function deobfuscateKeys(stored: Record<string, unknown>): Record<string, string> {
+  const result: Record<string, string> = {}
+  for (const [k, v] of Object.entries(stored)) {
+    const val = String(v ?? '')
+    // Legacy plaintext keys start with known prefixes; obfuscated ones don't
+    if (val.startsWith('sk-') || val.startsWith('AI') || val.length === 0) {
+      result[k] = val
+    } else {
+      result[k] = deobfuscate(val)
     }
-    return result
+  }
+  return result
+}
+
+/** Obfuscate an API-keys record for storage. */
+function obfuscateKeys(keys: Record<string, string>): Record<string, string> {
+  const result: Record<string, string> = {}
+  for (const [k, v] of Object.entries(keys)) {
+    result[k] = v ? obfuscate(v) : ''
+  }
+  return result
+}
+
+function loadLegacyProviderKeys(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(LEGACY_PROVIDER_KEYS_KEY) ?? '{}'
+    return deobfuscateKeys(JSON.parse(raw))
   } catch { return {} }
 }
-function loadProviderEnabled(): Record<string, boolean> {
-  try { return JSON.parse(localStorage.getItem(PROVIDER_ENABLED_KEY) ?? '{"ollama":true}') } catch { return { ollama: true } }
+function loadLegacyJSON<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key)
+    if (raw) return JSON.parse(raw)
+  } catch {}
+  return fallback
 }
-function loadProviderModels(): Record<string, string> {
-  try { return JSON.parse(localStorage.getItem(PROVIDER_MODEL_KEY) ?? '{}') } catch { return {} }
-}
-function loadSummaryModels(): Record<string, string> {
-  try { return JSON.parse(localStorage.getItem(SUMMARY_MODEL_KEY) ?? '{}') } catch { return {} }
+
+/**
+ * Load all persisted AI state.  Tries the unified key first; falls back to
+ * individual legacy keys for migration from older versions.
+ */
+function loadPersistedAIState(): PersistedAIState {
+  try {
+    const raw = localStorage.getItem(AI_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (typeof parsed === 'object' && parsed !== null && 'currentModel' in parsed) {
+        return {
+          ...parsed,
+          providerApiKeys: deobfuscateKeys(parsed.providerApiKeys ?? {}),
+          customProfiles: parsed.customProfiles ?? [],
+        }
+      }
+    }
+  } catch {}
+
+  // Migration: assemble from legacy individual keys
+  const customProfiles: WritingProfile[] = []
+  try {
+    const saved = localStorage.getItem(PROFILES_STORAGE_KEY)
+    if (saved) customProfiles.push(...JSON.parse(saved))
+  } catch {}
+
+  return {
+    currentModel: localStorage.getItem(LEGACY_MODEL_KEY) ?? 'llama2',
+    activeProviderId: (localStorage.getItem(LEGACY_ACTIVE_PROVIDER_KEY) ?? 'ollama') as ProviderId,
+    providerApiKeys: loadLegacyProviderKeys(),
+    providerEnabled: loadLegacyJSON(LEGACY_PROVIDER_ENABLED, { ollama: true }),
+    providerCurrentModel: loadLegacyJSON(LEGACY_PROVIDER_MODEL, {}),
+    summaryProviderModel: loadLegacyJSON(LEGACY_SUMMARY_MODEL, {}),
+    customProfiles,
+  }
 }
 
 export const useAIStore = defineStore("ai", () => {
+  const persisted = loadPersistedAIState()
+
   const models = ref<OllamaModel[]>([]);
-  const currentModel = ref<string>(localStorage.getItem(MODEL_STORAGE_KEY) ?? 'llama2');
+  const currentModel = ref<string>(persisted.currentModel);
   const currentStyle = ref<string>("Lean & Direct");
   const suggestionTokens = ref<number>(80); // ~sentence length
   const isConnected = ref<boolean>(false);
   const isGenerating = ref<boolean>(false);
 
   // ── Provider state (Phase 16) ────────────────────────────────────────────
-  const activeProviderId = ref<ProviderId>(
-    (localStorage.getItem(ACTIVE_PROVIDER_KEY) ?? 'ollama') as ProviderId
-  )
-  const providerApiKeys       = ref<Record<string, string>>(loadProviderKeys())
-  const providerEnabled       = ref<Record<string, boolean>>(loadProviderEnabled())
-  const providerCurrentModel  = ref<Record<string, string>>(loadProviderModels())
-  const summaryProviderModel  = ref<Record<string, string>>(loadSummaryModels())
+  const activeProviderId = ref<ProviderId>(persisted.activeProviderId)
+  const providerApiKeys       = ref<Record<string, string>>(persisted.providerApiKeys)
+  const providerEnabled       = ref<Record<string, boolean>>(persisted.providerEnabled)
+  const providerCurrentModel  = ref<Record<string, string>>(persisted.providerCurrentModel)
+  const summaryProviderModel  = ref<Record<string, string>>(persisted.summaryProviderModel)
   const completionHistory = ref<Completion[]>([]);
   const currentCompletions = ref<string[]>([]);
 
-  const styles = ref<WritingProfile[]>(loadProfiles());
+  const styles = ref<WritingProfile[]>([
+    ...BUILTIN_PROFILES,
+    ...persisted.customProfiles.map((p) => ({ ...p, isCustom: true as const })),
+  ]);
+
+  // ── Debounced persistence (same pattern as settingsStore) ────────────────
+  let _persistTimer: ReturnType<typeof setTimeout> | undefined
+  watch(
+    [currentModel, activeProviderId, providerApiKeys, providerEnabled,
+     providerCurrentModel, summaryProviderModel, styles],
+    () => {
+      if (_persistTimer !== undefined) clearTimeout(_persistTimer)
+      _persistTimer = setTimeout(() => {
+        const state: PersistedAIState = {
+          currentModel: currentModel.value,
+          activeProviderId: activeProviderId.value,
+          providerApiKeys: obfuscateKeys(providerApiKeys.value),
+          providerEnabled: providerEnabled.value,
+          providerCurrentModel: providerCurrentModel.value,
+          summaryProviderModel: summaryProviderModel.value,
+          customProfiles: styles.value
+            .filter((p) => p.isCustom)
+            .map(({ isCustom: _, ...rest }) => rest),
+        }
+        localStorage.setItem(AI_STORAGE_KEY, JSON.stringify(state))
+      }, 300)
+    },
+    { deep: true },
+  )
 
   const connectionStatus = computed(() => {
     return isConnected.value ? "Connected" : "Disconnected";
@@ -208,7 +283,6 @@ export const useAIStore = defineStore("ai", () => {
 
   const setCurrentModel = (model: string) => {
     currentModel.value = model;
-    localStorage.setItem(MODEL_STORAGE_KEY, model);
   };
 
   const setCurrentStyle = (style: string) => {
@@ -252,14 +326,12 @@ export const useAIStore = defineStore("ai", () => {
 
   const addCustomProfile = (profile: Omit<WritingProfile, "isCustom">) => {
     styles.value.push({ ...profile, isCustom: true });
-    saveCustomProfiles(styles.value);
   };
 
   const updateProfile = (name: string, updates: Partial<Omit<WritingProfile, "isCustom">>) => {
     const p = styles.value.find((s) => s.name === name);
     if (p && p.isCustom) {
       Object.assign(p, updates);
-      saveCustomProfiles(styles.value);
     }
   };
 
@@ -268,7 +340,6 @@ export const useAIStore = defineStore("ai", () => {
     if (idx > -1) {
       styles.value.splice(idx, 1);
       if (currentStyle.value === name) currentStyle.value = styles.value[0]?.name ?? "";
-      saveCustomProfiles(styles.value);
     }
   };
 
@@ -279,35 +350,25 @@ export const useAIStore = defineStore("ai", () => {
   // ── Provider actions (Phase 16) ────────────────────────────────────────────
   const setActiveProvider = (id: ProviderId) => {
     activeProviderId.value = id
-    localStorage.setItem(ACTIVE_PROVIDER_KEY, id)
   }
 
   const setApiKey = (providerId: string, key: string) => {
     providerApiKeys.value = { ...providerApiKeys.value, [providerId]: key }
-    // Store obfuscated keys in localStorage
-    const obfuscated: Record<string, string> = {}
-    for (const [k, v] of Object.entries(providerApiKeys.value)) {
-      obfuscated[k] = v ? obfuscate(v) : ''
-    }
-    localStorage.setItem(PROVIDER_KEYS_STORAGE_KEY, JSON.stringify(obfuscated))
   }
 
   const setProviderEnabled = (providerId: string, enabled: boolean) => {
     providerEnabled.value = { ...providerEnabled.value, [providerId]: enabled }
-    localStorage.setItem(PROVIDER_ENABLED_KEY, JSON.stringify(providerEnabled.value))
   }
 
   /** Save the last-used model for a given provider, and also set it as the global current model. */
   const setProviderModel = (providerId: string, model: string) => {
     providerCurrentModel.value = { ...providerCurrentModel.value, [providerId]: model }
-    localStorage.setItem(PROVIDER_MODEL_KEY, JSON.stringify(providerCurrentModel.value))
     setCurrentModel(model)
   }
 
   /** Save the last-used summary model for a given provider (independent of the completions model). */
   const setSummaryModel = (providerId: string, model: string) => {
     summaryProviderModel.value = { ...summaryProviderModel.value, [providerId]: model }
-    localStorage.setItem(SUMMARY_MODEL_KEY, JSON.stringify(summaryProviderModel.value))
   }
 
   /** Check if a provider has an API key set (without exposing the key value). */

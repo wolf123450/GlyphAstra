@@ -18,8 +18,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { tokenizeMarkdown } from '../utils/seamlessRenderer'
-import type { Token } from '../utils/seamlessRenderer'
+import { tokenizeMarkdown } from '../utils/editor/seamlessRenderer'
+import type { Token } from '../utils/editor/seamlessRenderer'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

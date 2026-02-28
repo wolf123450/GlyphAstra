@@ -1,16 +1,14 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { storageManager } from "@/utils/storage";
-import { serializeStory } from "@/utils/storyManager";
 import {
-  saveStory as fsSaveStory,
-  loadStory as fsLoadStory,
-  deleteStory as fsDeleteStory,
-} from "@/utils/fileStorage";
-import type { BackupFile } from "@/utils/backupRestore";
-import { HELP_STORY_ID, HELP_CHAPTERS } from "@/utils/helpStory";
-import { evictPackCache } from "@/utils/imagePackManager";
-import { clearImageCache } from "@/utils/imageUtils";
+  saveStoryData,
+  loadStoryData,
+  deleteStoryData,
+} from "@/utils/storage/persistenceService";
+import type { BackupFile } from "@/utils/storage/backupRestore";
+import { HELP_STORY_ID, HELP_CHAPTERS } from "@/utils/story/helpStory";
+import { evictPackCache } from "@/utils/media/imagePackManager";
+import { clearImageCache } from "@/utils/media/imageUtils";
 import { logger } from "@/utils/logger";
 
 export interface Chapter {
@@ -159,7 +157,7 @@ export const useStoryStore = defineStore("story", () => {
   };
 
   /**
-   * Save story to storage
+   * Save story to storage (file system + localStorage via persistenceService)
    */
   const saveStory = async (storyId?: string): Promise<boolean> => {
     const id = storyId || currentStoryId.value;
@@ -170,26 +168,16 @@ export const useStoryStore = defineStore("story", () => {
 
     isSaving.value = true;
     try {
-      const serialized = serializeStory(
+      const success = await saveStoryData(
+        id,
         metadata.value,
         chapters.value,
-        characters.value
+        characters.value,
       );
-
-      // Save to both file system (primary) and localStorage (backup)
-      const [fsSuccess, lsSuccess] = await Promise.allSettled([
-        fsSaveStory(id, serialized),
-        storageManager.saveStory(id, serialized),
-      ]).then((results) =>
-        results.map((r) => (r.status === "fulfilled" ? r.value : false))
-      );
-
-      const success = fsSuccess || lsSuccess;
       if (success) {
         metadata.value.lastModified = new Date().toISOString();
       }
-      if (!fsSuccess) logger.warn('StoryStore', 'File system save failed; localStorage only.');
-      return success as boolean;
+      return success;
     } catch (error) {
       logger.error('StoryStore', 'Failed to save story:', error);
       return false;
@@ -199,7 +187,7 @@ export const useStoryStore = defineStore("story", () => {
   };
 
   /**
-   * Load story from storage
+   * Load story from storage (via persistenceService)
    */
   const loadStory = async (storyId: string): Promise<boolean> => {
     isLoading.value = true;
@@ -210,25 +198,8 @@ export const useStoryStore = defineStore("story", () => {
       evictPackCache(prevId)
     }
     try {
-      // Prefer file system; fall back to localStorage
-      let story = await fsLoadStory(storyId);
-      if (!story) {
-        logger.info('StoryStore', 'Not on disk, trying localStorage...');
-        story = await storageManager.loadStory(storyId);
-      }
-      if (!story) {
-        logger.warn('StoryStore', 'Story not found:', storyId);
-        return false;
-      }
-
-      // ── Basic shape validation ──────────────────────────────────────────
-      if (
-        !story.metadata || typeof story.metadata.title !== 'string' ||
-        !Array.isArray(story.chapters) || !Array.isArray(story.characters)
-      ) {
-        logger.error('StoryStore', 'Corrupt story data — missing metadata, chapters, or characters array')
-        return false
-      }
+      const story = await loadStoryData(storyId)
+      if (!story) return false
 
       // Load story data
       metadata.value = {
@@ -307,19 +278,12 @@ export const useStoryStore = defineStore("story", () => {
   };
 
   /**
-   * Permanently delete a story from all storage layers.
-   * If the deleted story is currently open, clears in-memory state so the
-   * caller can immediately switch to another story or create a new one.
+   * Permanently delete a story from all storage layers (via persistenceService).
+   * If the deleted story is currently open, clears in-memory state.
    * Returns true if at least one storage layer succeeded.
    */
   const deleteStory = async (storyId: string): Promise<boolean> => {
-    const [fsResult, lsResult] = await Promise.allSettled([
-      fsDeleteStory(storyId),
-      storageManager.deleteStory(storyId),
-    ]);
-    const success =
-      (fsResult.status === 'fulfilled' && fsResult.value) ||
-      (lsResult.status === 'fulfilled' && lsResult.value);
+    const success = await deleteStoryData(storyId)
     // If this was the active story, reset in-memory state
     if (currentStoryId.value === storyId) {
       clearStory();
@@ -328,107 +292,19 @@ export const useStoryStore = defineStore("story", () => {
   };
 
   /**
-   * Load the built-in help story, creating it from the embedded definition
-   * if it doesn’t exist yet.  After loading, re-applies isReadOnly flags from
-   * the embedded definition (so they survive even if storage stripped them).
-   * Returns true if the help story is now active.
+   * Replace the entire chapters array (used by helpStoryService).
    */
-  const loadOrCreateHelpStory = async (): Promise<boolean> => {
-    let loaded = await loadStory(HELP_STORY_ID)
-    if (!loaded) {
-      // First time: build the story in memory from the embedded definition
-      const now = new Date().toISOString()
-      metadata.value = {
-        title: 'Help & Reference',
-        summary: 'Built-in reference guide and sandbox for BlockBreaker.',
-        genre: '',
-        tone: '',
-        narrativeVoice: '',
-        createdDate: now,
-        lastModified: now,
-        wordCount: 0,
-      }
-      const wc = (text: string) =>
-        text.trim().split(/\s+/).filter(Boolean).length
-      chapters.value = HELP_CHAPTERS.map((ch) => ({
-        id: ch.id,
-        name: ch.name,
-        path: ch.name.toLowerCase().replace(/\s+/g, '-'),
-        status: 'draft' as const,
-        content: ch.content,
-        wordCount: wc(ch.content),
-        lastEdited: now,
-        isReadOnly: ch.isReadOnly,
-      }))
-      characters.value = []
-      currentStoryId.value = HELP_STORY_ID
-      currentChapterId.value = null
-      loaded = true
-      // Persist it so it survives restarts
-      await saveStory(HELP_STORY_ID)
-    } else {
-      // Re-apply isReadOnly from embedded definition (storage may have
-      // an older schema that didn’t persist this field).
-      chapters.value = chapters.value.map((ch) => {
-        const def = HELP_CHAPTERS.find((d) => d.id === ch.id)
-        return def ? { ...ch, isReadOnly: def.isReadOnly } : ch
-      })
-    }
-    return loaded
+  const replaceChapters = (newChapters: Chapter[]) => {
+    chapters.value = newChapters
+    metadata.value.lastModified = new Date().toISOString()
   }
 
   /**
-   * Reset the read-only reference chapters of the help story to their
-   * bundled content.  Sandbox chapters are left untouched.
+   * Replace the entire characters array (used by helpStoryService).
    */
-  const resetHelpStory = async () => {
-    // If the help story isn’t currently loaded, load it first.
-    if (currentStoryId.value !== HELP_STORY_ID) {
-      await loadOrCreateHelpStory()
-    }
-    const now = new Date().toISOString()
-    const wc  = (text: string) =>
-      text.trim().split(/\s+/).filter(Boolean).length
-    chapters.value = chapters.value.map((ch) => {
-      const def = HELP_CHAPTERS.find((d) => d.id === ch.id)
-      if (!def || !def.isReadOnly) return ch   // leave sandbox chapters alone
-      return {
-        ...ch,
-        name:      def.name,
-        content:   def.content,
-        wordCount: wc(def.content),
-        lastEdited: now,
-        isReadOnly: true,
-      }
-    })
-    await saveStory(HELP_STORY_ID)
-  }
-
-  /**
-   * Silently ensure the help story exists in storage without switching
-   * the currently-active story.  Call this on every app startup so the
-   * help story is always present in the project list.
-   */
-  const ensureHelpStoryExists = async (): Promise<void> => {
-    const projects = storageManager.getProjectsList()
-    if (projects.some((p) => p.id === HELP_STORY_ID)) return
-
-    // Snapshot current in-memory state so we can restore it afterwards
-    const savedStoryId = currentStoryId.value
-    const savedChapterId = currentChapterId.value
-    const savedMetadata = { ...metadata.value }
-    const savedChapters = chapters.value.slice()
-    const savedCharacters = characters.value.slice()
-
-    // Create and save the help story
-    await loadOrCreateHelpStory()
-
-    // Restore original state
-    metadata.value = savedMetadata
-    chapters.value = savedChapters
-    characters.value = savedCharacters
-    currentStoryId.value = savedStoryId
-    currentChapterId.value = savedChapterId
+  const replaceCharacters = (newCharacters: Character[]) => {
+    characters.value = newCharacters
+    metadata.value.lastModified = new Date().toISOString()
   }
 
   /**
@@ -503,9 +379,8 @@ export const useStoryStore = defineStore("story", () => {
     reorderChapters,
     restoreFromBackup,
     deleteStory,
-    loadOrCreateHelpStory,
-    resetHelpStory,
-    ensureHelpStoryExists,
+    replaceChapters,
+    replaceCharacters,
     HELP_STORY_ID,
   };
 });

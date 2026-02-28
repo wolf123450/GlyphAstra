@@ -15,20 +15,21 @@
 <script setup lang="ts">
 import { onMounted, watch } from 'vue'
 import Sidebar from '@/components/Sidebar.vue'
-import Editor from '@/components/Editor.vue'
-import Overview from '@/components/Overview.vue'
-import AIPanel from '@/components/AIPanel.vue'
-import ExportPanel from '@/components/ExportPanel.vue'
+import Editor from '@/components/editor/Editor.vue'
+import Overview from '@/components/story/Overview.vue'
+import AIPanel from '@/components/ai/AIPanel.vue'
+import ExportPanel from '@/components/export/ExportPanel.vue'
 import Settings from '@/components/Settings.vue'
-import SearchPanel from '@/components/SearchPanel.vue'
+import SearchPanel from '@/components/story/SearchPanel.vue'
 import Notification from '@/components/Notification.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
 import { useUIStore } from '@/stores/uiStore'
 import { useStoryStore } from '@/stores/storyStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { initializeKeyboardShortcuts, registerDefaultShortcuts } from '@/utils/keyboard'
-import { storageManager } from '@/utils/storage'
-import { useSummaryManager } from '@/utils/summaryManager'
+import { storageManager } from '@/utils/storage/storage'
+import { loadOrCreateHelpStory, ensureHelpStoryExists } from '@/utils/story/helpStoryService'
+import { useSummaryManager } from '@/utils/ai/summaryManager'
 
 const LAST_STORY_KEY   = 'blockbreaker_last_story'
 const ONBOARDING_KEY   = 'blockbreaker_onboarding_complete'
@@ -70,11 +71,11 @@ onMounted(async () => {
 
   if (!loaded) {
     // First launch: show the built-in help story instead of a blank canvas
-    loaded = await storyStore.loadOrCreateHelpStory()
+    loaded = await loadOrCreateHelpStory()
   }
 
   // Ensure the help story always exists in the sidebar (background creation, no switch)
-  storyStore.ensureHelpStoryExists().catch(() => {})
+  ensureHelpStoryExists().catch(() => {})
 
   // Auto-select first chapter if none selected
   if (!storyStore.currentChapterId && storyStore.chapters.length > 0) {
