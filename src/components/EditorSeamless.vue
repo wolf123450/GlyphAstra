@@ -30,8 +30,8 @@
     >
       <!-- Dimensions label + ratio lock toggle -->
       <div class="img-ov-topbar"
-           @mouseenter="_ovHovered = true"
-           @mouseleave="_ovHovered = false">
+           @mouseenter="setOvHovered(true)"
+           @mouseleave="setOvHovered(false)">
         <span class="img-ov-dims">{{ ovLabel }}</span>
         <button
           class="img-ov-lock"
@@ -48,8 +48,8 @@
       <!-- SE corner drag handle -->
       <div
         class="img-ov-handle"
-        @mouseenter="_ovHovered = true"
-        @mouseleave="_ovHovered = false"
+        @mouseenter="setOvHovered(true)"
+        @mouseleave="setOvHovered(false)"
         @pointerdown="onHandleDown"
         @pointermove="onHandleMove"
         @pointerup="onHandleUp"
@@ -129,6 +129,7 @@ const ovRect   = ref<{ left: number; top: number; width: number; height: number 
 // Non-reactive drag bookkeeping (avoids unnecessary reactivity overhead)
 let _drag = { active: false, startX: 0, startY: 0, startW: 0, startH: 0 }
 let _ovHovered = false
+const setOvHovered = (v: boolean) => { _ovHovered = v }
 
 const ovStyle = computed(() => {
   if (!ovRect.value) return {}
@@ -940,7 +941,6 @@ defineExpose({ scrollEl: editorInput })
 .editor-input :deep(.token-image.rendered .image-render img.md-image) {
   height: auto;
   border-radius: 4px;
-  vertical-align: middle;
   cursor: pointer;
   display: block;
 }
