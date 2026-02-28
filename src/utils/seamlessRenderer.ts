@@ -576,10 +576,11 @@ export function imgSizeAttr(dimW?: string, dimH?: string): string {
  */
 function renderImageHtml(src: string, alt: string, dimW?: string, dimH?: string): string {
   const sizeAttr = imgSizeAttr(dimW, dimH)
+  const titleAttr = alt ? ` title="${escapeHtml(alt)}"` : ''
   if (/^https?:\/\//i.test(src)) {
-    return `<img class="md-image" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy"${sizeAttr}>`
+    return `<img class="md-image" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"${titleAttr} loading="lazy"${sizeAttr}>`
   }
-  return `<img class="md-image md-image-local" data-local-src="${escapeHtml(src)}" src="" alt="${escapeHtml(alt)}"${sizeAttr}>`
+  return `<img class="md-image md-image-local" data-local-src="${escapeHtml(src)}" src="" alt="${escapeHtml(alt)}"${titleAttr}${sizeAttr}>`
 }
 
 /**

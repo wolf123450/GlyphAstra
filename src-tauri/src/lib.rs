@@ -7,6 +7,46 @@ async fn check_ollama_connection() -> Result<bool, String> {
     }
 }
 
+/// Fetch a URL from the Rust backend (bypasses WebView CORS restrictions).
+/// Returns the response body as a base64-encoded string plus the Content-Type header.
+#[tauri::command]
+async fn fetch_url_bytes(url: String) -> Result<(String, String), String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))?;
+
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Fetch failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP {}", response.status()));
+    }
+
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("image/png")
+        .split(';')
+        .next()
+        .unwrap_or("image/png")
+        .trim()
+        .to_string();
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read response bytes: {}", e))?;
+
+    use base64::Engine;
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Ok((b64, content_type))
+}
+
 #[tauri::command]
 async fn list_ollama_models() -> Result<Vec<String>, String> {
     match reqwest::get("http://localhost:11434/api/tags").await {
@@ -45,7 +85,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             check_ollama_connection,
-            list_ollama_models
+            list_ollama_models,
+            fetch_url_bytes
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

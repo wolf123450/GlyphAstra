@@ -242,6 +242,33 @@
         :title="'Version history'"
         @click="showHistory = true"
       ><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path :d="mdiHistory"/></svg> History</button>
+      <!-- Image pack status widget -->
+      <div
+        v-if="storyStore.currentStoryId"
+        class="status-item status-pack-pill"
+        :class="{ 'pack-ok': !packIsStale }"
+      >
+        <button
+          class="pack-archive-btn"
+          :title="packIsStale ? 'Images not fully packed \u2014 click to pack' : 'All images packed'"
+          @click="packFocusFailed = false; showPackModal = true"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle">
+            <path :d="packIsStale ? mdiArchiveOutline : mdiArchive" />
+          </svg>
+        </button>
+        <button
+          v-if="packUnresolvedCount > 0"
+          class="pack-error-btn"
+          :title="`${packUnresolvedCount} image${packUnresolvedCount > 1 ? 's' : ''} could not be resolved`"
+          @click="packFocusFailed = true; showPackModal = true"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:2px">
+            <path :d="mdiImageBrokenVariant" />
+          </svg>
+          <span class="pack-error-count">{{ packUnresolvedCount }}</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -254,6 +281,12 @@
   <ChapterHistory
     :show="showHistory"
     @close="showHistory = false"
+  />
+  <PackModal
+    :show="showPackModal"
+    :focus-failed="packFocusFailed"
+    @close="showPackModal = false; checkPackStatus()"
+    @packed="checkPackStatus()"
   />
 </template>
 
@@ -272,6 +305,9 @@ import {
   mdiTextBoxOutline,
   mdiFormatListNumbered,
   mdiImageOutline,
+  mdiArchive,
+  mdiArchiveOutline,
+  mdiImageBrokenVariant,
 } from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useEditorStore } from '@/stores/editorStore'
@@ -285,8 +321,10 @@ import EditorPreview from './EditorPreview.vue'
 import MarkdownReference from './MarkdownReference.vue'
 import ChapterMeta from './ChapterMeta.vue'
 import ChapterHistory from './ChapterHistory.vue'
+import PackModal from './PackModal.vue'
 import { storageManager } from '@/utils/storage'
 import { captureSnapshot } from '@/utils/historyManager'
+import { getUnpackedSrcs } from '@/utils/imagePackManager'
 import * as undoManager from '@/utils/undoManager'
 
 const storyStore = useStoryStore()
@@ -330,6 +368,21 @@ const showMarkdownRef = ref(false)
 const showChapterMeta = ref(false)
 const metaChapterId   = ref<string | null>(null)
 const showHistory     = ref(false)
+
+// ─── Image pack status ────────────────────────────────────────────────────────
+const packUnresolvedCount = ref(0)
+const packIsStale         = ref(false)
+const showPackModal       = ref(false)
+const packFocusFailed     = ref(false)
+
+async function checkPackStatus() {
+  const id = storyStore.currentStoryId
+  if (!id) { packIsStale.value = false; packUnresolvedCount.value = 0; return }
+  const contents = storyStore.chapters.map(c => c.content ?? '')
+  const unpacked = await getUnpackedSrcs(id, contents)
+  packUnresolvedCount.value = unpacked.length
+  packIsStale.value         = unpacked.length > 0
+}
 
 // ─── Split view ──────────────────────────────────────────────────────────────
 const splitView   = ref(localStorage.getItem('blockbreaker_split_view') === 'true')
@@ -498,6 +551,9 @@ watch(
   }
 )
 
+// When the story changes, re-check pack status
+watch(() => storyStore.currentStoryId, () => checkPackStatus())
+
 // On mount: initialise editor with the content of the already-selected chapter
 onMounted(() => {
   const chapter = storyStore.currentChapter
@@ -511,6 +567,9 @@ onMounted(() => {
   autoSaveManager.registerSaveCallback('current-chapter', async () => {
     await saveChapter()
   })
+
+  // Check image pack status for the current story
+  checkPackStatus()
 })
 
 onBeforeUnmount(() => {
@@ -934,6 +993,38 @@ const saveChapter = async () => {
   font-family: inherit; transition: color var(--transition-fast);
 }
 .status-history-btn:hover { color: var(--accent-color); }
+
+/* ── Image pack status pill ─────────────────────────────────────────── */
+.status-pack-pill {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-tertiary);
+  gap: 0;
+}
+.pack-archive-btn,
+.pack-error-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px 6px;
+  color: var(--text-secondary);
+  transition: background 0.15s, color 0.15s;
+  font-size: 11px;
+  line-height: 1;
+}
+.pack-archive-btn:hover { background: var(--bg-hover); color: var(--accent-color); }
+.pack-error-btn {
+  border-left: 1px solid var(--border-color);
+  color: var(--error-color, #f44336);
+}
+.pack-error-btn:hover { background: rgba(244, 67, 54, 0.1); }
+.pack-error-count { font-size: 11px; font-weight: 600; }
+.status-pack-pill.pack-ok .pack-archive-btn { color: var(--accent-color); }
 
 /* ── Split view layout ─────────────────────────────────────────────── */
 .editor-body--split {

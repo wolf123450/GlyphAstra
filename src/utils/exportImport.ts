@@ -22,8 +22,43 @@ import {
   BookmarkStart, BookmarkEnd, InternalHyperlink,
 } from 'docx'
 import { renderMarkdown } from './markdownRenderer'
+import { getPackedDataUrl } from './imagePackManager'
 
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Post-process exported HTML: replace every `data-local-src="X" src=""` with
+ * the packed data URL so the exported file is fully self-contained.
+ * If no pack entry exists for a src, that image is left as a broken placeholder.
+ */
+async function inlinePackedImages(html: string, storyId: string): Promise<string> {
+  const srcRe = /data-local-src="([^"]*)"/g
+  const srcs = new Set<string>()
+  let m: RegExpExecArray | null
+  srcRe.lastIndex = 0
+  while ((m = srcRe.exec(html)) !== null) {
+    if (m[1]) srcs.add(m[1])
+  }
+  if (srcs.size === 0) return html
+
+  // Resolve all unique srcs in parallel
+  const resolved = new Map<string, string>()
+  await Promise.all([...srcs].map(async (src) => {
+    const dataUrl = await getPackedDataUrl(storyId, src)
+    if (dataUrl) resolved.set(src, dataUrl)
+  }))
+  if (resolved.size === 0) return html
+
+  // Substitute: for each <img> with data-local-src, swap in the data URL
+  return html.replace(/<img\b([^>]*)>/g, (match, attrs: string) => {
+    const srcMatch = attrs.match(/data-local-src="([^"]*)"/) 
+    if (!srcMatch) return match
+    const dataUrl = resolved.get(srcMatch[1])
+    if (!dataUrl) return match
+    const newAttrs = attrs.replace(/\bsrc="[^"]*"/, `src="${dataUrl}"`)
+    return `<img${newAttrs}>`
+  })
+}
 
 export interface ExportChapter {
   name: string
@@ -186,7 +221,8 @@ const HTML_STYLE = `
 
 export async function exportStoryToHTML(
   meta: ExportMeta,
-  chapters: ExportChapter[]
+  chapters: ExportChapter[],
+  storyId?: string
 ): Promise<boolean> {
   const path = await save({
     title: 'Export story as HTML',
@@ -202,8 +238,8 @@ export async function exportStoryToHTML(
   const sorted = [...chapters].sort((a, b) => a.order - b.order)
   const { entries: tocEntries, slugMap } = buildTocData(chapters)
 
-  const body = sorted
-    .map(ch => {
+  const body = (await Promise.all(sorted
+    .map(async ch => {
       const heading = escHtml(chapterHeading(ch))
       if (ch.chapterType === 'toc') {
         const items = tocEntries
@@ -213,22 +249,24 @@ export async function exportStoryToHTML(
       }
       const slug = slugMap.get(ch)
       const idAttr = slug ? ` id="${slug}"` : ''
+      let html: string
       if (ch.chapterType === 'cover') {
-        return `<div class="cover-block"><h2${idAttr}>${heading}</h2>${renderMarkdown(ch.content, 0, 'preview')}</div>`
-      }
-      if (ch.chapterType === 'license') {
-        return `<div class="license-block"><h2${idAttr}>${heading}</h2>${renderMarkdown(ch.content, 0, 'preview')}</div>`
-      }
-      if (ch.chapterType === 'illustration') {
+        html = `<div class="cover-block"><h2${idAttr}>${heading}</h2>${renderMarkdown(ch.content, 0, 'preview')}</div>`
+      } else if (ch.chapterType === 'license') {
+        html = `<div class="license-block"><h2${idAttr}>${heading}</h2>${renderMarkdown(ch.content, 0, 'preview')}</div>`
+      } else if (ch.chapterType === 'illustration') {
         const imgPath = ch.illustrationPath ? `file:///${ch.illustrationPath.replace(/\\/g, '/')}` : ''
         const caption = ch.illustrationCaption ? `<figcaption>${escHtml(ch.illustrationCaption)}</figcaption>` : ''
         const img = imgPath ? `<figure><img src="${escHtml(imgPath)}" alt="${escHtml(ch.illustrationCaption ?? '')}">${caption}</figure>` : ''
         const extra = ch.content.trim() ? renderMarkdown(ch.content, 0, 'preview') : ''
-        return `<div class="illustration-block"><h2${idAttr}>${heading}</h2>${img}${extra}</div>`
+        html = `<div class="illustration-block"><h2${idAttr}>${heading}</h2>${img}${extra}</div>`
+      } else {
+        html = `<h2${idAttr}>${heading}</h2>\n${renderMarkdown(ch.content, 0, 'preview')}`
       }
-      return `<h2${idAttr}>${heading}</h2>\n${renderMarkdown(ch.content, 0, 'preview')}`
+      if (storyId) html = await inlinePackedImages(html, storyId)
+      return html
     })
-    .join('\n<hr>\n')
+  )).join('\n<hr>\n')
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -438,7 +476,8 @@ async function readImageAsDataUrl(path: string): Promise<string | null> {
 
 export async function exportStoryToEpub(
   meta: ExportMeta,
-  chapters: ExportChapter[]
+  chapters: ExportChapter[],
+  storyId?: string
 ): Promise<boolean> {
   const path = await save({
     title: 'Export story as EPUB',
@@ -468,7 +507,8 @@ export async function exportStoryToEpub(
     if (ch.chapterType === 'toc') continue
 
     if (ch.chapterType === 'cover') {
-      const body = paragraphifyHtml(renderMarkdown(ch.content, 0, 'preview'))
+      let body = paragraphifyHtml(renderMarkdown(ch.content, 0, 'preview'))
+      if (storyId) body = await inlinePackedImages(body, storyId)
       epubChapters.push({
         title: heading,
         content: `<div class="cover-block"><h1>${escHtml(heading)}</h1>${body}</div>`,
@@ -478,7 +518,8 @@ export async function exportStoryToEpub(
       })
 
     } else if (ch.chapterType === 'license') {
-      const body = paragraphifyHtml(renderMarkdown(ch.content, 0, 'preview'))
+      let body = paragraphifyHtml(renderMarkdown(ch.content, 0, 'preview'))
+      if (storyId) body = await inlinePackedImages(body, storyId)
       epubChapters.push({
         title: heading,
         content: `<div class="license-block"><h1>${escHtml(heading)}</h1>${body}</div>`,
@@ -498,7 +539,8 @@ export async function exportStoryToEpub(
           imgHtml = `<p><em>[Illustration: ${escHtml(ch.illustrationPath)} — file not found]</em></p>`
         }
       }
-      const extra = ch.content.trim() ? paragraphifyHtml(renderMarkdown(ch.content, 0, 'preview')) : ''
+      let extra = ch.content.trim() ? paragraphifyHtml(renderMarkdown(ch.content, 0, 'preview')) : ''
+      if (storyId && extra) extra = await inlinePackedImages(extra, storyId)
       epubChapters.push({
         title: heading,
         content: `<h1>${escHtml(heading)}</h1>${imgHtml}${extra}`,
@@ -507,7 +549,8 @@ export async function exportStoryToEpub(
 
     } else {
       // Normal / plot-outline chapters
-      const body = paragraphifyHtml(renderMarkdown(ch.content, 0, 'preview'))
+      let body = paragraphifyHtml(renderMarkdown(ch.content, 0, 'preview'))
+      if (storyId) body = await inlinePackedImages(body, storyId)
       epubChapters.push({
         title: heading,
         content: `<h1>${escHtml(heading)}</h1>${body}`,

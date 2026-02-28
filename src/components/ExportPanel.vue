@@ -175,11 +175,11 @@ const doExport = async (kind: string) => {
     if (kind === 'story-md') {
       ok = await exportStoryToMarkdown(buildMeta(), buildChapters())
     } else if (kind === 'story-html') {
-      ok = await exportStoryToHTML(buildMeta(), buildChapters())
+      ok = await exportStoryToHTML(buildMeta(), buildChapters(), storyStore.currentStoryId ?? undefined)
     } else if (kind === 'story-docx') {
       ok = await exportStoryToDocx(buildMeta(), buildChapters())
     } else if (kind === 'story-epub') {
-      ok = await exportStoryToEpub(buildMeta(), buildChapters())
+      ok = await exportStoryToEpub(buildMeta(), buildChapters(), storyStore.currentStoryId ?? undefined)
     } else if (kind === 'chapter-md') {
       const ch = currentChapter.value
       if (ch) ok = await exportChapterToMarkdown(ch.name, editorStore.content)

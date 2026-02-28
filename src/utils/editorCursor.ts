@@ -29,9 +29,10 @@ export function renderInlineContent(rawText: string): string {
       const src      = img[2].trim().replace(/^["']|["']$/g, '')
       const { cleanAlt, dimW, dimH } = parseImgDims(img[1])
       const sizeAttr = imgSizeAttr(dimW, dimH)
+      const titleAttr = cleanAlt ? ` title="${esc(cleanAlt)}"` : ''
       const imgTag   = /^https?:\/\//i.test(src)
-        ? `<img class="md-image" src="${esc(src)}" alt="${esc(cleanAlt)}" loading="lazy"${sizeAttr}>`
-        : `<img class="md-image md-image-local" data-local-src="${esc(src)}" src="" alt="${esc(cleanAlt)}"${sizeAttr}>`
+        ? `<img class="md-image" src="${esc(src)}" alt="${esc(cleanAlt)}"${titleAttr} loading="lazy"${sizeAttr}>`
+        : `<img class="md-image md-image-local" data-local-src="${esc(src)}" src="" alt="${esc(cleanAlt)}"${titleAttr}${sizeAttr}>`
       return `<span class="token token-image rendered" data-ghost="true">${imgTag}</span>`
     }
     const bold = part.match(/^\*\*(.*?)\*\*$/)
@@ -123,9 +124,10 @@ export function buildStructuredHTML(tokens: Token[], content: string): string {
       const rawAlt   = token.text          // full raw alt text including |dims suffix
       const { cleanAlt, dimW, dimH } = parseImgDims(rawAlt)
       const sizeAttr = imgSizeAttr(dimW, dimH)
+      const titleAttr = cleanAlt ? ` title="${esc(cleanAlt)}"` : ''
       const imgHtml  = /^https?:\/\//i.test(src)
-        ? `<img class="md-image" src="${esc(src)}" alt="${esc(cleanAlt)}" loading="lazy"${sizeAttr}>`
-        : `<img class="md-image md-image-local" data-local-src="${esc(src)}" src="" alt="${esc(cleanAlt)}"${sizeAttr}>`
+        ? `<img class="md-image" src="${esc(src)}" alt="${esc(cleanAlt)}"${titleAttr} loading="lazy"${sizeAttr}>`
+        : `<img class="md-image md-image-local" data-local-src="${esc(src)}" src="" alt="${esc(cleanAlt)}"${titleAttr}${sizeAttr}>`
       html += `<span class="token token-image rendered" data-start="${token.start}" data-end="${token.end}" data-url="${esc(src)}" data-clean-alt="${esc(cleanAlt)}">` +
         `<span class="marker">![</span><span class="content">${esc(rawAlt)}</span><span class="marker">](${esc(src)})</span>` +
         `<span class="image-render" data-ghost="true">${imgHtml}</span>` +

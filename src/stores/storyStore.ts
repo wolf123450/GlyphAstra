@@ -9,6 +9,8 @@ import {
 } from "@/utils/fileStorage";
 import type { BackupFile } from "@/utils/backupRestore";
 import { HELP_STORY_ID, HELP_CHAPTERS } from "@/utils/helpStory";
+import { evictPackCache } from "@/utils/imagePackManager";
+import { clearImageCache } from "@/utils/imageUtils";
 
 export interface Chapter {
   id: string;
@@ -199,6 +201,12 @@ export const useStoryStore = defineStore("story", () => {
    */
   const loadStory = async (storyId: string): Promise<boolean> => {
     isSaving.value = true;
+    // Evict image caches for the outgoing story before loading a new one
+    const prevId = currentStoryId.value
+    if (prevId && prevId !== storyId) {
+      clearImageCache()
+      evictPackCache(prevId)
+    }
     try {
       // Prefer file system; fall back to localStorage
       let story = await fsLoadStory(storyId);
