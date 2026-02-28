@@ -7,6 +7,7 @@
  */
 
 import { readFile as tauriFsReadFile, BaseDirectory } from '@tauri-apps/plugin-fs'
+import { getPackedDataUrl } from './imagePackManager'
 
 /** In-memory cache: appData-relative path → data URL */
 const dataUrlCache = new Map<string, string>()
@@ -40,6 +41,12 @@ async function resolveToDataUrl(rawSrc: string, storyId: string | null): Promise
   // Strip any surrounding single or double quotes the author may have written
   const src = rawSrc.replace(/^["']|["']$/g, '').trim()
   if (!src) return null
+
+  // 1. Check the image pack store (highest priority — works offline & in exports)
+  if (storyId) {
+    const packed = await getPackedDataUrl(storyId, src)
+    if (packed) return packed
+  }
 
   // Build the key and the path to actually read
   let cacheKey: string
