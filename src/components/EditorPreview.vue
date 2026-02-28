@@ -7,6 +7,8 @@ import { ref, watch, computed, nextTick } from 'vue'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { tokenizeMarkdown } from '@/utils/seamlessRenderer'
 import { storageManager } from '@/utils/storage'
+import { useStoryStore } from '@/stores/storyStore'
+import { resolveLocalImages } from '@/utils/imageUtils'
 
 interface Props {
   content: string
@@ -19,6 +21,7 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+const storyStore = useStoryStore()
 
 const previewDiv = ref<HTMLDivElement | null>(null)
 
@@ -106,6 +109,7 @@ watch(
         const html = buildRenderedHTML()
         previewDiv.value.innerHTML = html
         annotateStoryLinks(previewDiv.value)
+        resolveLocalImages(previewDiv.value, storyStore.currentStoryId).catch(console.error)
       }
     })
   },
@@ -228,6 +232,24 @@ defineExpose({ scrollEl: previewDiv })
   color: var(--accent-color);
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* Images */
+.editor-preview img.md-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  margin: var(--spacing-xs) 0;
+  display: block;
+}
+/* Local image that resolved successfully — no extra treatment needed */
+/* Local image that failed to resolve (file not found) */
+.editor-preview img.md-image-broken {
+  min-width: 120px;
+  min-height: 60px;
+  background: var(--bg-tertiary);
+  border: 2px dashed var(--error-color);
+  opacity: 0.5;
 }
 
 /* Broken story:// links — story not found in the library */

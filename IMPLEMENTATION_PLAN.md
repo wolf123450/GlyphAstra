@@ -166,7 +166,7 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
   - [ ] Blockquotes (> text) — **TODO**
   - [ ] Horizontal rules (---) — **TODO**
   - [ ] Links ([text](url)) — **TODO**
-  - [ ] Images (![alt](url)) — **TODO**
+  - [x] Images (![alt](url))
   - [ ] Tables — **TODO**
 
 ### 4.3 Edit/Preview Toggle ✅
@@ -193,13 +193,13 @@ BlockBreaker is a desktop-based AI-assisted creative writing application combini
 - [x] Internal `story://` links — `[text](story://story-id)` or `[text](story://story-id/chapter-id)` — navigate to another story (optionally landing on a specific chapter); broken links shown with strikethrough in `--error-color`
 - [ ] `:icon name:` shorthand in markdown — e.g. `:PhGear:` or `:mdiCog:` renders the matching Phosphor/MDI icon inline; **deferred** pending icon library choice and consideration of export implications (icons would need to be stripped or converted for MD/HTML/DOCX export)
 - [ ] **Footnotes** (`[^1]` inline marker + `[^1]: footnote text` definition at end of chapter) — rendered at chapter bottom in preview; Pandoc-compatible syntax; see 12.8 for full spec
-- [ ] Images (![alt](url))
+- [x] Images (![alt](url)) — remote URLs rendered as `<img loading="lazy">`; local paths show styled placeholder; seamless mode shows source chars when cursor is on the token
 - [ ] Tables (pipe syntax)
 
 ### 4.6 Markdown Reference Page ✅ COMPLETE
 - [x] Dedicated modal (`MarkdownReference.vue`) showing all supported markdown syntax
 - [x] Each entry: syntax example (code) + rendered result side-by-side
-- [x] Grouped by category: Headings, Text Formatting, Lists, Blockquotes, Fenced Code, Links, Horizontal Rules, Combinations
+- [x] Grouped by category: Headings, Text Formatting, Lists, Blockquotes, Fenced Code, Links, Images, Horizontal Rules, Combinations
 - [x] Accessible from editor header (? button; also has Escape to close)
 - [x] Teleport to body, backdrop click to close, matches app theme (CSS vars)
 
@@ -943,10 +943,132 @@ Higher-level metadata for multi-book series — builds on 17.1.
 ✅ 149 unit tests (Vitest)
 
 ### Next Priorities:
-1. **Phase 11.x** — Icon library evaluation & overhaul
-2. **Phase 16** — Cloud AI model integration (OpenAI, Anthropic, Google)
-3. **Phase 17** — Story library & series management
-4. **Phase 11** — Performance & polish
+1. **Phase 18** — Image packing & alt-text captions
+2. **Phase 11.x** — Icon library evaluation & overhaul
+3. **Phase 16** — Cloud AI model integration (OpenAI, Anthropic, Google)
+4. **Phase 17** — Story library & series management
+5. **Phase 11** — Performance & polish
+
+---
+
+## Phase 18: Image Packing & Alt-Text Captions 🔲 PLANNED
+
+### Overview
+Images in markdown are referenced by path (`./cover.jpg`, `/abs/path`, `https://...`).
+On another machine — or in an export without the originals — those paths are broken.
+"Packing" reads each image and stores it as a base64 data URL inside the story's
+AppData folder.  The markdown **never changes**; packed data is looked up transparently
+at render time.  Exports can inline the packed data, making them fully self-contained.
+
+### 18.1 Packed Image Store
+- [ ] Create `stories/{storyId}/images.pack.json` with the schema below
+- [ ] Implement `src/utils/imagePackManager.ts` with:
+  - [ ] `loadPackFile(storyId)` — reads + parses pack file; returns empty store if absent
+  - [ ] `savePackFile(storyId, pack)` — writes JSON to disk
+  - [ ] `getPackedDataUrl(storyId, src)` — in-memory cache first, then disk; returns null if absent
+  - [ ] `packAllImages(storyId, markdownContents[])` — scans all chapter content for `![...](src)`
+        patterns, de-dupes srcs, resolves each, skips any already packed whose source is unreadable,
+        persists results; returns `{ total, packed, skipped, failed, failedSrcs[] }`
+  - [ ] `unpackImage(storyId, src)` — remove a single entry from the pack
+  - [ ] `clearPack(storyId)` — delete all packed entries (or the whole file)
+  - [ ] `evictPackCache(storyId)` — drop in-memory pack cache for a story (call on story unload)
+- [ ] Enforce safe re-pack rule: never overwrite an existing good packed entry with a failure result
+
+**Storage file:** `stories/{storyId}/images.pack.json`
+
+```jsonc
+{
+  "version": 1,
+  "packedAt": "<ISO>",
+  "images": {
+    "cover.jpg": {
+      "dataUrl": "data:image/jpeg;base64,/9j/...",
+      "mime": "image/jpeg",
+      "byteSize": 84231,
+      "packedAt": "<ISO>",
+      "sourceType": "local"   // "local" | "remote" | "absolute"
+    },
+    "https://example.com/banner.png": {
+      "dataUrl": "data:image/png;base64,...",
+      "mime": "image/png",
+      "byteSize": 12400,
+      "packedAt": "<ISO>",
+      "sourceType": "remote"
+    }
+  }
+}
+```
+
+**Key** is the raw src string from the markdown (relative path as-written, or full URL).
+Absolute paths are normalised to forward slashes before being used as a key.
+
+**imageUtils.ts** — update `resolveToDataUrl()` resolution order:
+1. Check packed store (`getPackedDataUrl`) — use if present
+2. Try local file read (existing logic)
+3. For http/https: use URL directly (packing is optional for remote)
+4. Return null on failure, mark `img.md-image-broken`
+
+### 18.2 Pack UI
+- [ ] Add a **Pack Images** toolbar button to the Editor bottom status bar (visible when a story is loaded)
+- [ ] Use `mdiArchive` (filled) / `mdiArchiveOutline` (outlined) from `@mdi/js` as the pack status icon
+- [ ] Implement a **combined status widget** — a small pill/card housing two elements side by side:
+  - **Archive icon** (left):
+    - `mdiArchiveOutline` — not packed or pack is stale (new image srcs found in content that are absent from the pack); tooltip: _"Images not packed — click to pack"_ or _"Pack is out of date — click to update"_
+    - `mdiArchive` (filled) — all images found in pack and up to date; tooltip: _"All images packed"_
+  - **Error icon** (right, only shown when there are unresolvable images):
+    - `mdiImageBrokenVariant` next to a count badge (e.g. `⚠ 3`) inside the pill
+    - tooltip on this segment: _"3 images could not be resolved"_ with a hint to click for details
+  - The two icon segments share a pill/card container with a subtle divider between them when both are visible; when there are no errors only the archive icon segment is shown
+- [ ] Clicking the archive icon segment opens the **Pack modal** (progress + results)
+- [ ] Clicking the error segment opens the same modal pre-scrolled to the failed list
+- [ ] Pack modal:
+  - [ ] Shows "Scanning chapters…" → "Packed N images (M skipped, K failed)"
+  - [ ] Lists unresolvable srcs so the author can fix or locate files
+  - [ ] "Force re-pack all" checkbox — ignores existing packed data and re-reads every source
+  - [ ] After success: trigger `resolveLocalImages()` on the active editor so newly packed images render immediately
+- [ ] **Stale-pack detection** (lightweight, on story load): compare set of unique image srcs in all
+      chapters against keys in `images.pack.json`; set a reactive `packStatus` flag used by the widget
+
+### 18.3 Resolution in Rendering
+- [ ] Update `imageUtils.ts` `resolveToDataUrl()` to check the pack store first (see §18.1)
+- [ ] EditorSeamless / EditorPreview require no template changes — `resolveLocalImages()` already walks `img[data-local-src]`
+- [ ] Wire `evictPackCache(storyId)` into the story unload / story-switch path in `storyStore`
+- [ ] **Export pipeline** (`exportImport.ts` / future EPUB/HTML export):
+  - [ ] Before building export output, substitute `data-local-src` → packed data URL for all images
+  - [ ] This makes exported HTML/EPUB fully self-contained with no external file references
+
+### 18.4 Alt-Text / Caption Mouseover
+- [ ] `renderImageHtml()` in `seamlessRenderer.ts`: add `title="${escapeHtml(alt)}"` when `alt` is non-empty
+- [ ] `editorCursor.ts` `buildStructuredHTML` image case: same — add `title` to the rendered `<img>`
+- [ ] `editorCursor.ts` `renderInlineContent()` inline image case: same
+
+Result:
+- **Seamless mode**: hovering the rendered image shows a native browser tooltip with the caption (works in Tauri WebView)
+- **Preview mode**: same (images rendered from `token.rendered`)
+- **Export**: `title` is included in exported HTML; browsers and EPUB readers that show title tooltips will display it
+
+**Note:** `title` supplements `alt` — `alt` is the accessible description, `title` is the hover tooltip.  Both are set.
+
+### 18.5 Implementation Order
+- [ ] §18.4 — Add `title` attr to all three image render paths (quick win, no dependencies)
+- [ ] §18.1 — `imagePackManager.ts` core logic (no UI dependency)
+- [ ] §18.1 — Update `imageUtils.ts` resolution order to check pack first
+- [ ] §18.2 — Pack status widget (pill/card with archive + error icons) in Editor toolbar
+- [ ] §18.2 — Pack modal (progress + results + failed list)
+- [ ] §18.2 — Stale-pack detection on story load
+- [ ] §18.3 — Wire `evictPackCache` into story unload
+- [ ] §18.3 — Export pipeline integration
+
+### 18.6 File Layout
+
+```
+src/utils/imagePackManager.ts       ← new
+src/utils/imageUtils.ts             ← updated (pack-first resolution)
+src/utils/seamlessRenderer.ts       ← add title attr to renderImageHtml
+src/utils/editorCursor.ts           ← add title attr (buildStructuredHTML + renderInlineContent)
+src/components/Editor.vue           ← pack status widget in toolbar
+stories/{storyId}/images.pack.json  ← new runtime file (not in git)
+```
 
 ---
 

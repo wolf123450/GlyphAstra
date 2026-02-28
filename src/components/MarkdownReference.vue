@@ -170,6 +170,43 @@
             </table>
           </section>
 
+          <!-- ─── Images ───────────────────────────────── -->
+          <section class="md-section">
+            <h3 class="md-section-title">Images</h3>
+            <table class="md-table">
+              <thead><tr><th>Syntax</th><th>Rendered</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><code>![Alt text](https://example.com/image.png)</code></td>
+                  <td><span class="ex-img-placeholder">🖼️ Alt text <span class="ex-note">(remote image)</span></span></td>
+                </tr>
+                <tr>
+                  <td><code>![Caption](./images/cover.jpg)</code></td>
+                  <td><span class="ex-img-placeholder">🖼️ Caption <span class="ex-note">(local path, relative to story folder)</span></span></td>
+                </tr>
+                <tr>
+                  <td><code>![Caption|w300](./cover.jpg)</code></td>
+                  <td><span class="ex-img-placeholder">🖼️ <span class="ex-note">explicit width 300 px, height auto (ratio preserved)</span></span></td>
+                </tr>
+                <tr>
+                  <td><code>![Caption|h150](./cover.jpg)</code></td>
+                  <td><span class="ex-img-placeholder">🖼️ <span class="ex-note">explicit height 150 px, width auto</span></span></td>
+                </tr>
+                <tr>
+                  <td><code>![Caption|w300 h200](./cover.jpg)</code></td>
+                  <td><span class="ex-img-placeholder">🖼️ <span class="ex-note">both set — only width used (ratio preserved); use the resize handle to set a free size</span></span></td>
+                </tr>
+                <tr>
+                  <td colspan="2" class="ex-tip">
+                    💡 In Seamless mode, <strong>click a rendered image</strong> to show the grab-handle overlay.
+                    Drag the <strong>SE corner handle</strong> to resize. The 🔒 button toggles aspect-ratio lock (default: locked).
+                    Local paths are relative to the story folder; remote URLs are lazy-loaded.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
           <!-- ─── Horizontal Rules ─────────────────────── -->
           <section class="md-section">
             <h3 class="md-section-title">Horizontal Rule</h3>
@@ -503,6 +540,26 @@ ol.ex-list {
 }
 .ex-chapter-link {
   text-decoration: underline dashed;
+}
+.ex-img-placeholder {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-style: italic;
+  color: var(--text-secondary);
+  font-size: 0.88em;
+}
+.ex-img-local {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--bg-tertiary);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.88em;
+  font-style: italic;
 }
 .ex-note {
   font-size: 11px;

@@ -4,11 +4,12 @@
  */
 
 import type { Token } from './seamlessRenderer'
+import { parseImgDims, imgSizeAttr } from './seamlessRenderer'
 
 // ─── HTML building ─────────────────────────────────────────────────
 
 const esc = (t: string) =>
-  t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 /**
  * Render inline markdown formatting (bold, italic, code, strikethrough) within
@@ -19,10 +20,20 @@ const esc = (t: string) =>
  * walks up to the enclosing token span.
  */
 export function renderInlineContent(rawText: string): string {
-  // Split on bold (**), strikethrough (~~), italic (*), inline code (`), link ([text](url))
-  // Bold must precede italic so ** is not consumed as two *.
-  const parts = rawText.split(/(\*\*.*?\*\*|~~.*?~~|\*.*?\*|`.*?`|\[[^\]]+\]\([^)]+\))/)
+  // Split on image (![), bold (**), strikethrough (~~), italic (*), inline code (`), link ([text](url))
+  // Bold must precede italic so ** is not consumed as two *. Image must precede link ('![' vs '[').
+  const parts = rawText.split(/(![^\[]*\[[^\]]*\]\([^)]+\)|\*\*.*?\*\*|~~.*?~~|\*.*?\*|`.*?`|\[[^\]]+\]\([^)]+\))/)
   return parts.map(part => {
+    const img = part.match(/^!\[([^\]]*)\]\(([^)]+)\)$/)
+    if (img) {
+      const src      = img[2].trim().replace(/^["']|["']$/g, '')
+      const { cleanAlt, dimW, dimH } = parseImgDims(img[1])
+      const sizeAttr = imgSizeAttr(dimW, dimH)
+      const imgTag   = /^https?:\/\//i.test(src)
+        ? `<img class="md-image" src="${esc(src)}" alt="${esc(cleanAlt)}" loading="lazy"${sizeAttr}>`
+        : `<img class="md-image md-image-local" data-local-src="${esc(src)}" src="" alt="${esc(cleanAlt)}"${sizeAttr}>`
+      return `<span class="token token-image rendered" data-ghost="true">${imgTag}</span>`
+    }
     const bold = part.match(/^\*\*(.*?)\*\*$/)
     if (bold) return `<span class="token token-bold rendered"><span class="marker">**</span><span class="content">${esc(bold[1])}</span><span class="marker">**</span></span>`
     const strike = part.match(/^~~(.*?)~~$/)
@@ -107,6 +118,18 @@ export function buildStructuredHTML(tokens: Token[], content: string): string {
     } else if (token.type === 'link') {
       const url = token.url ?? ''
       html += `<span class="token token-link rendered" data-start="${token.start}" data-end="${token.end}" data-url="${esc(url)}"><span class="marker">[</span><span class="content">${esc(token.text)}</span><span class="marker">](${esc(url)})</span></span>`
+    } else if (token.type === 'image') {
+      const src      = token.url ?? ''
+      const rawAlt   = token.text          // full raw alt text including |dims suffix
+      const { cleanAlt, dimW, dimH } = parseImgDims(rawAlt)
+      const sizeAttr = imgSizeAttr(dimW, dimH)
+      const imgHtml  = /^https?:\/\//i.test(src)
+        ? `<img class="md-image" src="${esc(src)}" alt="${esc(cleanAlt)}" loading="lazy"${sizeAttr}>`
+        : `<img class="md-image md-image-local" data-local-src="${esc(src)}" src="" alt="${esc(cleanAlt)}"${sizeAttr}>`
+      html += `<span class="token token-image rendered" data-start="${token.start}" data-end="${token.end}" data-url="${esc(src)}" data-clean-alt="${esc(cleanAlt)}">` +
+        `<span class="marker">![</span><span class="content">${esc(rawAlt)}</span><span class="marker">](${esc(src)})</span>` +
+        `<span class="image-render" data-ghost="true">${imgHtml}</span>` +
+        `</span>`
     } else if (token.type === 'table') {
       // All source characters live in .table-source as text nodes so countTextUpTo
       // can walk through them for accurate cursor positioning.
