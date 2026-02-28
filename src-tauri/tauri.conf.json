@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "blockbreaker",
+  "productName": "BlockBreaker",
   "version": "0.1.0",
   "identifier": "com.clint.blockbreaker",
   "build": {
@@ -20,7 +20,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:* https:; img-src 'self' data: blob: https:; font-src 'self' data:"
     }
   },
   "bundle": {

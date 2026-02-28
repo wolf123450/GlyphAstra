@@ -11,6 +11,8 @@
  */
 
 import type { ModelProvider, ModelInfo, CompletionOptions } from './types'
+import { fetchWithRetry } from '@/utils/fetchRetry'
+import { splitPrompt, parseSSEStream } from './shared'
 
 /**
  * Pricing as of 2026-02 (USD per 1M tokens, standard tier).
@@ -56,28 +58,16 @@ const OPENAI_FALLBACK: ModelInfo[] = [
 const EXCLUDE_PATTERN = /instruct|audio|realtime|vision|tts|whisper|dall-e|embedding|moderation|transcribe|search|codex|computer|image|preview-\d{4}|pro$/i
 const INCLUDE_PATTERN = /^(gpt-5|gpt-4|o[1-9])/
 
-/** Split a contextBuilder prompt into system + user portions for chat APIs. */
-function splitPrompt(prompt: string): { system: string; user: string } {
-  const MARKER = '=== TEXT ALREADY WRITTEN ==='
-  const idx = prompt.indexOf(MARKER)
-  if (idx > -1) {
-    return {
-      system: prompt.slice(0, idx).trim(),
-      user:   prompt.slice(idx).trim(),
-    }
-  }
-  // Fallback: send everything as user content
-  return {
-    system: 'You are a creative writing assistant. Generate only the next portion of the story. Do not repeat text that has already been written.',
-    user:   prompt,
-  }
-}
+
 
 export class OpenAIProvider implements ModelProvider {
   readonly id   = 'openai'
   readonly name = 'OpenAI'
 
   private apiKey: string
+  private _modelCache: ModelInfo[] | null = null
+  private _modelCacheTime = 0
+  private static MODEL_CACHE_TTL = 5 * 60 * 1000  // 5 minutes
 
   constructor(apiKey: string) {
     this.apiKey = apiKey
@@ -89,6 +79,9 @@ export class OpenAIProvider implements ModelProvider {
 
   async listModels(): Promise<ModelInfo[]> {
     if (!this.apiKey.trim()) return OPENAI_FALLBACK
+    if (this._modelCache && Date.now() - this._modelCacheTime < OpenAIProvider.MODEL_CACHE_TTL) {
+      return this._modelCache
+    }
     try {
       const resp = await fetch('https://api.openai.com/v1/models', {
         headers: { 'Authorization': `Bearer ${this.apiKey}` },
@@ -108,7 +101,10 @@ export class OpenAIProvider implements ModelProvider {
             ...(known && { pricing: { inputPer1M: known.inputPer1M, outputPer1M: known.outputPer1M } }),
           }
         })
-      return models.length ? models : OPENAI_FALLBACK
+      const result = models.length ? models : OPENAI_FALLBACK
+      this._modelCache = result
+      this._modelCacheTime = Date.now()
+      return result
     } catch {
       return OPENAI_FALLBACK
     }
@@ -133,13 +129,14 @@ export class OpenAIProvider implements ModelProvider {
       ...(opts.stop        !== undefined && opts.stop.length > 0 && { stop: opts.stop }),
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetchWithRetry('https://api.openai.com/v1/chat/completions', {
       method:  'POST',
       headers: {
         'Content-Type':  'application/json',
         'Authorization': `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify(body),
+      signal: opts.signal ?? AbortSignal.timeout(120_000),
     })
 
     if (!response.ok) {
@@ -147,32 +144,14 @@ export class OpenAIProvider implements ModelProvider {
       throw new Error(`OpenAI error ${response.status}: ${err}`)
     }
 
-    const reader  = response.body?.getReader()
-    const decoder = new TextDecoder()
-    if (!reader) return
-
-    let buffer = ''
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''   // keep incomplete last line
-
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed || trimmed === 'data: [DONE]') continue
-        if (!trimmed.startsWith('data: ')) continue
-
-        try {
-          const json = JSON.parse(trimmed.slice(6))
-          const delta = json?.choices?.[0]?.delta?.content
-          if (typeof delta === 'string') onChunk(delta)
-        } catch {
-          // Ignore malformed SSE lines
-        }
-      }
-    }
+    await parseSSEStream(
+      response,
+      (json) => {
+        const choices = json.choices as Array<{ delta?: { content?: string } }> | undefined
+        const delta = choices?.[0]?.delta?.content
+        return typeof delta === 'string' ? delta : null
+      },
+      onChunk,
+    )
   }
 }

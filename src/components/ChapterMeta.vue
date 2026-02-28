@@ -481,12 +481,8 @@ onUnmounted(() => {
 }
 
 .close-btn {
-  background: none; border: none; cursor: pointer;
-  font-size: 16px; color: var(--text-tertiary);
-  padding: 4px 8px; border-radius: var(--radius-sm);
-  transition: color var(--transition-fast), background var(--transition-fast);
+  font-size: 16px;
 }
-.close-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
 
 .meta-body {
   flex: 1; overflow-y: auto;
@@ -519,14 +515,6 @@ onUnmounted(() => {
 
 /* Pills */
 .pill-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.pill {
-  padding: 4px 12px; font-size: 12px;
-  border: 1px solid var(--border-color); border-radius: 20px;
-  background: transparent; color: var(--text-secondary); cursor: pointer;
-  transition: all var(--transition-fast);
-}
-.pill:hover  { border-color: var(--accent-color); color: var(--accent-color); }
-.pill.active { background: var(--accent-color); border-color: var(--accent-color); color: #fff; }
 .pill-outline { border-style: dashed; }
 .pill-toc.active         { background: #7c5cbf; border-color: #7c5cbf; color: #fff; }
 .pill-toc:hover          { border-color: #7c5cbf; color: #7c5cbf; }
@@ -640,16 +628,6 @@ onUnmounted(() => {
   display: flex; align-items: center; gap: 5px; cursor: pointer;
   user-select: none; font-size: 12px; color: var(--text-secondary);
 }
-
-/* Buttons */
-.btn-sm {
-  padding: 4px 10px; font-size: 12px;
-  background: transparent; border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm); cursor: pointer; color: var(--text-secondary);
-  transition: all var(--transition-fast);
-}
-.btn-sm:not(:disabled):hover { border-color: var(--accent-color); color: var(--accent-color); }
-.btn-sm:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Footer */
 .meta-footer {

@@ -5,10 +5,12 @@
 <script setup lang="ts">
 import { ref, watch, computed, nextTick } from 'vue'
 import { openUrl } from '@tauri-apps/plugin-opener'
-import { tokenizeMarkdown } from '@/utils/seamlessRenderer'
+import { tokenizeMarkdown, renderPreview } from '@/utils/seamlessRenderer'
 import { storageManager } from '@/utils/storage'
 import { useStoryStore } from '@/stores/storyStore'
 import { resolveLocalImages } from '@/utils/imageUtils'
+import { sanitizeHtml } from '@/utils/sanitize'
+import { logger } from '@/utils/logger'
 
 interface Props {
   content: string
@@ -53,7 +55,7 @@ const handleLinkClick = (event: MouseEvent) => {
   }
 
   if (href.startsWith('http://') || href.startsWith('https://')) {
-    openUrl(href).catch(console.error)
+    openUrl(href).catch((e: unknown) => logger.error('Preview', e))
     return
   }
   // All other hrefs (relative paths, etc.) are silently ignored
@@ -64,24 +66,11 @@ const tokens = computed(() => {
 })
 
 /**
- * Inject data-source-line="N" into the outermost opening tag of an HTML string.
- * This lets the scroll-sync logic identify which source line a rendered block corresponds to.
- */
-function withSourceLine(html: string, line: number): string {
-  return html.replace(/^(<[a-zA-Z][a-zA-Z0-9]*)([\s>])/, `$1 data-source-line="${line}"$2`)
-}
-
-/**
- * Build HTML for rendered tokens (all rendered, no source).
- * Each block gets a data-source-line attribute matching its first source line.
+ * Build HTML for rendered tokens with proper list grouping and source-line
+ * annotations for scroll-sync.
  */
 const buildRenderedHTML = (): string => {
-  return tokens.value
-    .map((token) => {
-      const line = props.content.slice(0, token.start).split('\n').length - 1
-      return withSourceLine(token.rendered, line)
-    })
-    .join('')
+  return renderPreview(tokens.value, props.content)
 }
 
 /**
@@ -106,10 +95,10 @@ watch(
   () => {
     nextTick(() => {
       if (previewDiv.value) {
-        const html = buildRenderedHTML()
+        const html = sanitizeHtml(buildRenderedHTML())
         previewDiv.value.innerHTML = html
         annotateStoryLinks(previewDiv.value)
-        resolveLocalImages(previewDiv.value, storyStore.currentStoryId).catch(console.error)
+        resolveLocalImages(previewDiv.value, storyStore.currentStoryId).catch((e: unknown) => logger.error('Preview', e))
       }
     })
   },
@@ -132,7 +121,7 @@ defineExpose({ scrollEl: previewDiv })
   font-family: 'Fira Code', 'Courier New', monospace;
   font-size: 14px;
   line-height: 1.6;
-  white-space: pre-wrap;
+  white-space: normal;
   word-wrap: break-word;
   user-select: text;
   color: var(--text-primary);
@@ -174,6 +163,10 @@ defineExpose({ scrollEl: previewDiv })
 }
 
 /* Text styling */
+.editor-preview p {
+  margin: 0 0 var(--spacing-sm) 0;
+}
+
 .editor-preview strong {
   font-weight: 600;
 }
@@ -198,21 +191,26 @@ defineExpose({ scrollEl: previewDiv })
 
 /* Lists */
 .editor-preview ul {
-  list-style-position: inside;
   list-style-type: disc;
-  padding: 0;
+  padding-left: 1.5em;
   margin: var(--spacing-sm) 0;
 }
 
 .editor-preview ol {
-  list-style-position: inside;
   list-style-type: decimal;
-  padding: 0;
+  padding-left: 1.5em;
   margin: var(--spacing-sm) 0;
 }
 
+/* Nested lists should not add extra vertical margin */
+.editor-preview ul ul,
+.editor-preview ul ol,
+.editor-preview ol ul,
+.editor-preview ol ol {
+  margin: 0;
+}
+
 .editor-preview li {
-  margin-left: 0;
   margin-bottom: var(--spacing-xs);
 }
 

@@ -86,6 +86,12 @@ export async function importBackup(): Promise<BackupFile | null> {
   const raw = await readAbsoluteFile(filePath as string)
   if (!raw) throw new Error('Could not read backup file.')
 
+  // Guard against absurdly large backup files (100 MB limit)
+  const MAX_BACKUP_BYTES = 100 * 1024 * 1024
+  if (raw.length > MAX_BACKUP_BYTES) {
+    throw new Error(`Backup file too large (${(raw.length / 1024 / 1024).toFixed(1)} MB). Maximum is 100 MB.`)
+  }
+
   let data: unknown
   try {
     data = JSON.parse(raw)

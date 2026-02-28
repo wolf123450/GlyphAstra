@@ -2,7 +2,7 @@
   <aside class="ai-panel" v-if="isVisible">
     <div class="ai-header">
       <h3>AI Settings</h3>
-      <button class="close-btn" @click="closePanel" title="Close">&#x2715;</button>
+      <button class="close-btn" @click="closePanel" title="Close" aria-label="Close AI panel">&#x2715;</button>
     </div>
 
     <div class="ai-content">
@@ -25,11 +25,12 @@
           <div class="connection-row">
             <span class="dot" :class="isConnected ? 'dot-on' : 'dot-off'"></span>
             <span class="conn-label">{{ isConnected ? 'Connected' : 'Offline' }}</span>
-            <button class="btn-sm" @click="checkConn" :disabled="checking">
+            <button class="btn-sm" @click="checkConn" :disabled="checking" aria-label="Refresh connection">
               {{ checking ? '…' : '⟳' }}
             </button>
           </div>
           <div v-if="!isConnected" class="hint">Run <code>ollama serve</code> to start</div>
+          <div v-if="connError && aiStore.activeProviderId === 'ollama'" class="hint hint-error">{{ connError }}</div>
           <div v-if="isConnected" class="field-row">
             <span class="field-label">Model</span>
             <select v-model="selectedModel" class="field-select" @change="aiStore.setProviderModel('ollama', selectedModel)">
@@ -100,6 +101,7 @@
 
           <!-- Model selector -->
           <div v-if="modelsLoading" class="hint">Loading models…</div>
+          <div v-if="connError" class="hint hint-error">{{ connError }}</div>
           <template v-else-if="cloudModelList.length > 0">
             <div class="field-row">
               <span class="field-label">Model</span>
@@ -143,8 +145,8 @@
         <div class="sec-label-row">
           <span class="sec-label">Writing profile</span>
           <div class="sec-label-actions">
-            <button class="btn-icon" @click="showPromptPreview = true" title="View current AI prompt">⊙</button>
-            <button class="btn-icon" @click="openNewProfile" title="New custom profile">＋</button>
+            <button class="btn-icon" @click="showPromptPreview = true" title="View current AI prompt" aria-label="View current AI prompt">⊙</button>
+            <button class="btn-icon" @click="openNewProfile" title="New custom profile" aria-label="New custom profile">＋</button>
           </div>
         </div>
 
@@ -165,6 +167,7 @@
               class="pill-action-btn"
               @click="openEditProfile(p.name)"
               :title="p.isCustom ? 'Edit profile' : 'View profile instructions'"
+              :aria-label="p.isCustom ? 'Edit profile' : 'View profile instructions'"
             >{{ p.isCustom ? '✎' : '⊙' }}</button>
           </div>
         </div>
@@ -295,6 +298,7 @@ const selectedStyle   = ref(aiStore.currentStyle)
 const testing      = ref(false)
 const testResult   = ref<boolean | null>(null)
 const keyExpanded  = ref(false)   // API key drawer: collapsed by default
+const connError    = ref('')      // Error message from connection/model-load failures
 
 const hasKey = computed(() => {
   const id = aiStore.activeProviderId
@@ -326,6 +330,7 @@ const lengthOptions = [
 
 const checkConn = async () => {
   checking.value = true
+  connError.value = ''
   try {
     const ok = await ollamaClient.checkConnection()
     aiStore.setConnected(ok)
@@ -347,6 +352,8 @@ const checkConn = async () => {
         }
         aiStore.setSummaryModel('ollama', selectedSummaryModel.value)      }
     }
+  } catch (err: unknown) {
+    connError.value = err instanceof Error ? err.message : 'Connection failed'
   } finally {
     checking.value = false
   }
@@ -355,6 +362,7 @@ const checkConn = async () => {
 const loadCloudModels = async (pid: ProviderId) => {
   if (pid === 'ollama') return
   modelsLoading.value = true
+  connError.value = ''
   try {
     const provider = makeProvider(pid, aiStore.providerApiKeys)
     cloudModelList.value = await provider.listModels()
@@ -380,6 +388,8 @@ const loadCloudModels = async (pid: ProviderId) => {
       }
       aiStore.setSummaryModel(pid, selectedSummaryModel.value)
     }
+  } catch (err: unknown) {
+    connError.value = err instanceof Error ? err.message : 'Failed to load models'
   } finally {
     modelsLoading.value = false
   }
@@ -467,8 +477,8 @@ onMounted(async () => {
 
 <style scoped>
 .ai-panel {
-  width: 280px;
-  min-width: 260px;
+  width: var(--ai-panel-width);
+  min-width: var(--ai-panel-min-width);
   background-color: var(--bg-secondary);
   border-left: 1px solid var(--border-color);
   display: flex;
@@ -488,12 +498,6 @@ onMounted(async () => {
 }
 .ai-header h3 { margin: 0; font-size: 18px; font-weight: 600; color: var(--text-primary); }
 
-.close-btn {
-  background: none; border: none; color: var(--text-tertiary);
-  cursor: pointer; font-size: 20px; line-height: 1; padding: 4px 8px;
-  border-radius: var(--radius-sm);
-}
-.close-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
 
 .ai-content {
   flex: 1; overflow-y: auto;
@@ -507,10 +511,6 @@ onMounted(async () => {
   display: flex; flex-direction: column; gap: var(--spacing-sm);
 }
 
-.sec-label {
-  font-size: 11px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.06em; color: var(--text-tertiary);
-}
 
 /* connection */
 .connection-row { display: flex; align-items: center; gap: var(--spacing-sm); }
@@ -518,8 +518,6 @@ onMounted(async () => {
 .dot-on  { background: var(--success-color, #4caf50); }
 .dot-off { background: var(--text-tertiary); }
 .conn-label { flex: 1; font-size: 13px; color: var(--text-secondary); }
-.hint { font-size: 12px; color: var(--text-tertiary); }
-.hint code { background: var(--bg-tertiary); padding: 1px 4px; border-radius: 3px; font-family: monospace; }
 
 .field-row { display: flex; align-items: center; gap: var(--spacing-sm); overflow: hidden; }
 .field-label { font-size: 12px; color: var(--text-tertiary); white-space: nowrap; }
@@ -532,14 +530,6 @@ onMounted(async () => {
 
 /* pills */
 .length-options { display: flex; flex-wrap: wrap; gap: 4px; }
-.pill {
-  padding: 3px 10px; font-size: 12px;
-  border: 1px solid var(--border-color); border-radius: 20px;
-  background: transparent; color: var(--text-secondary); cursor: pointer;
-  transition: all var(--transition-fast);
-}
-.pill:hover { border-color: var(--accent-color); color: var(--accent-color); }
-.pill.active { background: var(--accent-color); border-color: var(--accent-color); color: #fff; }
 .pill.custom { border-style: dashed; }
 
 /* writing profile list */
@@ -587,17 +577,9 @@ kbd {
   border-radius: 3px; color: var(--text-primary); white-space: nowrap;
 }
 
-.btn-sm {
-  padding: 3px 8px; background: transparent;
-  border: 1px solid var(--border-color); border-radius: var(--radius-sm);
-  cursor: pointer; font-size: 12px; color: var(--text-secondary);
-}
-.btn-sm:not(:disabled):hover { border-color: var(--accent-color); color: var(--accent-color); }
-.btn-sm:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* context tags */
 .context-tag-pills { display: flex; flex-wrap: wrap; gap: 4px; }
-.muted { color: var(--text-tertiary); font-size: 11px; }
 
 /* provider pills */
 .provider-pills { display: flex; flex-wrap: wrap; gap: 4px; }

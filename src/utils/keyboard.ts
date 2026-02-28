@@ -5,6 +5,13 @@
 
 export type KeyboardCallback = () => void;
 
+export interface ShortcutModifiers {
+  ctrl?: boolean;
+  shift?: boolean;
+  alt?: boolean;
+  meta?: boolean;
+}
+
 export interface ShortcutBinding {
   key: string;
   ctrl?: boolean;
@@ -23,12 +30,7 @@ class KeyboardShortcutManager {
   register(
     shortcutKey: string,
     callback: KeyboardCallback,
-    options?: {
-      ctrl?: boolean;
-      shift?: boolean;
-      alt?: boolean;
-      meta?: boolean;
-    }
+    options?: ShortcutModifiers
   ): void {
     const id = this.generateId(shortcutKey, options);
     this.bindings.set(id, {
@@ -41,7 +43,7 @@ class KeyboardShortcutManager {
   /**
    * Unregister a keyboard shortcut
    */
-  unregister(shortcutKey: string, options?: any): void {
+  unregister(shortcutKey: string, options?: ShortcutModifiers): void {
     const id = this.generateId(shortcutKey, options);
     this.bindings.delete(id);
   }
@@ -109,7 +111,7 @@ class KeyboardShortcutManager {
 
   private generateId(
     shortcutKey: string,
-    options?: any
+    options?: ShortcutModifiers
   ): string {
     const parts = [shortcutKey];
     if (options?.ctrl) parts.push("ctrl");
@@ -136,10 +138,14 @@ class KeyboardShortcutManager {
 
 export const keyboardShortcutManager = new KeyboardShortcutManager();
 
+let _keyboardInitialized = false
+
 /**
  * Initialize global keyboard shortcuts
  */
 export function initializeKeyboardShortcuts(): void {
+  if (_keyboardInitialized) return
+  _keyboardInitialized = true
   window.addEventListener("keydown", (event) => {
     keyboardShortcutManager.handleKeyDown(event);
   });

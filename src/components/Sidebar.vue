@@ -2,7 +2,7 @@
   <aside class="sidebar" :class="{ 'sidebar-collapsed': !isOpen }">
     <div class="sidebar-header">
       <h1 class="sidebar-title">BlockBreaker</h1>
-      <button class="sidebar-toggle" @click="toggleSidebar" title="Toggle sidebar">
+      <button class="sidebar-toggle" @click="toggleSidebar" title="Toggle sidebar" aria-label="Toggle sidebar">
         <svg class="toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="isOpen ? mdiChevronLeft : mdiChevronRight"/></svg>
       </button>
     </div>
@@ -122,13 +122,13 @@
 
     <!-- Sidebar Footer -->
     <div class="sidebar-footer">
-      <button class="btn-icon" @click="toggleSettings" title="Settings (Ctrl+,)">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiCog"/></svg>
+      <button class="btn-icon" @click="toggleSettings" title="Settings (Ctrl+,)" aria-label="Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="mdiCog"/></svg>
       </button>
-      <button class="btn-icon" @click="toggleTheme" :title="`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path :d="theme === 'dark' ? mdiCircleHalfFull : mdiWhiteBalanceSunny"/></svg>
+      <button class="btn-icon" @click="toggleTheme" :title="`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`" :aria-label="`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="theme === 'dark' ? mdiCircleHalfFull : mdiWhiteBalanceSunny"/></svg>
       </button>
-      <button class="btn-icon" @click="openHelpStory" title="Help &amp; Reference">
+      <button class="btn-icon" @click="openHelpStory" title="Help &amp; Reference" aria-label="Help and Reference">
         ?
       </button>
     </div>
@@ -143,7 +143,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onBeforeUnmount } from 'vue'
 import { mdiPlusCircleOutline, mdiCog, mdiChevronLeft, mdiChevronRight, mdiDeleteOutline, mdiCircleHalfFull, mdiWhiteBalanceSunny } from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useUIStore } from '@/stores/uiStore'
@@ -331,6 +331,9 @@ const getDropIndex = (clientY: number): number => {
   return idx
 }
 
+// Track drag cleanup so we can release listeners if the component is unmounted mid-drag
+let _dragCleanup: (() => void) | null = null
+
 const onHandleDown = (id: string, e: MouseEvent) => {
   if (searchQuery.value) return
   dragChapterId.value = id
@@ -345,6 +348,7 @@ const onHandleDown = (id: string, e: MouseEvent) => {
   const onUp = () => {
     window.removeEventListener('mousemove', onMove)
     window.removeEventListener('mouseup', onUp)
+    _dragCleanup = null
     document.body.style.cursor = ''
     document.body.style.userSelect = ''
     if (dragChapterId.value !== null && dropIndex.value !== null) {
@@ -366,7 +370,10 @@ const onHandleDown = (id: string, e: MouseEvent) => {
 
   window.addEventListener('mousemove', onMove)
   window.addEventListener('mouseup', onUp)
+  _dragCleanup = onUp   // store so onBeforeUnmount can invoke it
 }
+
+onBeforeUnmount(() => { _dragCleanup?.() })
 // ────────────────────────────────────────────────────────────────────────────
 
 const toggleSidebar = () => {
@@ -654,7 +661,7 @@ const toggleTheme = () => {
 }
 
 .sidebar {
-  width: 250px;
+  width: var(--sidebar-width);
   background-color: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
   display: flex;
@@ -665,7 +672,7 @@ const toggleTheme = () => {
 }
 
 .sidebar-collapsed {
-  width: 60px;
+  width: var(--sidebar-collapsed-width);
 }
 
 .sidebar-header {

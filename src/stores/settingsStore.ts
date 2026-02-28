@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, watch } from "vue";
+import { logger } from "@/utils/logger";
 
 export const CUSTOMIZABLE_VARS = [
   // Surfaces
@@ -55,8 +56,15 @@ export interface UserSettings {
 
 const STORAGE_KEY = 'blockbreaker_settings'
 
+/** Detect OS preference; fall back to 'dark' if API unavailable. */
+function detectOSTheme(): 'dark' | 'light' {
+  try {
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  } catch { return 'dark' }
+}
+
 const defaultSettings: UserSettings = {
-  theme: "dark",
+  theme: detectOSTheme(),
   fontSize: 14,
   fontFamily: "Fira Code, monospace",
   lineHeight: 1.6,
@@ -83,7 +91,14 @@ const defaultSettings: UserSettings = {
 function loadFromStorage(): UserSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return { ...defaultSettings, ...JSON.parse(raw) }
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      // Basic shape check: must be a non-null object with a string theme
+      if (typeof parsed === 'object' && parsed !== null && typeof parsed.theme === 'string') {
+        return { ...defaultSettings, ...parsed }
+      }
+      logger.warn('Settings', 'Stored settings failed validation — using defaults')
+    }
   } catch {}
   return { ...defaultSettings }
 }
@@ -112,10 +127,14 @@ function applyCSSVars(s: UserSettings) {
 export const useSettingsStore = defineStore("settings", () => {
   const settings = ref<UserSettings>(loadFromStorage());
 
-  // Persist + apply on every change
+  // Apply CSS vars immediately on any change (cheap), but debounce localStorage writes
+  let _persistTimer: ReturnType<typeof setTimeout> | undefined
   watch(settings, (val) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(val))
     applyCSSVars(val)
+    if (_persistTimer !== undefined) clearTimeout(_persistTimer)
+    _persistTimer = setTimeout(() => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(val))
+    }, 300)
   }, { deep: true, immediate: true })
 
   const updateSetting = <K extends keyof UserSettings>(

@@ -7,7 +7,7 @@
   --bg-tertiary: #eeeeee;
   --text-primary: #1a1a1a;
   --text-secondary: #666666;
-  --text-tertiary: #999999;
+  --text-tertiary: #767676;
   --border-color: #e0e0e0;
   --accent-color: #4a90e2;
   --accent-hover: #357abd;
@@ -58,7 +58,7 @@
   --bg-tertiary: #333333;
   --text-primary: #e0e0e0;
   --text-secondary: #a0a0a0;
-  --text-tertiary: #707070;
+  --text-tertiary: #8a8a8a;
   --border-color: #404040;
   --accent-color: #6ba3ff;
   --accent-hover: #8ab8ff;
@@ -75,6 +75,31 @@
   --status-progress-fg: #ffb84d;
   --status-complete-bg: #1a5c2a;
   --status-complete-fg: #52e89f;
+}
+
+/* Respect OS dark-mode preference when no explicit data-theme is set (initial load) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --bg-primary: #1e1e1e;
+    --bg-secondary: #2a2a2a;
+    --bg-tertiary: #333333;
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --text-tertiary: #8a8a8a;
+    --border-color: #404040;
+    --accent-color: #6ba3ff;
+    --accent-hover: #8ab8ff;
+    --success-color: #52e89f;
+    --error-color:   #ff6b6b;
+    --warning-color: #ffb84d;
+    --info-color:    #6ba3ff;
+    --status-draft-bg: #1b4d5c;
+    --status-draft-fg: #6dd5e8;
+    --status-progress-bg: #5c4a1a;
+    --status-progress-fg: #ffb84d;
+    --status-complete-bg: #1a5c2a;
+    --status-complete-fg: #52e89f;
+  }
 }
 
 * {
@@ -349,6 +374,97 @@ a:hover {
   margin: var(--spacing-lg);
 }
 
+/* ── Shared component classes ───────────────────────────────────────────── */
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 20px;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.close-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.pill {
+  padding: 4px 12px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.pill:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.pill.active {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  color: #fff;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.btn-sm:not(:disabled):hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.btn-sm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.hint-error {
+  color: var(--error-color, #e07070);
+}
+
+.hint code {
+  background: var(--bg-tertiary);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.sec-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+.muted {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
 /* Animations */
 @keyframes fadeIn {
   from {
@@ -391,4 +507,55 @@ a:hover {
 
 .slide-in-right {
   animation: slideInRight var(--transition-normal);
+}
+
+/* ── Focus-visible for keyboard navigation ──────────────────────────────── */
+button:focus-visible,
+.btn:focus-visible,
+a:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+/* ── Responsive layout — Tauri window min-width: 800px ──────────────────── */
+
+/* Layout widths (consumed by scoped component styles via var()) */
+:root {
+  --sidebar-width: 250px;
+  --sidebar-collapsed-width: 60px;
+  --ai-panel-width: 280px;
+  --ai-panel-min-width: 260px;
+  --overview-width: 300px;
+}
+
+/* Narrow window: tighten sidebar and panels */
+@media (max-width: 1100px) {
+  :root {
+    --sidebar-width: 200px;
+    --ai-panel-width: 240px;
+    --ai-panel-min-width: 220px;
+    --overview-width: 260px;
+  }
+}
+
+/* Very narrow: compact spacing */
+@media (max-width: 900px) {
+  :root {
+    --sidebar-width: 180px;
+    --ai-panel-width: 220px;
+    --ai-panel-min-width: 200px;
+    --overview-width: 220px;
+  }
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

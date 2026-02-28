@@ -3,6 +3,8 @@
  * Handles creation, loading, and management of story projects
  */
 
+import type { StoryMetadata, Chapter, Character } from '@/stores/storyStore'
+
 export interface StoryProject {
   name: string
   path: string
@@ -78,9 +80,9 @@ export function createStoryProject(name: string): SerializedStory {
  * Serialize story state for persistence
  */
 export function serializeStory(
-  metadata: any,
-  chapters: any[],
-  characters: any[]
+  metadata: StoryMetadata,
+  chapters: Chapter[],
+  characters: Character[]
 ): SerializedStory {
   return {
     metadata: {
@@ -91,9 +93,9 @@ export function serializeStory(
       narrativeVoice: metadata.narrativeVoice || '',
       createdDate: metadata.createdDate,
       lastModified: new Date().toISOString(),
-      wordCount: chapters.reduce((sum: number, ch: any) => sum + ch.wordCount, 0),
+      wordCount: chapters.reduce((sum: number, ch) => sum + ch.wordCount, 0),
     },
-    chapters: chapters.map((ch: any) => ({
+    chapters: chapters.map((ch) => ({
       id: ch.id,
       name: ch.name,
       status: ch.status,
@@ -114,7 +116,7 @@ export function serializeStory(
       ...(ch.illustrationPath    != null  && { illustrationPath:    ch.illustrationPath }),
       ...(ch.illustrationCaption != null  && { illustrationCaption: ch.illustrationCaption }),
     })),
-    characters: characters.map((char: any) => ({
+    characters: characters.map((char) => ({
       id: char.id,
       name: char.name,
       description: char.description || '',
@@ -129,7 +131,7 @@ export function serializeStory(
 /**
  * Calculate total word count
  */
-export function calculateTotalWordCount(chapters: any[]): number {
+export function calculateTotalWordCount(chapters: Pick<Chapter, 'wordCount'>[]): number {
   return chapters.reduce((sum, ch) => sum + (ch.wordCount || 0), 0)
 }
 
@@ -144,25 +146,27 @@ export function generateDefaultProjectName(): string {
 /**
  * Validate story data
  */
-export function validateStoryData(story: any): { valid: boolean; errors: string[] } {
+export function validateStoryData(story: unknown): { valid: boolean; errors: string[] } {
   const errors: string[] = []
+  const s = story as Record<string, unknown>
 
-  if (!story.metadata) {
+  if (!s.metadata) {
     errors.push('Missing metadata')
   } else {
-    if (!story.metadata.title?.trim()) {
+    const m = s.metadata as Record<string, unknown>
+    if (!(typeof m.title === 'string' && m.title.trim())) {
       errors.push('Story title is required')
     }
-    if (!story.metadata.createdDate) {
+    if (!m.createdDate) {
       errors.push('Missing creation date')
     }
   }
 
-  if (!Array.isArray(story.chapters)) {
+  if (!Array.isArray(s.chapters)) {
     errors.push('Chapters must be an array')
   }
 
-  if (!Array.isArray(story.characters)) {
+  if (!Array.isArray(s.characters)) {
     errors.push('Characters must be an array')
   }
 

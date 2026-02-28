@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, ref, nextTick, onUnmounted } from 'vue'
+import { computed, watch, ref, nextTick, onMounted, onUnmounted } from 'vue'
 import type { CSSProperties } from 'vue'
 import { useUIStore } from '@/stores/uiStore'
 
@@ -120,7 +120,7 @@ watch(() => uiStore.tourActive, (v) => { if (v) nextTick(measureTarget) })
 
 // Re-measure on window resize
 function onResize() { if (uiStore.tourActive) measureTarget() }
-window.addEventListener('resize', onResize)
+onMounted(() => window.addEventListener('resize', onResize))
 onUnmounted(() => window.removeEventListener('resize', onResize))
 
 // ─── Computed styles ────────────────────────────────────────────────────────

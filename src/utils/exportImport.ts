@@ -83,9 +83,8 @@ function safeFilename(name: string): string {
   return name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '').trim() || 'export'
 }
 
-function escHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
+// escHtml imported from shared sanitize utility
+import { escapeHtml as escHtml } from '@/utils/sanitize'
 
 /** DOM/DOCX safe anchor slug from a heading string. */
 function slugify(s: string): string {
@@ -591,6 +590,12 @@ export async function importMarkdownAsChapter(): Promise<{
   if (!selected || typeof selected !== 'string') return null
 
   const raw = await readTextFile(selected)
+
+  // Guard against absurdly large files (10 MB text limit)
+  const MAX_IMPORT_BYTES = 10 * 1024 * 1024
+  if (raw.length > MAX_IMPORT_BYTES) {
+    throw new Error(`File too large (${(raw.length / 1024 / 1024).toFixed(1)} MB). Maximum import size is 10 MB.`)
+  }
 
   // Use first # heading as chapter name, fall back to filename
   const headingMatch = raw.match(/^#\s+(.+)$/m)

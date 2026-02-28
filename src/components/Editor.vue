@@ -739,16 +739,17 @@ function setMode(newMode: RenderMode) {
   restoreScrollLine(newMode, line)
 }
 
-const wordCount = computed(() => {
-  return content.value
-    .trim()
-    .split(/\s+/)
-    .filter((word: string) => word.length > 0).length
-})
-
-const lineCount = computed(() => {
-  return content.value.split('\n').length
-})
+// Word/line counts — debounced to avoid per-keystroke string splitting
+const wordCount = ref(0)
+const lineCount = ref(0)
+let _statsTimer: ReturnType<typeof setTimeout> | undefined
+watch(content, (val) => {
+  if (_statsTimer !== undefined) clearTimeout(_statsTimer)
+  _statsTimer = setTimeout(() => {
+    wordCount.value = val.trim().split(/\s+/).filter((w: string) => w.length > 0).length
+    lineCount.value = val.split('\n').length
+  }, 300)
+}, { immediate: true })
 
 const saveChapter = async () => {
   if (!currentChapter.value || isReadOnly.value) return

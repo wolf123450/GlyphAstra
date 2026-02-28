@@ -24,6 +24,7 @@ import { makeProvider } from '@/api/providers'
 import type { ProviderId } from '@/api/providers'
 import { useAIStore } from '@/stores/aiStore'
 import { useStoryStore } from '@/stores/storyStore'
+import { logger } from '@/utils/logger'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,9 @@ const cooldowns = new Map<string, number>()
 
 /** Chapters currently being summarised (prevents concurrent calls per chapter). */
 const inFlight = new Set<string>()
+
+/** Per-chapter debounce timers so rapid edits don't queue multiple summary runs. */
+const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -144,7 +148,7 @@ async function autoSummariseChapter(chapterId: string): Promise<void> {
 
   // All checks passed — run summary.
   inFlight.add(chapterId)
-  console.log(`[summaryManager] Generating summary for chapter "${ch.name}"…`)
+  logger.info('SummaryManager', `Generating summary for chapter "${ch.name}"…`)
 
   try {
     const prompt        = buildSummaryPrompt(ch.name, content)
@@ -160,9 +164,9 @@ async function autoSummariseChapter(chapterId: string): Promise<void> {
 
     watchedHashes.set(chapterId, hash)
     cooldowns.set(chapterId, Date.now())
-    console.log(`[summaryManager] Summary updated for chapter "${ch.name}".`)
+    logger.info('SummaryManager', `Summary updated for chapter "${ch.name}".`)
   } catch (err) {
-    console.warn(`[summaryManager] Failed to summarise chapter "${ch.name}":`, err)
+    logger.warn('SummaryManager', `Failed to summarise chapter "${ch.name}":`, err)
   } finally {
     inFlight.delete(chapterId)
   }
@@ -189,7 +193,7 @@ export async function triggerSummary(chapterId: string): Promise<void> {
 
   const hash = contentHash(content)
   inFlight.add(chapterId)
-  console.log(`[summaryManager] Manual regeneration for chapter "${ch.name}"…`)
+  logger.info('SummaryManager', `Manual regeneration for chapter "${ch.name}"…`)
 
   try {
     const prompt         = buildSummaryPrompt(ch.name, content)
@@ -205,9 +209,9 @@ export async function triggerSummary(chapterId: string): Promise<void> {
 
     watchedHashes.set(chapterId, hash)
     cooldowns.set(chapterId, Date.now())
-    console.log(`[summaryManager] Manual summary complete for "${ch.name}".`)
+    logger.info('SummaryManager', `Manual summary complete for "${ch.name}".`)
   } catch (err) {
-    console.warn(`[summaryManager] Manual summary failed for "${ch.name}":`, err)
+    logger.warn('SummaryManager', `Manual summary failed for "${ch.name}":`, err)
   } finally {
     inFlight.delete(chapterId)
   }
@@ -235,13 +239,18 @@ export function useSummaryManager(): void {
         const oldContent = oldMap.get(id)
         // Only react to actual content changes (not newly added chapters).
         if (oldContent !== undefined && oldContent !== content) {
-          // Debounce: run after a short idle period so we don't fire on every keystroke.
-          setTimeout(() => autoSummariseChapter(id), 3000)
+          // Debounce per chapter: clear any pending timer before scheduling a new one.
+          const prev = debounceTimers.get(id)
+          if (prev !== undefined) clearTimeout(prev)
+          debounceTimers.set(id, setTimeout(() => {
+            debounceTimers.delete(id)
+            autoSummariseChapter(id)
+          }, 3000))
         }
       }
     },
     { deep: false }   // shallow enough — we only compare content strings
   )
 
-  console.log('[summaryManager] Background chapter summariser active.')
+  logger.info('SummaryManager', 'Background chapter summariser active.')
 }

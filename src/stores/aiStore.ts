@@ -118,8 +118,40 @@ const SUMMARY_MODEL_KEY          = 'blockbreaker_summary_models'
 
 type ProviderId = 'ollama' | 'openai' | 'anthropic' | 'google'
 
+// ── Basic obfuscation for API keys at rest in localStorage ─────────────────
+// This is NOT encryption — it prevents casual plaintext exposure in DevTools
+// and protects against naive scraping. For true security, use Tauri stronghold.
+const KEY_SALT = 'bb_k3y_0bfu5c'
+function obfuscate(plaintext: string): string {
+  const encoded = btoa(unescape(encodeURIComponent(plaintext)))
+  return encoded.split('').map((c, i) =>
+    String.fromCharCode(c.charCodeAt(0) ^ KEY_SALT.charCodeAt(i % KEY_SALT.length))
+  ).join('')
+}
+function deobfuscate(obfuscated: string): string {
+  const decoded = obfuscated.split('').map((c, i) =>
+    String.fromCharCode(c.charCodeAt(0) ^ KEY_SALT.charCodeAt(i % KEY_SALT.length))
+  ).join('')
+  try { return decodeURIComponent(escape(atob(decoded))) } catch { return '' }
+}
+
 function loadProviderKeys(): Record<string, string> {
-  try { return JSON.parse(localStorage.getItem(PROVIDER_KEYS_STORAGE_KEY) ?? '{}') } catch { return {} }
+  try {
+    const raw = localStorage.getItem(PROVIDER_KEYS_STORAGE_KEY) ?? '{}'
+    const stored = JSON.parse(raw)
+    // Deobfuscate values; handles both legacy plaintext and obfuscated keys
+    const result: Record<string, string> = {}
+    for (const [k, v] of Object.entries(stored)) {
+      const val = v as string
+      // Legacy plaintext keys start with known prefixes; obfuscated ones don't
+      if (val.startsWith('sk-') || val.startsWith('AI') || val.length === 0) {
+        result[k] = val // legacy plaintext — will be re-saved as obfuscated on next setApiKey
+      } else {
+        result[k] = deobfuscate(val)
+      }
+    }
+    return result
+  } catch { return {} }
 }
 function loadProviderEnabled(): Record<string, boolean> {
   try { return JSON.parse(localStorage.getItem(PROVIDER_ENABLED_KEY) ?? '{"ollama":true}') } catch { return { ollama: true } }
@@ -193,6 +225,9 @@ export const useAIStore = defineStore("ai", () => {
 
   const addCompletion = (completion: Completion) => {
     completionHistory.value.push(completion);
+    if (completionHistory.value.length > 100) {
+      completionHistory.value = completionHistory.value.slice(-100)
+    }
   };
 
   const setCurrentCompletions = (completions: string[]) => {
@@ -249,7 +284,12 @@ export const useAIStore = defineStore("ai", () => {
 
   const setApiKey = (providerId: string, key: string) => {
     providerApiKeys.value = { ...providerApiKeys.value, [providerId]: key }
-    localStorage.setItem(PROVIDER_KEYS_STORAGE_KEY, JSON.stringify(providerApiKeys.value))
+    // Store obfuscated keys in localStorage
+    const obfuscated: Record<string, string> = {}
+    for (const [k, v] of Object.entries(providerApiKeys.value)) {
+      obfuscated[k] = v ? obfuscate(v) : ''
+    }
+    localStorage.setItem(PROVIDER_KEYS_STORAGE_KEY, JSON.stringify(obfuscated))
   }
 
   const setProviderEnabled = (providerId: string, enabled: boolean) => {
@@ -268,6 +308,12 @@ export const useAIStore = defineStore("ai", () => {
   const setSummaryModel = (providerId: string, model: string) => {
     summaryProviderModel.value = { ...summaryProviderModel.value, [providerId]: model }
     localStorage.setItem(SUMMARY_MODEL_KEY, JSON.stringify(summaryProviderModel.value))
+  }
+
+  /** Check if a provider has an API key set (without exposing the key value). */
+  const hasApiKey = (providerId: string): boolean => {
+    const key = providerApiKeys.value[providerId]
+    return !!(key && key.trim())
   }
 
   return {
@@ -312,5 +358,6 @@ export const useAIStore = defineStore("ai", () => {
     setProviderEnabled,
     setProviderModel,
     setSummaryModel,
+    hasApiKey,
   };
 });

@@ -11,6 +11,7 @@ import type { BackupFile } from "@/utils/backupRestore";
 import { HELP_STORY_ID, HELP_CHAPTERS } from "@/utils/helpStory";
 import { evictPackCache } from "@/utils/imagePackManager";
 import { clearImageCache } from "@/utils/imageUtils";
+import { logger } from "@/utils/logger";
 
 export interface Chapter {
   id: string;
@@ -73,7 +74,8 @@ export const useStoryStore = defineStore("story", () => {
   const characters = ref<Character[]>([]);
   const currentChapterId = ref<string | null>(null);
   const currentStoryId = ref<string | null>(null);
-  const isSaving = ref<boolean>(false);  /** Active context tag filter for AI (session-only). Empty = include all chapters. */
+  const isSaving = ref<boolean>(false);
+  const isLoading = ref<boolean>(false);  /** Active context tag filter for AI (session-only). Empty = include all chapters. */
   const activeContextTags = ref<string[]>([])
 
   /** All unique contextTags across all chapters in the current story. */
@@ -162,7 +164,7 @@ export const useStoryStore = defineStore("story", () => {
   const saveStory = async (storyId?: string): Promise<boolean> => {
     const id = storyId || currentStoryId.value;
     if (!id) {
-      console.warn("No story ID provided");
+      logger.warn('StoryStore', 'No story ID provided');
       return false;
     }
 
@@ -186,10 +188,10 @@ export const useStoryStore = defineStore("story", () => {
       if (success) {
         metadata.value.lastModified = new Date().toISOString();
       }
-      if (!fsSuccess) console.warn("[StoryStore] File system save failed; localStorage only.");
+      if (!fsSuccess) logger.warn('StoryStore', 'File system save failed; localStorage only.');
       return success as boolean;
     } catch (error) {
-      console.error("Failed to save story:", error);
+      logger.error('StoryStore', 'Failed to save story:', error);
       return false;
     } finally {
       isSaving.value = false;
@@ -200,7 +202,7 @@ export const useStoryStore = defineStore("story", () => {
    * Load story from storage
    */
   const loadStory = async (storyId: string): Promise<boolean> => {
-    isSaving.value = true;
+    isLoading.value = true;
     // Evict image caches for the outgoing story before loading a new one
     const prevId = currentStoryId.value
     if (prevId && prevId !== storyId) {
@@ -211,12 +213,21 @@ export const useStoryStore = defineStore("story", () => {
       // Prefer file system; fall back to localStorage
       let story = await fsLoadStory(storyId);
       if (!story) {
-        console.info("[StoryStore] Not on disk, trying localStorage...");
+        logger.info('StoryStore', 'Not on disk, trying localStorage...');
         story = await storageManager.loadStory(storyId);
       }
       if (!story) {
-        console.warn("Story not found:", storyId);
+        logger.warn('StoryStore', 'Story not found:', storyId);
         return false;
+      }
+
+      // ── Basic shape validation ──────────────────────────────────────────
+      if (
+        !story.metadata || typeof story.metadata.title !== 'string' ||
+        !Array.isArray(story.chapters) || !Array.isArray(story.characters)
+      ) {
+        logger.error('StoryStore', 'Corrupt story data — missing metadata, chapters, or characters array')
+        return false
       }
 
       // Load story data
@@ -255,10 +266,10 @@ export const useStoryStore = defineStore("story", () => {
 
       return true;
     } catch (error) {
-      console.error("Failed to load story:", error);
+      logger.error('StoryStore', 'Failed to load story:', error);
       return false;
     } finally {
-      isSaving.value = false;
+      isLoading.value = false;
     }
   };
 
@@ -467,6 +478,7 @@ export const useStoryStore = defineStore("story", () => {
     currentChapterId,
     currentStoryId,
     isSaving,
+    isLoading,
     activeContextTags,
     // Computed
     currentChapter,

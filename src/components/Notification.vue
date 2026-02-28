@@ -4,6 +4,8 @@
       v-if="isVisible"
       class="notification"
       :class="`notification-${type}`"
+      role="alert"
+      aria-live="assertive"
     >
       <span class="notification-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path :d="getIconPath()"/></svg></span>
       <span class="notification-message">{{ message }}</span>

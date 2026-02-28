@@ -11,6 +11,8 @@
  */
 
 import type { ModelProvider, ModelInfo, CompletionOptions } from './types'
+import { fetchWithRetry } from '@/utils/fetchRetry'
+import { splitPrompt, parseSSEStream } from './shared'
 
 /**
  * Pricing as of 2026-02 (USD per 1M tokens, standard tier, >128K context).
@@ -36,26 +38,16 @@ const GOOGLE_FALLBACK: ModelInfo[] = [
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 
-function splitPrompt(prompt: string): { systemInstruction: string; userContent: string } {
-  const MARKER = '=== TEXT ALREADY WRITTEN ==='
-  const idx = prompt.indexOf(MARKER)
-  if (idx > -1) {
-    return {
-      systemInstruction: prompt.slice(0, idx).trim(),
-      userContent:       prompt.slice(idx).trim(),
-    }
-  }
-  return {
-    systemInstruction: 'You are a creative writing assistant. Generate only the next portion of the story. Do not repeat text that has already been written.',
-    userContent:       prompt,
-  }
-}
+
 
 export class GoogleProvider implements ModelProvider {
   readonly id   = 'google'
   readonly name = 'Google Gemini'
 
   private apiKey: string
+  private _modelCache: ModelInfo[] | null = null
+  private _modelCacheTime = 0
+  private static MODEL_CACHE_TTL = 5 * 60 * 1000  // 5 minutes
 
   constructor(apiKey: string) {
     this.apiKey = apiKey
@@ -67,6 +59,9 @@ export class GoogleProvider implements ModelProvider {
 
   async listModels(): Promise<ModelInfo[]> {
     if (!this.apiKey.trim()) return GOOGLE_FALLBACK
+    if (this._modelCache && Date.now() - this._modelCacheTime < GoogleProvider.MODEL_CACHE_TTL) {
+      return this._modelCache
+    }
     try {
       const resp = await fetch(
         `${GEMINI_BASE}?key=${encodeURIComponent(this.apiKey)}&pageSize=50`,
@@ -99,7 +94,10 @@ export class GoogleProvider implements ModelProvider {
           }
         })
         .sort((a, b) => a.id.localeCompare(b.id))
-      return models.length ? models : GOOGLE_FALLBACK
+      const result = models.length ? models : GOOGLE_FALLBACK
+      this._modelCache = result
+      this._modelCacheTime = Date.now()
+      return result
     } catch {
       return GOOGLE_FALLBACK
     }
@@ -110,7 +108,7 @@ export class GoogleProvider implements ModelProvider {
     opts: CompletionOptions,
     onChunk: (chunk: string) => void
   ): Promise<void> {
-    const { systemInstruction, userContent } = splitPrompt(prompt)
+    const { system: systemInstruction, user: userContent } = splitPrompt(prompt)
 
     const genConfig: Record<string, unknown> = {}
     if (opts.temperature !== undefined) genConfig.temperature    = opts.temperature
@@ -127,10 +125,11 @@ export class GoogleProvider implements ModelProvider {
 
     const url = `${GEMINI_BASE}/${opts.model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(this.apiKey)}`
 
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(body),
+      signal:  opts.signal ?? AbortSignal.timeout(120_000),
     })
 
     if (!response.ok) {
@@ -138,35 +137,21 @@ export class GoogleProvider implements ModelProvider {
       throw new Error(`Google Gemini error ${response.status}: ${err}`)
     }
 
-    const reader  = response.body?.getReader()
-    const decoder = new TextDecoder()
-    if (!reader) return
-
-    let buffer = ''
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
-
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed || !trimmed.startsWith('data: ')) continue
-
-        try {
-          const json  = JSON.parse(trimmed.slice(6))
-          const parts = json?.candidates?.[0]?.content?.parts as Array<{ text?: string }> | undefined
-          if (parts) {
-            for (const part of parts) {
-              if (typeof part.text === 'string') onChunk(part.text)
-            }
-          }
-        } catch {
-          // Ignore malformed SSE lines
+    await parseSSEStream(
+      response,
+      (json) => {
+        const candidates = json.candidates as Array<{ content?: { parts?: Array<{ text?: string }> } }> | undefined
+        const parts = candidates?.[0]?.content?.parts
+        if (parts) {
+          // Gemini may return multiple parts; concatenate them
+          return parts
+            .filter((p): p is { text: string } => typeof p.text === 'string')
+            .map(p => p.text)
+            .join('') || null
         }
-      }
-    }
+        return null
+      },
+      onChunk,
+    )
   }
 }

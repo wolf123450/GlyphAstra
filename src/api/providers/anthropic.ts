@@ -14,6 +14,8 @@
  */
 
 import type { ModelProvider, ModelInfo, CompletionOptions } from './types'
+import { fetchWithRetry } from '@/utils/fetchRetry'
+import { splitPrompt, parseSSEStream } from './shared'
 
 /**
  * Pricing as of 2026-02 (USD per 1M tokens, standard tier).
@@ -26,20 +28,7 @@ const ANTHROPIC_MODELS: ModelInfo[] = [
   { id: 'claude-haiku-4-5',  name: 'Claude Haiku 4.5',  providerId: 'anthropic', pricing: { inputPer1M:  1.00, outputPer1M:  5.00 } },
 ]
 
-function splitPrompt(prompt: string): { system: string; user: string } {
-  const MARKER = '=== TEXT ALREADY WRITTEN ==='
-  const idx = prompt.indexOf(MARKER)
-  if (idx > -1) {
-    return {
-      system: prompt.slice(0, idx).trim(),
-      user:   prompt.slice(idx).trim(),
-    }
-  }
-  return {
-    system: 'You are a creative writing assistant. Generate only the next portion of the story. Do not repeat text that has already been written.',
-    user:   prompt,
-  }
-}
+
 
 export class AnthropicProvider implements ModelProvider {
   readonly id   = 'anthropic'
@@ -78,7 +67,7 @@ export class AnthropicProvider implements ModelProvider {
       ...(opts.stop        !== undefined && opts.stop.length > 0 && { stop_sequences: opts.stop }),
     }
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
       method:  'POST',
       headers: {
         'Content-Type':          'application/json',
@@ -88,6 +77,7 @@ export class AnthropicProvider implements ModelProvider {
         'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify(body),
+      signal: opts.signal ?? AbortSignal.timeout(120_000),
     })
 
     if (!response.ok) {
@@ -95,34 +85,18 @@ export class AnthropicProvider implements ModelProvider {
       throw new Error(`Anthropic error ${response.status}: ${err}`)
     }
 
-    const reader  = response.body?.getReader()
-    const decoder = new TextDecoder()
-    if (!reader) return
-
-    let buffer = ''
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
-
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed || !trimmed.startsWith('data: ')) continue
-
-        try {
-          const json = JSON.parse(trimmed.slice(6))
-          // content_block_delta carries the actual text chunk
-          if (json?.type === 'content_block_delta' && json?.delta?.type === 'text_delta') {
-            const text = json.delta.text
-            if (typeof text === 'string') onChunk(text)
+    await parseSSEStream(
+      response,
+      (json) => {
+        if (json?.type === 'content_block_delta') {
+          const delta = json.delta as { type?: string; text?: string } | undefined
+          if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
+            return delta.text
           }
-        } catch {
-          // Ignore malformed SSE lines
         }
-      }
-    }
+        return null
+      },
+      onChunk,
+    )
   }
 }

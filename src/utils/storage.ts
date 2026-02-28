@@ -6,6 +6,7 @@
 import type { SerializedStory } from './storyManager'
 import { validateStoryData } from './storyManager'
 import { errorHandler, ErrorType } from './error'
+import { logger } from './logger'
 
 const STORAGE_PREFIX = 'blockbreaker_story_'
 const PROJECTS_LIST_KEY = 'blockbreaker_projects_list'
@@ -72,7 +73,7 @@ class StorageManager {
       // Update projects list
       this.addToProjectsList(storyId, story.metadata.title)
 
-      console.log(`[Storage] Saved story: ${storyId}`)
+      logger.info('Storage', `Saved story: ${storyId}`)
       return true
     } catch (error) {
       errorHandler.handleFileError(
@@ -97,7 +98,7 @@ class StorageManager {
       const data = localStorage.getItem(key)
 
       if (!data) {
-        console.warn(`[Storage] Story not found: ${storyId}`)
+        logger.warn('Storage', `Story not found: ${storyId}`)
         return null
       }
 
@@ -113,7 +114,7 @@ class StorageManager {
         return null
       }
 
-      console.log(`[Storage] Loaded story: ${storyId}`)
+      logger.info('Storage', `Loaded story: ${storyId}`)
       return story
     } catch (error) {
       errorHandler.handleFileError(
@@ -136,7 +137,7 @@ class StorageManager {
       const key = `${STORAGE_PREFIX}${storyId}`
       localStorage.removeItem(key)
       this.removeFromProjectsList(storyId)
-      console.log(`[Storage] Deleted story: ${storyId}`)
+      logger.info('Storage', `Deleted story: ${storyId}`)
       return true
     } catch (error) {
       errorHandler.handleFileError(`Failed to delete story: ${storyId}`, error as Error)
@@ -178,7 +179,7 @@ class StorageManager {
 
       localStorage.setItem(PROJECTS_LIST_KEY, JSON.stringify(projects))
     } catch (error) {
-      console.error('[Storage] Failed to update projects list:', error)
+      logger.error('Storage', 'Failed to update projects list:', error)
     }
   }
 
@@ -191,7 +192,7 @@ class StorageManager {
       const filtered = projects.filter((p) => p.id !== id)
       localStorage.setItem(PROJECTS_LIST_KEY, JSON.stringify(filtered))
     } catch (error) {
-      console.error('[Storage] Failed to update projects list:', error)
+      logger.error('Storage', 'Failed to remove from projects list:', error)
     }
   }
 
@@ -240,7 +241,7 @@ class StorageManager {
       keys.forEach((key) => localStorage.removeItem(key))
       localStorage.removeItem(PROJECTS_LIST_KEY)
 
-      console.log('[Storage] Cleared all data')
+      logger.info('Storage', 'Cleared all data')
       return true
     } catch (error) {
       errorHandler.handleFileError('Failed to clear storage', error as Error)
@@ -265,7 +266,7 @@ class StorageManager {
         }
       }
     } catch (error) {
-      console.error('[Storage] Failed to export data:', error)
+      logger.error('Storage', 'Failed to export data:', error)
     }
 
     return data

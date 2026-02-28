@@ -776,6 +776,7 @@ Supports academic, non-fiction, and heavily-researched creative work. Three inte
 
 - [ ] Analytics and insights
 - [ ] Community features
+- [ ] **Auto-updater** — configure Tauri's `updater` plugin to ship security patches and new releases. Requires: (1) finalise app rename, (2) host on GitHub with Releases for update manifests, (3) add `updater` section to `tauri.conf.json` with public signing key and GitHub endpoint.
 
 ---
 

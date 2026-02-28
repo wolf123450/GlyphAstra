@@ -1,10 +1,10 @@
 <template>
   <Teleport to="body">
     <div v-if="show" class="md-ref-overlay" @click.self="$emit('close')">
-      <div class="md-ref-modal" @keydown.escape="$emit('close')" tabindex="-1" ref="modalEl">
+      <div class="md-ref-modal" role="dialog" aria-modal="true" aria-label="Markdown Reference" @keydown.escape="$emit('close')" tabindex="-1" ref="modalEl">
         <div class="md-ref-header">
           <span class="md-ref-title">Markdown Reference</span>
-          <button class="md-ref-close" @click="$emit('close')" title="Close (Esc)"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiClose"/></svg></button>
+          <button class="md-ref-close" @click="$emit('close')" title="Close (Esc)" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="mdiClose"/></svg></button>
         </div>
 
         <div class="md-ref-body">

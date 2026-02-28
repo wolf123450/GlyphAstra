@@ -3,6 +3,8 @@
  * Parses markdown into tokens with position info, then renders based on cursor location
  */
 
+import { escapeHtml, isDangerousUrl } from '@/utils/sanitize'
+
 export type RenderMode = 'markdown' | 'seamless' | 'preview'
 
 export interface Token {
@@ -196,10 +198,11 @@ export function tokenizeMarkdown(content: string): Token[] {
       }
     }
 
-    // Check for fenced code block (```lang …  ```)
-    const fenceMatch = stripped.match(/^```(\w*)$/)
+    // Check for fenced code block (```lang …  ```) — allow leading whitespace
+    const fenceMatch = stripped.match(/^(\s*)```(\w*)$/)
     if (fenceMatch) {
-      const language = fenceMatch[1] || ''
+      const fenceIndent = fenceMatch[1]
+      const language = fenceMatch[2] || ''
       const fenceStart = lineStartPos
       // pos tracks char position as we consume body lines
       let pos = lineStartPos + line.length + 1 // after opening line's \n
@@ -210,12 +213,17 @@ export function tokenizeMarkdown(content: string): Token[] {
       while (lineIdx < lines.length) {
         const nextLine = lines[lineIdx]
         const nextStripped = nextLine.endsWith('\r') ? nextLine.slice(0, -1) : nextLine
-        if (nextStripped === '```') {
+        // Closing fence must be at same (or less) indentation
+        if (nextStripped.trim() === '```' && (nextStripped.match(/^\s*/)?.[0] ?? '').length <= fenceIndent.length) {
           closingLineEnd = pos + nextLine.length
           lineIdx++ // consumed; compensated below before continue
           break
         }
-        bodyLines.push(nextStripped)
+        // Strip the fence indent from body lines so the code is not over-indented
+        const stripped_body = fenceIndent && nextStripped.startsWith(fenceIndent)
+          ? nextStripped.slice(fenceIndent.length)
+          : nextStripped
+        bodyLines.push(stripped_body)
         pos += nextLine.length + 1
         lineIdx++
       }
@@ -447,6 +455,180 @@ function mergeAndValidateTokens(tokens: Token[], content: string): Token[] {
 }
 
 /**
+ * Render preview HTML with proper list grouping.
+ *
+ * Without grouping each list item creates its own `<ol>` / `<ul>`, which
+ * restarts numbering and prevents proper nesting.  This helper walks the
+ * token array and emits opening/closing list tags when the indent level
+ * changes, producing valid nested HTML lists.
+ */
+export function renderPreview(tokens: Token[], content?: string): string {
+  const parts: string[] = []
+  /** Stack of open list tags: { tag: 'ul'|'ol', indent } */
+  const listStack: Array<{ tag: 'ul' | 'ol'; indent: number }> = []
+
+  /** Compute 0-based source line number for a token (for scroll-sync). */
+  function sourceLine(token: Token): number {
+    if (!content) return -1
+    return content.slice(0, token.start).split('\n').length - 1
+  }
+
+  /** Inject data-source-line into the first opening HTML tag of a string. */
+  function withSL(html: string, token: Token): string {
+    if (!content) return html
+    const line = sourceLine(token)
+    return html.replace(/^(<[a-zA-Z][a-zA-Z0-9]*)([\s>])/, `$1 data-source-line="${line}"$2`)
+  }
+
+  function closeListsTo(targetIndent: number): void {
+    while (listStack.length > 0 && listStack[listStack.length - 1].indent >= targetIndent) {
+      const top = listStack.pop()!
+      parts.push(`</${top.tag}>`)
+    }
+  }
+
+  function closeAllLists(): void {
+    while (listStack.length > 0) {
+      const top = listStack.pop()!
+      parts.push(`</${top.tag}>`)
+    }
+  }
+
+  /** Inline token types that should flow together inside a single <p>. */
+  const INLINE_TYPES = new Set<Token['type']>([
+    'text', 'bold', 'italic', 'code', 'strikethrough', 'link', 'image',
+  ])
+
+  /** Buffer of consecutive inline token HTML fragments to be flushed into one <p>. */
+  let inlineBuf: string[] = []
+  /** First inline token in the current buffer (for source-line annotation). */
+  let inlineAnchor: Token | null = null
+
+  function flushInline(): void {
+    if (inlineBuf.length === 0) return
+    parts.push(withSL(`<p>${inlineBuf.join('')}</p>`, inlineAnchor!))
+    inlineBuf = []
+    inlineAnchor = null
+  }
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]
+    const isList = token.type === 'listItem' || token.type === 'orderedList'
+
+    if (!isList) {
+      if (listStack.length > 0) {
+        // Determine whether the list resumes after this (and possibly subsequent)
+        // non-list tokens.  Look ahead past whitespace-only text AND block-level
+        // tokens (fenced code, blockquotes, etc.) which can be embedded in a
+        // list without breaking numbering.
+        let probe = i
+        while (probe < tokens.length) {
+          const t = tokens[probe]
+          if (t.type === 'listItem' || t.type === 'orderedList') break
+          if (t.type === 'text' && /^\s*$/.test(t.content)) { probe++; continue }
+          if (!INLINE_TYPES.has(t.type)) { probe++; continue } // block token
+          break // non-whitespace inline content → list is broken
+        }
+        const listContinues = probe < tokens.length &&
+          (tokens[probe].type === 'listItem' || tokens[probe].type === 'orderedList')
+
+        if (listContinues) {
+          // Whitespace between list items: skip entirely
+          if (token.type === 'text' && /^\s*$/.test(token.content)) continue
+          // Block-level token (fenced code, etc.): emit inside the list
+          flushInline()
+          parts.push(withSL(token.rendered, token))
+          continue
+        }
+      }
+
+      // Close any open lists before a non-list token
+      closeAllLists()
+
+      // Inline tokens (text, bold, italic, …) are buffered and flushed into
+      // a single <p> so they stay on the same line.
+      if (INLINE_TYPES.has(token.type)) {
+        // Whitespace-only text tokens act as paragraph separators when they
+        // contain a blank line (\n\n), otherwise they're inline spacing.
+        if (token.type === 'text' && /^\s*$/.test(token.content)) {
+          if (token.content.includes('\n\n')) {
+            flushInline() // paragraph break
+          } else if (inlineBuf.length > 0) {
+            inlineBuf.push(' ') // single-newline → space
+          }
+          continue
+        }
+        if (!inlineAnchor) inlineAnchor = token
+        inlineBuf.push(token.rendered)
+      } else {
+        // Block-level token (header, hr, blockquote, fencedCode, table)
+        flushInline()
+        parts.push(withSL(token.rendered, token))
+      }
+      continue
+    }
+
+    // Flush any buffered inline content before starting list processing
+    flushInline()
+
+    const indent = token.indent ?? 0
+    const tag: 'ul' | 'ol' = token.type === 'orderedList' ? 'ol' : 'ul'
+
+    if (listStack.length === 0) {
+      // Start a new top-level list
+      const startAttr = tag === 'ol' && token.order != null ? ` start="${token.order}"` : ''
+      parts.push(`<${tag}${startAttr}>`)
+      listStack.push({ tag, indent })
+    } else {
+      const top = listStack[listStack.length - 1]
+
+      if (indent > top.indent) {
+        // Nest deeper — open a new sub-list
+        const startAttr = tag === 'ol' && token.order != null ? ` start="${token.order}"` : ''
+        parts.push(`<${tag}${startAttr}>`)
+        listStack.push({ tag, indent })
+      } else if (indent < top.indent) {
+        // Unindent — close lists down to this level
+        closeListsTo(indent + 1)
+
+        // Check if we need to switch list type at this level
+        const newTop = listStack.length > 0 ? listStack[listStack.length - 1] : null
+        if (!newTop || newTop.indent < indent || newTop.tag !== tag) {
+          // Close the mismatched list and open a correct one
+          if (newTop && newTop.indent === indent && newTop.tag !== tag) {
+            listStack.pop()
+            parts.push(`</${newTop.tag}>`)
+          }
+          const startAttr = tag === 'ol' && token.order != null ? ` start="${token.order}"` : ''
+          parts.push(`<${tag}${startAttr}>`)
+          listStack.push({ tag, indent })
+        }
+      } else if (top.tag !== tag) {
+        // Same indent but switching list type (ul → ol or vice versa)
+        listStack.pop()
+        parts.push(`</${top.tag}>`)
+        const startAttr = tag === 'ol' && token.order != null ? ` start="${token.order}"` : ''
+        parts.push(`<${tag}${startAttr}>`)
+        listStack.push({ tag, indent })
+      }
+    }
+
+    // Emit the <li> — extract inner HTML from the token's pre-wrapped rendered
+    // The token.rendered already has inline formatting applied via renderInlineHtml
+    const liContent = token.rendered
+      .replace(/^<[ou]l[^>]*><li>/, '')
+      .replace(/<\/li><\/[ou]l>$/, '')
+    const line = sourceLine(token)
+    const slAttr = content ? ` data-source-line="${line}"` : ''
+    parts.push(`<li${slAttr}>${liContent}</li>`)
+  }
+
+  flushInline()
+  closeAllLists()
+  return parts.join('')
+}
+
+/**
  * Render tokens as HTML with cursor-aware formatting
  */
 export function renderTokens(
@@ -461,8 +643,8 @@ export function renderTokens(
   }
 
   if (mode === 'preview') {
-    // Full preview - render all tokens as HTML
-    return tokens.map((token) => token.rendered).join('')
+    // Full preview — group consecutive list items into proper <ul>/<ol> nesting
+    return renderPreview(tokens)
   }
 
   // Seamless mode: render tokens, showing source for tokens near cursor
@@ -521,16 +703,6 @@ export function getWordBoundariesInSource(content: string, cursorPos: number): {
   return { start: wordStart, end: wordEnd }
 }
 
-function escapeHtml(text: string): string {
-  const map: { [key: string]: string } = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#039;',
-  }
-  return text.replace(/[&<>"']/g, (m) => map[m])
-}
 
 /**
  * Parse the optional dimension suffix from an image alt string.
@@ -607,7 +779,10 @@ function renderInlineHtml(text: string): string {
     const code = part.match(/^`(.*)`$/)
     if (code) return `<code>${escapeHtml(code[1])}</code>`
     const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
-    if (link) return `<a href="${escapeHtml(link[2])}">${escapeHtml(link[1])}</a>`
+    if (link) {
+      const href = isDangerousUrl(link[2]) ? '' : escapeHtml(link[2])
+      return `<a href="${href}">${escapeHtml(link[1])}</a>`
+    }
     return escapeHtml(part)
   }).join('')
 }

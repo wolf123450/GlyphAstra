@@ -2,6 +2,8 @@
  * Error Handling and Logging Utilities
  */
 
+import { logger } from './logger'
+
 export enum ErrorType {
   FILE_ERROR = "FILE_ERROR",
   API_ERROR = "API_ERROR",
@@ -48,7 +50,7 @@ class ErrorHandler {
       this.errorLogs = this.errorLogs.slice(-this.maxLogs);
     }
 
-    console.error(`[${type}] ${message}`, error || "");
+    logger.error(type, message, error || "");
 
     return errorLog;
   }

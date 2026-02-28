@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { tokenizeMarkdown, renderTokens } from '../utils/seamlessRenderer'
+import { tokenizeMarkdown, renderTokens, renderPreview } from '../utils/seamlessRenderer'
 import type { Token } from '../utils/seamlessRenderer'
 
 // ─── Helpers ───────────────────────────────────────────────────────
@@ -782,5 +782,133 @@ describe('escape characters', () => {
   it('\\# at start of line does not create a header', () => {
     const tokens = tokenizeMarkdown('\\# not a header')
     expect(tokens.some(t => t.type === 'header')).toBe(false)
+  })
+})
+
+// ─── Preview list grouping ──────────────────────────────────────────────
+
+describe('preview mode list grouping', () => {
+  it('groups consecutive ordered list items into a single <ol>', () => {
+    const content = '1. First\n2. Second\n3. Third'
+    const tokens = tokenizeMarkdown(content)
+    const html = renderTokens(tokens, content, -1, 'preview')
+    // Should be ONE <ol> with three <li>
+    expect(html.match(/<ol/g)?.length).toBe(1)
+    expect(html.match(/<li>/g)?.length).toBe(3)
+    expect(html).toContain('<li>First</li>')
+    expect(html).toContain('<li>Second</li>')
+    expect(html).toContain('<li>Third</li>')
+  })
+
+  it('groups consecutive unordered list items into a single <ul>', () => {
+    const content = '- A\n- B\n- C'
+    const tokens = tokenizeMarkdown(content)
+    const html = renderTokens(tokens, content, -1, 'preview')
+    expect(html.match(/<ul/g)?.length).toBe(1)
+    expect(html.match(/<li>/g)?.length).toBe(3)
+  })
+
+  it('nests indented ordered list items', () => {
+    const content = '1. Top\n   1. Nested A\n   2. Nested B\n2. Back'
+    const tokens = tokenizeMarkdown(content)
+    const html = renderTokens(tokens, content, -1, 'preview')
+    // Should produce nested structure: <ol><li>Top<ol><li>Nested A</li><li>Nested B</li></ol></li><li>Back</li></ol>
+    // Two <ol> tags: one top-level, one nested
+    expect(html.match(/<ol/g)?.length).toBe(2)
+    expect(html.match(/<li>/g)?.length).toBe(4)
+  })
+
+  it('nests indented unordered list items', () => {
+    const content = '- Top\n  - Nested\n- Back'
+    const tokens = tokenizeMarkdown(content)
+    const html = renderTokens(tokens, content, -1, 'preview')
+    expect(html.match(/<ul/g)?.length).toBe(2)
+    expect(html.match(/<li>/g)?.length).toBe(3)
+  })
+
+  it('non-list tokens break list grouping', () => {
+    const content = '1. First\n\nParagraph\n\n1. Second'
+    const tokens = tokenizeMarkdown(content)
+    const html = renderTokens(tokens, content, -1, 'preview')
+    // Two separate <ol>s
+    expect(html.match(/<ol/g)?.length).toBe(2)
+  })
+
+  it('preserves start attribute from first item', () => {
+    const content = '3. Three\n4. Four'
+    const tokens = tokenizeMarkdown(content)
+    const html = renderTokens(tokens, content, -1, 'preview')
+    expect(html).toContain('<ol start="3">')
+  })
+})
+
+// ─── Indented fenced code blocks ────────────────────────────────────────
+
+describe('indented fenced code block tokenization', () => {
+  it('recognises code block indented with spaces', () => {
+    const content = '   ```\n   ollama pull llama3.2\n   ```'
+    const tokens = tokenizeMarkdown(content)
+    const code = tokens.find(t => t.type === 'fencedCode')
+    expect(code).toBeDefined()
+    expect(code!.text).toBe('ollama pull llama3.2')
+  })
+
+  it('strips indent from body lines', () => {
+    const content = '  ```js\n  const x = 1\n  console.log(x)\n  ```'
+    const tokens = tokenizeMarkdown(content)
+    const code = tokens.find(t => t.type === 'fencedCode')!
+    expect(code.text).toBe('const x = 1\nconsole.log(x)')
+    expect(code.language).toBe('js')
+  })
+
+  it('preserves language tag on indented fence', () => {
+    const content = '   ```python\n   print("hi")\n   ```'
+    const tokens = tokenizeMarkdown(content)
+    const code = tokens.find(t => t.type === 'fencedCode')!
+    expect(code.language).toBe('python')
+  })
+
+  it('code block within a list item context', () => {
+    const content = '2. Pull a model:\n   ```\n   ollama pull llama3.2\n   ```'
+    const tokens = tokenizeMarkdown(content)
+    const ol = tokens.find(t => t.type === 'orderedList')
+    const code = tokens.find(t => t.type === 'fencedCode')
+    expect(ol).toBeDefined()
+    expect(code).toBeDefined()
+    expect(code!.text).toBe('ollama pull llama3.2')
+  })
+})
+
+describe('renderPreview', () => {
+  it('preserves ordered list numbering across an embedded fenced code block', () => {
+    const content =
+      '1. First item\n' +
+      '2. Second item:\n' +
+      '   ```\n' +
+      '   some code\n' +
+      '   ```\n' +
+      '3. Third item'
+    const tokens = tokenizeMarkdown(content)
+    const html = renderPreview(tokens, content)
+    // Should produce a single <ol> that is never closed and reopened
+    const olOpens = (html.match(/<ol/g) || []).length
+    expect(olOpens).toBe(1)
+    // All three <li> items should be present
+    const liMatches = html.match(/<li/g) || []
+    expect(liMatches.length).toBe(3)
+    // The code block should appear between items (withSL adds data-source-line)
+    expect(html).toContain('<code>some code</code>')
+  })
+
+  it('groups inline formatting into a single paragraph', () => {
+    const content = 'Hello **bold** world'
+    const tokens = tokenizeMarkdown(content)
+    const html = renderPreview(tokens)
+    // Should be a single <p>, not multiple
+    const pCount = (html.match(/<p>/g) || []).length
+    expect(pCount).toBe(1)
+    expect(html).toContain('Hello ')
+    expect(html).toContain('<strong>bold</strong>')
+    expect(html).toContain(' world')
   })
 })

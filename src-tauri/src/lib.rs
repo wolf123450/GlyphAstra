@@ -1,4 +1,25 @@
-// File system operations
+// HTTP proxy commands for CORS bypass and Ollama connectivity
+
+/// Allowed URL schemes for fetch_url_bytes.
+/// Only HTTPS and HTTP are permitted; file://, data:, javascript: etc. are blocked.
+fn is_allowed_url(url: &str) -> Result<(), String> {
+    let trimmed = url.trim();
+    if trimmed.starts_with("https://") || trimmed.starts_with("http://") {
+        // Block requests to cloud metadata / link-local endpoints
+        let lower = trimmed.to_lowercase();
+        if lower.contains("169.254.") || lower.contains("[fe80") || lower.contains("metadata.google")
+           || lower.contains("metadata.aws") {
+            return Err("Blocked: requests to cloud metadata endpoints are not allowed".to_string());
+        }
+        Ok(())
+    } else {
+        Err(format!("Blocked: only http:// and https:// URLs are allowed, got: {}", &trimmed[..trimmed.len().min(30)]))
+    }
+}
+
+/// Maximum response body size (50 MB) to prevent memory exhaustion.
+const MAX_RESPONSE_BYTES: usize = 50 * 1024 * 1024;
+
 #[tauri::command]
 async fn check_ollama_connection() -> Result<bool, String> {
     match reqwest::get("http://localhost:11434/api/tags").await {
@@ -9,8 +30,11 @@ async fn check_ollama_connection() -> Result<bool, String> {
 
 /// Fetch a URL from the Rust backend (bypasses WebView CORS restrictions).
 /// Returns the response body as a base64-encoded string plus the Content-Type header.
+/// Only http:// and https:// URLs are allowed. Response size is capped.
 #[tauri::command]
 async fn fetch_url_bytes(url: String) -> Result<(String, String), String> {
+    is_allowed_url(&url)?;
+
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -24,6 +48,13 @@ async fn fetch_url_bytes(url: String) -> Result<(String, String), String> {
 
     if !response.status().is_success() {
         return Err(format!("HTTP {}", response.status()));
+    }
+
+    // Check Content-Length header before reading the body
+    if let Some(len) = response.content_length() {
+        if len as usize > MAX_RESPONSE_BYTES {
+            return Err(format!("Response too large: {} bytes (max {})", len, MAX_RESPONSE_BYTES));
+        }
     }
 
     let content_type = response
@@ -41,6 +72,10 @@ async fn fetch_url_bytes(url: String) -> Result<(String, String), String> {
         .bytes()
         .await
         .map_err(|e| format!("Failed to read response bytes: {}", e))?;
+
+    if bytes.len() > MAX_RESPONSE_BYTES {
+        return Err(format!("Response too large: {} bytes (max {})", bytes.len(), MAX_RESPONSE_BYTES));
+    }
 
     use base64::Engine;
     let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
@@ -71,11 +106,6 @@ async fn list_ollama_models() -> Result<Vec<String>, String> {
     }
 }
 
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -83,7 +113,6 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            greet,
             check_ollama_connection,
             list_ollama_models,
             fetch_url_bytes

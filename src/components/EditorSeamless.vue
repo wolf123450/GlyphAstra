@@ -67,6 +67,8 @@ import { useStoryStore } from '@/stores/storyStore'
 import { storageManager } from '@/utils/storage'
 import { resolveLocalImages } from '@/utils/imageUtils'
 import { tokenizeMarkdown, parseImgDims } from '@/utils/seamlessRenderer'
+import { sanitizeHtml } from '@/utils/sanitize'
+import { logger } from '@/utils/logger'
 import { mdiLockOutline, mdiLockOpenVariant } from '@mdi/js'
 import {
   buildStructuredHTML,
@@ -259,14 +261,14 @@ watch(
       if (!editorInput.value) return
       isUpdatingDOM = true
       removeGhostSpan()   // strip ghost before rebuilding innerHTML
-      editorInput.value.innerHTML = buildStructuredHTML(tokens.value, props.content)
+      editorInput.value.innerHTML = sanitizeHtml(buildStructuredHTML(tokens.value, props.content))
 
       const target = pendingCursorPos ?? props.cursorPos
       pendingCursorPos = null
 
       updateTokenVisibility(container(), target, mode())
       annotateStoryLinks(container())
-      resolveLocalImages(container(), storyStore.currentStoryId).catch(console.error)
+      resolveLocalImages(container(), storyStore.currentStoryId).catch((e: unknown) => logger.error('Seamless', e))
       setCursorPosition(container(), props.content.length, target, sel())
 
       selectionStart = target
@@ -462,7 +464,7 @@ const handleEditorClick = (event: MouseEvent) => {
       const url = linkSpan.getAttribute('data-url') ?? ''
       if (url.startsWith('chapter://')) { emit('navigate-chapter', url.slice('chapter://'.length)); return }
       if (url.startsWith('story://'))   { emit('navigate-story',   url.slice('story://'.length)); return }
-      if (url.startsWith('http://') || url.startsWith('https://')) { openUrl(url).catch(console.error); return }
+      if (url.startsWith('http://') || url.startsWith('https://')) { openUrl(url).catch((e: unknown) => logger.error('Seamless', e)); return }
     }
   }
   onCursorActivity()

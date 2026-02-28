@@ -46,6 +46,18 @@ export interface PackResult {
 
 const packCache = new Map<string, PackFile>()
 
+/** Maximum stories kept in the pack cache. */
+const MAX_PACK_CACHE = 10
+
+/** Set a pack in cache, evicting oldest if over limit. */
+function cacheSet(storyId: string, pack: PackFile): void {
+  if (!packCache.has(storyId) && packCache.size >= MAX_PACK_CACHE) {
+    const oldest = packCache.keys().next().value
+    if (oldest !== undefined) packCache.delete(oldest)
+  }
+  packCache.set(storyId, pack)
+}
+
 function packPath(storyId: string): string {
   return `stories/${storyId}/images.pack.json`
 }
@@ -173,16 +185,16 @@ export async function loadPackFile(storyId: string): Promise<PackFile> {
   const raw = await fsReadFile(packPath(storyId))
   if (!raw) {
     const empty = emptyPack()
-    packCache.set(storyId, empty)
+    cacheSet(storyId, empty)
     return empty
   }
   try {
     const parsed = JSON.parse(raw) as PackFile
-    packCache.set(storyId, parsed)
+    cacheSet(storyId, parsed)
     return parsed
   } catch {
     const empty = emptyPack()
-    packCache.set(storyId, empty)
+    cacheSet(storyId, empty)
     return empty
   }
 }
@@ -190,7 +202,7 @@ export async function loadPackFile(storyId: string): Promise<PackFile> {
 /** Write the pack file to disk and update the in-memory cache. */
 export async function savePackFile(storyId: string, pack: PackFile): Promise<void> {
   pack.packedAt = new Date().toISOString()
-  packCache.set(storyId, pack)
+  cacheSet(storyId, pack)
   await writeFileContent(packPath(storyId), JSON.stringify(pack, null, 2))
 }
 
