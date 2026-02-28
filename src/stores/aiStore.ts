@@ -109,7 +109,27 @@ function saveCustomProfiles(profiles: WritingProfile[]) {
   localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(custom));
 }
 
-const MODEL_STORAGE_KEY = 'blockbreaker_current_model'
+const MODEL_STORAGE_KEY          = 'blockbreaker_current_model'
+const ACTIVE_PROVIDER_KEY        = 'blockbreaker_active_provider'
+const PROVIDER_KEYS_STORAGE_KEY  = 'blockbreaker_provider_keys'
+const PROVIDER_ENABLED_KEY       = 'blockbreaker_provider_enabled'
+const PROVIDER_MODEL_KEY         = 'blockbreaker_provider_models'
+const SUMMARY_MODEL_KEY          = 'blockbreaker_summary_models'
+
+type ProviderId = 'ollama' | 'openai' | 'anthropic' | 'google'
+
+function loadProviderKeys(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(PROVIDER_KEYS_STORAGE_KEY) ?? '{}') } catch { return {} }
+}
+function loadProviderEnabled(): Record<string, boolean> {
+  try { return JSON.parse(localStorage.getItem(PROVIDER_ENABLED_KEY) ?? '{"ollama":true}') } catch { return { ollama: true } }
+}
+function loadProviderModels(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(PROVIDER_MODEL_KEY) ?? '{}') } catch { return {} }
+}
+function loadSummaryModels(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(SUMMARY_MODEL_KEY) ?? '{}') } catch { return {} }
+}
 
 export const useAIStore = defineStore("ai", () => {
   const models = ref<OllamaModel[]>([]);
@@ -118,6 +138,15 @@ export const useAIStore = defineStore("ai", () => {
   const suggestionTokens = ref<number>(80); // ~sentence length
   const isConnected = ref<boolean>(false);
   const isGenerating = ref<boolean>(false);
+
+  // ── Provider state (Phase 16) ────────────────────────────────────────────
+  const activeProviderId = ref<ProviderId>(
+    (localStorage.getItem(ACTIVE_PROVIDER_KEY) ?? 'ollama') as ProviderId
+  )
+  const providerApiKeys       = ref<Record<string, string>>(loadProviderKeys())
+  const providerEnabled       = ref<Record<string, boolean>>(loadProviderEnabled())
+  const providerCurrentModel  = ref<Record<string, string>>(loadProviderModels())
+  const summaryProviderModel  = ref<Record<string, string>>(loadSummaryModels())
   const completionHistory = ref<Completion[]>([]);
   const currentCompletions = ref<string[]>([]);
 
@@ -126,6 +155,16 @@ export const useAIStore = defineStore("ai", () => {
   const connectionStatus = computed(() => {
     return isConnected.value ? "Connected" : "Disconnected";
   });
+
+  /** True when the active provider is ready to accept generation requests. */
+  const canGenerate = computed(() => {
+    const id = activeProviderId.value
+    const enabled = providerEnabled.value[id] !== false
+    if (!enabled) return false
+    if (id === 'ollama') return isConnected.value
+    const key = providerApiKeys.value[id]
+    return !!(key && key.trim())
+  })
 
   const setConnected = (connected: boolean) => {
     isConnected.value = connected;
@@ -202,6 +241,35 @@ export const useAIStore = defineStore("ai", () => {
     currentCompletions.value = [];
   };
 
+  // ── Provider actions (Phase 16) ────────────────────────────────────────────
+  const setActiveProvider = (id: ProviderId) => {
+    activeProviderId.value = id
+    localStorage.setItem(ACTIVE_PROVIDER_KEY, id)
+  }
+
+  const setApiKey = (providerId: string, key: string) => {
+    providerApiKeys.value = { ...providerApiKeys.value, [providerId]: key }
+    localStorage.setItem(PROVIDER_KEYS_STORAGE_KEY, JSON.stringify(providerApiKeys.value))
+  }
+
+  const setProviderEnabled = (providerId: string, enabled: boolean) => {
+    providerEnabled.value = { ...providerEnabled.value, [providerId]: enabled }
+    localStorage.setItem(PROVIDER_ENABLED_KEY, JSON.stringify(providerEnabled.value))
+  }
+
+  /** Save the last-used model for a given provider, and also set it as the global current model. */
+  const setProviderModel = (providerId: string, model: string) => {
+    providerCurrentModel.value = { ...providerCurrentModel.value, [providerId]: model }
+    localStorage.setItem(PROVIDER_MODEL_KEY, JSON.stringify(providerCurrentModel.value))
+    setCurrentModel(model)
+  }
+
+  /** Save the last-used summary model for a given provider (independent of the completions model). */
+  const setSummaryModel = (providerId: string, model: string) => {
+    summaryProviderModel.value = { ...summaryProviderModel.value, [providerId]: model }
+    localStorage.setItem(SUMMARY_MODEL_KEY, JSON.stringify(summaryProviderModel.value))
+  }
+
   return {
     // State
     models,
@@ -213,8 +281,15 @@ export const useAIStore = defineStore("ai", () => {
     completionHistory,
     currentCompletions,
     styles,
+    // Provider state
+    activeProviderId,
+    providerApiKeys,
+    providerEnabled,
+    providerCurrentModel,
+    summaryProviderModel,
     // Computed
     connectionStatus,
+    canGenerate,
     // Methods
     setConnected,
     setModels,
@@ -231,5 +306,11 @@ export const useAIStore = defineStore("ai", () => {
     updateProfile,
     deleteProfile,
     clearCompletions,
+    // Provider actions
+    setActiveProvider,
+    setApiKey,
+    setProviderEnabled,
+    setProviderModel,
+    setSummaryModel,
   };
 });

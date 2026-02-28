@@ -141,9 +141,9 @@
               <div class="summary-actions">
                 <button
                   class="btn-sm"
-                  :disabled="isRegenerating || !aiStore.isConnected"
+                  :disabled="isRegenerating || !aiStore.canGenerate"
                   @click="regenerate"
-                  :title="aiStore.isConnected ? 'Regenerate summary now' : 'Ollama not connected'"
+                  :title="aiStore.canGenerate ? 'Regenerate summary now' : 'No AI provider available'"
                 >{{ isRegenerating ? '…' : '⟳ Regenerate' }}</button>
               </div>
             </div>
@@ -282,6 +282,17 @@ watch(
     }
   },
   { immediate: true }
+)
+
+// Keep draft.summary in sync when autoSummariseChapter updates the store
+// while the modal is already open (prevents stale draft overwriting the new summary).
+watch(
+  () => chapter.value?.summary,
+  (newSummary) => {
+    if (newSummary !== undefined && !draft.value.summaryManuallyEdited) {
+      draft.value.summary = newSummary
+    }
+  },
 )
 
 // ─── Options ──────────────────────────────────────────────────────────────────
