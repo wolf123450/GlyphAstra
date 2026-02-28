@@ -94,6 +94,17 @@
 
       </div>
     </div>
+
+    <!-- Inline delete confirmation (replaces native confirm) -->
+    <div v-if="showDeleteConfirm" class="wpe-confirm-overlay" @click.self="cancelDelete">
+      <div class="wpe-confirm" role="alertdialog" aria-modal="true" aria-label="Confirm deletion">
+        <p>Delete the profile "{{ props.profileName }}"? This cannot be undone.</p>
+        <div class="wpe-confirm-actions">
+          <button class="wpe-btn wpe-btn-ghost" @click="cancelDelete">Cancel</button>
+          <button class="wpe-btn wpe-btn-danger" @click="confirmDelete">Delete</button>
+        </div>
+      </div>
+    </div>
   </Teleport>
 </template>
 
@@ -217,11 +228,22 @@ function save() {
   emit('close')
 }
 
+const showDeleteConfirm = ref(false)
+
 function deleteProfile() {
   if (!props.profileName) return
-  if (!confirm(`Delete the profile "${props.profileName}"? This cannot be undone.`)) return
+  showDeleteConfirm.value = true
+}
+
+function confirmDelete() {
+  if (!props.profileName) return
+  showDeleteConfirm.value = false
   aiStore.deleteProfile(props.profileName)
   emit('close')
+}
+
+function cancelDelete() {
+  showDeleteConfirm.value = false
 }
 
 function cancel() {
@@ -452,4 +474,22 @@ function cancel() {
   border-color: var(--error-color, #e07070);
 }
 .wpe-btn-danger:hover { background: color-mix(in srgb, var(--error-color, #e07070) 15%, transparent); }
+
+/* ── Inline confirm dialog ── */
+.wpe-confirm-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1300;
+}
+.wpe-confirm {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 360px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+.wpe-confirm p { margin: 0 0 14px; color: var(--text-primary); }
+.wpe-confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
 </style>

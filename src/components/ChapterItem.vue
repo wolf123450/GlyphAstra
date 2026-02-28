@@ -51,8 +51,8 @@
       </div>
     </div>
     <div class="chapter-actions" v-show="isActive">
-      <button class="action-btn delete" @click.stop="deleteThis" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiDeleteOutline"/></svg></button>
-      <button class="action-btn" @click.stop="openMeta" title="Edit properties"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiDotsVertical"/></svg></button>
+      <button class="action-btn delete" @click.stop="deleteThis" title="Delete" aria-label="Delete chapter"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="mdiDeleteOutline"/></svg></button>
+      <button class="action-btn" @click.stop="openMeta" title="Edit properties" aria-label="Edit chapter properties"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="mdiDotsVertical"/></svg></button>
     </div>
   </div>
 </template>

@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div v-if="show" class="hist-overlay" @click.self="$emit('close')">
-      <div class="hist-modal" @keydown.esc.prevent="$emit('close')" tabindex="-1">
+      <div class="hist-modal" role="dialog" aria-modal="true" aria-label="Version History" @keydown.esc.prevent="$emit('close')" tabindex="-1">
 
         <!-- Header -->
         <div class="hist-header">
@@ -10,7 +10,7 @@
             <h3 class="hist-title">Version History</h3>
             <span class="hist-subtitle">{{ chapterName }}</span>
           </div>
-          <button class="close-btn" @click="$emit('close')" title="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiClose"/></svg></button>
+          <button class="close-btn" @click="$emit('close')" title="Close" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="mdiClose"/></svg></button>
         </div>
 
         <!-- Body -->
@@ -105,6 +105,7 @@ import { useStoryStore } from '@/stores/storyStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { getHistory, type HistoryEntry } from '@/utils/historyManager'
 import { renderMarkdown } from '@/utils/markdownRenderer'
+import { sanitizeHtml } from '@/utils/sanitize'
 import { computeLineDiff, pairDelAdd, type DiffLine } from '@/utils/diffEngine'
 import { mdiHistory, mdiArrowULeftTop, mdiClose } from '@mdi/js'
 
@@ -158,7 +159,7 @@ watch(() => props.show, async (visible) => {
 // ─── Markdown preview of selected snapshot ───────────────────────────────────
 const renderedSnapshot = computed(() => {
   if (!selectedEntry.value) return ''
-  return renderMarkdown(selectedEntry.value.content, 0, 'preview')
+  return sanitizeHtml(renderMarkdown(selectedEntry.value.content, 0, 'preview'))
 })
 
 // ─── hasPrevious + diffTarget ───────────────────────────────────────────────
@@ -281,16 +282,9 @@ function restore() {
 }
 
 .close-btn {
-  background: none;
-  border: none;
   font-size: 18px;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
-.close-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
 
 /* Body */
 .hist-body {

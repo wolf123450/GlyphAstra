@@ -19,6 +19,7 @@ import type { ProviderId } from '@/api/providers'
 import { useAIStore } from '@/stores/aiStore'
 import { useStoryStore } from '@/stores/storyStore'
 import { buildContext } from '@/utils/contextBuilder'
+import { logger } from '@/utils/logger'
 
 const MAX_SUGGESTIONS = 3
 /** How many chars to buffer before checking for context overlap. */
@@ -40,7 +41,7 @@ function trimContextOverlap(textBefore: string, response: string): string {
 
   for (let len = maxLen; len >= MIN_OVERLAP; len--) {
     if (stripped.startsWith(tail.slice(-len))) {
-      console.log(`[AI suggestion] trimmed ${len}-char overlap from response`)
+      logger.debug('AI', `Trimmed ${len}-char overlap from response`)
       return stripped.slice(len)
     }
   }
@@ -105,10 +106,8 @@ export function useAISuggestion() {
     const stop   = stopSequences(tokens)
 
     // Log so the prompt can be inspected during testing
-    console.group('[AI suggestion] prompt')
-    console.log(prompt)
-    console.log('tokens:', tokens, '| stop:', stop)
-    console.groupEnd()
+    logger.debug('AI', 'Prompt:', prompt)
+    logger.debug('AI', 'tokens:', tokens, '| stop:', stop)
 
     // Instantiate once per trigger — avoids recreating on each suggestion loop
     const provider = makeProvider(

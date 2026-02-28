@@ -6,10 +6,11 @@
 import type { Token } from './seamlessRenderer'
 import { parseImgDims, imgSizeAttr } from './seamlessRenderer'
 
+import { escapeHtml, isDangerousUrl } from '@/utils/sanitize'
+
 // ─── HTML building ─────────────────────────────────────────────────
 
-const esc = (t: string) =>
-  t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+const esc = escapeHtml
 
 /**
  * Render inline markdown formatting (bold, italic, code, strikethrough) within
@@ -44,7 +45,10 @@ export function renderInlineContent(rawText: string): string {
     const code = part.match(/^`(.*?)`$/)
     if (code) return `<span class="token token-code rendered"><span class="marker">\`</span><span class="content">${esc(code[1])}</span><span class="marker">\`</span></span>`
     const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
-    if (link) return `<span class="token token-link rendered"><span class="marker">[</span><span class="content">${esc(link[1])}</span><span class="marker">](${esc(link[2])})</span></span>`
+    if (link) {
+      const safeHref = isDangerousUrl(link[2]) ? '' : esc(link[2])
+      return `<span class="token token-link rendered"><span class="marker">[</span><span class="content">${esc(link[1])}</span><span class="marker">](${safeHref})</span></span>`
+    }
     return esc(part)
   }).join('')
 }

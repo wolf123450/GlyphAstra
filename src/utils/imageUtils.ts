@@ -12,6 +12,9 @@ import { getPackedDataUrl } from './imagePackManager'
 /** In-memory cache: appData-relative path → data URL */
 const dataUrlCache = new Map<string, string>()
 
+/** Maximum cached data-URL entries. Oldest are evicted first. */
+const MAX_DATA_URL_CACHE = 500
+
 /** Extension → MIME type */
 const MIME: Record<string, string> = {
   jpg:  'image/jpeg',
@@ -83,6 +86,11 @@ async function resolveToDataUrl(rawSrc: string, storyId: string | null): Promise
       b64 += String.fromCharCode(...arr.subarray(i, i + CHUNK))
     }
     const dataUrl = `data:${mime};base64,${btoa(b64)}`
+    if (dataUrlCache.size >= MAX_DATA_URL_CACHE) {
+      // Evict oldest entry (first key in insertion-order Map)
+      const oldest = dataUrlCache.keys().next().value
+      if (oldest !== undefined) dataUrlCache.delete(oldest)
+    }
     dataUrlCache.set(cacheKey, dataUrl)
     return dataUrl
   } catch {

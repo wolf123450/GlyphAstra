@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import { useSettingsStore } from "./settingsStore";
 
 export interface UIState {
   sidebarOpen: boolean;
@@ -27,6 +28,7 @@ export const useUIStore = defineStore("ui", () => {
     "info"
   );
   const isNotificationVisible = ref<boolean>(false);
+  let _notificationTimer: number | undefined;
 
   const toggleSidebar = () => {
     sidebarOpen.value = !sidebarOpen.value;
@@ -39,6 +41,11 @@ export const useUIStore = defineStore("ui", () => {
   const setTheme = (newTheme: "dark" | "light") => {
     theme.value = newTheme;
     document.documentElement.setAttribute("data-theme", newTheme);
+    // Keep settingsStore in sync so the persisted theme matches
+    const settingsStore = useSettingsStore();
+    if (settingsStore.settings.theme !== newTheme) {
+      settingsStore.updateSetting('theme', newTheme);
+    }
   };
 
   const toggleSettings = () => {
@@ -67,8 +74,10 @@ export const useUIStore = defineStore("ui", () => {
     isNotificationVisible.value = true;
 
     if (duration > 0) {
-      setTimeout(() => {
+      if (_notificationTimer !== undefined) clearTimeout(_notificationTimer);
+      _notificationTimer = window.setTimeout(() => {
         isNotificationVisible.value = false;
+        _notificationTimer = undefined;
       }, duration);
     }
   };

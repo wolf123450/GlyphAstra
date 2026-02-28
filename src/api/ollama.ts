@@ -34,6 +34,8 @@ export interface ListTagsResponse {
 
 const OLLAMA_BASE_URL = "http://localhost:11434";
 
+import { logger } from '@/utils/logger';
+
 export class OllamaClient {
   private baseUrl: string;
 
@@ -49,7 +51,7 @@ export class OllamaClient {
       const response = await fetch(`${this.baseUrl}/api/tags`);
       return response.ok;
     } catch (error) {
-      console.error("Ollama connection error:", error);
+      logger.error('Ollama', 'Connection error:', error);
       return false;
     }
   }
@@ -63,7 +65,7 @@ export class OllamaClient {
       const data: ListTagsResponse = await response.json();
       return data.models.map((m) => m.name);
     } catch (error) {
-      console.error("Error fetching models:", error);
+      logger.error('Ollama', 'Error fetching models:', error);
       return [];
     }
   }
@@ -73,12 +75,27 @@ export class OllamaClient {
    */
   async generate(request: GenerateRequest): Promise<string> {
     try {
+      // Ollama expects model parameters inside an `options` wrapper —
+      // mirror the structure used in generateStream().
+      const body: Record<string, unknown> = {
+        model:  request.model,
+        prompt: request.prompt,
+        stream: request.stream,
+        options: {
+          ...(request.temperature !== undefined && { temperature: request.temperature }),
+          ...(request.num_predict !== undefined && { num_predict: request.num_predict }),
+          ...(request.top_p       !== undefined && { top_p:       request.top_p }),
+          ...(request.top_k       !== undefined && { top_k:       request.top_k }),
+          ...(request.stop        !== undefined && { stop:        request.stop }),
+        },
+      }
+
       const response = await fetch(`${this.baseUrl}/api/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(request),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
@@ -92,19 +109,23 @@ export class OllamaClient {
         const decoder = new TextDecoder();
 
         if (reader) {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
 
-            const chunk = decoder.decode(value);
-            const lines = chunk.split("\n");
+              const chunk = decoder.decode(value);
+              const lines = chunk.split("\n");
 
-            for (const line of lines) {
-              if (line.trim()) {
-                const json: GenerateResponse = JSON.parse(line);
-                fullResponse += json.response;
+              for (const line of lines) {
+                if (line.trim()) {
+                  const json: GenerateResponse = JSON.parse(line);
+                  fullResponse += json.response;
+                }
               }
             }
+          } finally {
+            reader.releaseLock();
           }
         }
       } else {
@@ -114,7 +135,7 @@ export class OllamaClient {
 
       return fullResponse;
     } catch (error) {
-      console.error("Error generating text:", error);
+      logger.error('Ollama', 'Error generating text:', error);
       throw error;
     }
   }
@@ -223,7 +244,7 @@ export class OllamaClient {
         if (!hadResponseChunk && thinkingBuffer && doneReason !== "length") onChunk(thinkingBuffer);
       }
     } catch (error) {
-      console.error("Error in streaming:", error);
+      logger.error('Ollama', 'Error in streaming:', error);
       throw error;
     }
   }

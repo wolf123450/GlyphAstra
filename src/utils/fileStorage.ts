@@ -16,6 +16,7 @@ import {
   listDirectory,
 } from "./filesystem";
 import { remove, BaseDirectory } from "@tauri-apps/plugin-fs";
+import { logger } from './logger';
 
 const STORIES_ROOT = "stories";
 
@@ -52,10 +53,10 @@ export async function saveStory(
       await writeFileContent(chapterPath(storyId, ch.id), ch.content ?? "");
     }
 
-    console.log(`[FileStorage] Saved story: ${storyId}`);
+    logger.info('FileStorage', `Saved story: ${storyId}`);
     return true;
   } catch (error) {
-    console.error("[FileStorage] Error saving story:", storyId, error);
+    logger.error('FileStorage', 'Error saving story:', storyId, error);
     return false;
   }
 }
@@ -83,14 +84,14 @@ export async function loadStory(
       })
     );
 
-    console.log(`[FileStorage] Loaded story: ${storyId}`);
+    logger.info('FileStorage', `Loaded story: ${storyId}`);
     return {
       metadata: meta.metadata,
       characters: meta.characters ?? [],
       chapters,
     };
   } catch (error) {
-    console.error("[FileStorage] Error loading story:", storyId, error);
+    logger.error('FileStorage', 'Error loading story:', storyId, error);
     return null;
   }
 }
@@ -128,7 +129,7 @@ export async function listProjects(): Promise<
 
     return results;
   } catch (error) {
-    console.error("[FileStorage] Error listing projects:", error);
+    logger.error('FileStorage', 'Error listing projects:', error);
     return [];
   }
 }
@@ -142,10 +143,10 @@ export async function deleteStory(storyId: string): Promise<boolean> {
     if (await pathExists(dir)) {
       await remove(dir, { baseDir: BaseDirectory.AppData, recursive: true });
     }
-    console.log(`[FileStorage] Deleted story: ${storyId}`);
+    logger.info('FileStorage', `Deleted story: ${storyId}`);
     return true;
   } catch (error) {
-    console.error("[FileStorage] Error deleting story:", storyId, error);
+    logger.error('FileStorage', 'Error deleting story:', storyId, error);
     return false;
   }
 }

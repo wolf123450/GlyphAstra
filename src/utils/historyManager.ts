@@ -38,6 +38,9 @@ const MIN_SECS_BETWEEN = 60   // seconds
 
 const cache = new Map<string, HistoryEntry[]>()
 
+/** Maximum chapter keys kept in the memory cache. */
+const MAX_HISTORY_CACHE_KEYS = 50
+
 function key(storyId: string, chapterId: string) {
   return `${storyId}/${chapterId}`
 }
@@ -71,6 +74,10 @@ export async function getHistory(storyId: string, chapterId: string): Promise<Hi
   const k = key(storyId, chapterId)
   if (!cache.has(k)) {
     const entries = await loadFromDisk(storyId, chapterId)
+    if (cache.size >= MAX_HISTORY_CACHE_KEYS) {
+      const oldest = cache.keys().next().value
+      if (oldest !== undefined) cache.delete(oldest)
+    }
     cache.set(k, entries)
   }
   return [...(cache.get(k)!)].reverse()  // return newest-first copy
@@ -104,6 +111,11 @@ export async function captureSnapshot(
   list.push({ savedAt: now, content, wordCount: wc })
   if (list.length > MAX_SNAPSHOTS) list.splice(0, list.length - MAX_SNAPSHOTS)
 
+  // Evict oldest cache key if over limit
+  if (!cache.has(k) && cache.size >= MAX_HISTORY_CACHE_KEYS) {
+    const oldest = cache.keys().next().value
+    if (oldest !== undefined) cache.delete(oldest)
+  }
   cache.set(k, list)
   await persistToDisk(storyId, chapter.id, list)
 }

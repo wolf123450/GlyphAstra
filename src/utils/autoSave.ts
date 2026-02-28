@@ -3,16 +3,14 @@
  * Handles debounced saving of story content
  */
 
+import { logger } from './logger'
+
 export interface AutoSaveConfig {
   interval: number // milliseconds
-  maxBackups: number
-  storageKey: string
 }
 
 const DEFAULT_CONFIG: AutoSaveConfig = {
   interval: 10000, // 10 seconds
-  maxBackups: 5,
-  storageKey: 'blockbreaker_autosave',
 }
 
 class AutoSaveManager {
@@ -67,9 +65,9 @@ class AutoSaveManager {
     try {
       await callback()
       this.lastSaveTime.set(entityId, Date.now())
-      console.log(`[AutoSave] Saved ${entityId}`)
+      logger.info('AutoSave', `Saved ${entityId}`)
     } catch (error) {
-      console.error(`[AutoSave] Failed to save ${entityId}:`, error)
+      logger.error('AutoSave', `Failed to save ${entityId}:`, error)
     }
   }
 

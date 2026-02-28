@@ -17,18 +17,12 @@ import {
   BaseDirectory,
 } from "@tauri-apps/plugin-fs";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { logger } from './logger';
 
 export interface FileEntry {
   name: string;
   path: string;
   isDir: boolean;
-}
-
-export interface StoryProject {
-  name: string;
-  path: string;
-  createdDate: string;
-  lastModified: string;
 }
 
 const BASE = BaseDirectory.AppData;
@@ -48,7 +42,7 @@ export async function readFile(filePath: string): Promise<string | null> {
     if (!(await exists(filePath, { baseDir: BASE }))) return null;
     return await readTextFile(filePath, { baseDir: BASE });
   } catch (error) {
-    console.error("[FS] Error reading file:", filePath, error);
+    logger.error('FS', 'Error reading file:', filePath, error);
     return null;
   }
 }
@@ -87,7 +81,7 @@ export async function listDirectory(dirPath: string): Promise<FileEntry[]> {
       isDir: e.isDirectory ?? false,
     }));
   } catch (error) {
-    console.error("[FS] Error listing directory:", dirPath, error);
+    logger.error('FS', 'Error listing directory:', dirPath, error);
     return [];
   }
 }
@@ -101,7 +95,7 @@ export async function deleteFile(filePath: string): Promise<void> {
       await remove(filePath, { baseDir: BASE });
     }
   } catch (error) {
-    console.error("[FS] Error deleting file:", filePath, error);
+    logger.error('FS', 'Error deleting file:', filePath, error);
   }
 }
 
@@ -119,7 +113,7 @@ export async function openFileDialog(): Promise<string | null> {
     });
     return selected as string | null;
   } catch (error) {
-    console.error("[FS] Error opening file dialog:", error);
+    logger.error('FS', 'Error opening file dialog:', error);
     return null;
   }
 }
@@ -141,7 +135,7 @@ export async function saveFileDialog(
     });
     return selected as string | null;
   } catch (error) {
-    console.error("[FS] Error saving file dialog:", error);
+    logger.error('FS', 'Error saving file dialog:', error);
     return null;
   }
 }

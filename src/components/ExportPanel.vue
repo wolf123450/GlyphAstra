@@ -117,6 +117,7 @@ import {
   type ExportMeta,
 } from '@/utils/exportImport'
 import { exportBackup, importBackup } from '@/utils/backupRestore'
+import { logger } from '@/utils/logger'
 import {
   mdiClose,
   mdiLanguageMarkdown,
@@ -187,7 +188,7 @@ const doExport = async (kind: string) => {
     if (ok) setStatus('Exported successfully.', 'ok')
     else     setStatus('Export cancelled.', 'info')
   } catch (e) {
-    console.error('[Export]', e)
+    logger.error('Export', e)
     setStatus(`Export failed: ${e instanceof Error ? e.message : String(e)}`, 'err')
   } finally {
     busy.value = false
@@ -214,7 +215,7 @@ const doImport = async () => {
     storyStore.setCurrentChapter(id)
     setStatus(`Imported "${result.name}".`, 'ok')
   } catch (e) {
-    console.error('[Import]', e)
+    logger.error('Import', e)
     setStatus(`Import failed: ${e instanceof Error ? e.message : String(e)}`, 'err')
   } finally {
     busy.value = false
@@ -234,7 +235,7 @@ const doBackup = async () => {
     if (ok) setStatus('Backup saved.', 'ok')
     else     setStatus('Backup cancelled.', 'info')
   } catch (e) {
-    console.error('[Backup]', e)
+    logger.error('Backup', e)
     setStatus(`Backup failed: ${e instanceof Error ? e.message : String(e)}`, 'err')
   } finally {
     busy.value = false
@@ -251,7 +252,7 @@ const doRestoreBackup = async () => {
     await storyStore.saveStory(newId)
     setStatus(`Restored "${backup.metadata.title}".`, 'ok')
   } catch (e) {
-    console.error('[Restore]', e)
+    logger.error('Restore', e)
     setStatus(`Restore failed: ${e instanceof Error ? e.message : String(e)}`, 'err')
   } finally {
     busy.value = false
@@ -280,12 +281,6 @@ const doRestoreBackup = async () => {
   flex-shrink: 0;
 }
 .export-header h3 { margin: 0; font-size: 18px; font-weight: 600; color: var(--text-primary); }
-.close-btn {
-  background: none; border: none; color: var(--text-tertiary);
-  cursor: pointer; font-size: 20px; padding: 4px 8px;
-  border-radius: var(--radius-sm);
-}
-.close-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
 
 .export-content {
   flex: 1; overflow-y: auto;
@@ -299,10 +294,6 @@ const doRestoreBackup = async () => {
   display: flex; flex-direction: column; gap: var(--spacing-sm);
 }
 
-.sec-label {
-  font-size: 11px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.06em; color: var(--text-tertiary);
-}
 
 .current-ch-name {
   font-size: 13px; color: var(--text-secondary);
@@ -310,7 +301,6 @@ const doRestoreBackup = async () => {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.hint { font-size: 12px; color: var(--text-tertiary); }
 
 .btn-col { display: flex; flex-direction: column; gap: 6px; }
 

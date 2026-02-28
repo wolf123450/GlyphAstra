@@ -335,7 +335,7 @@
           <!-- ── Help ────────────────────────────────────────── -->
           <div v-if="activeTab === 'help'" class="tab-content help-tab">
 
-            <div class="help-section">
+            <div v-if="IconGallery" class="help-section">
               <h3 class="help-section-title">Icons</h3>
               <p class="setting-hint">Compare Phosphor and Material Design icon candidates for the UI overhaul (Phase 11.x).</p>
               <button class="btn-sm help-btn" @click="showIconGallery = true">&#9783; Browse icon gallery</button>
@@ -375,11 +375,11 @@
     </div>
   </Teleport>
 
-  <IconGallery :show="showIconGallery" @close="showIconGallery = false" />
+  <component :is="IconGallery" v-if="IconGallery && showIconGallery" :show="showIconGallery" @close="showIconGallery = false" />
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
 import { useUIStore } from '@/stores/uiStore'
 import { useSettingsStore, CUSTOMIZABLE_VARS, type CustomizableVar } from '@/stores/settingsStore'
 import { useStoryStore } from '@/stores/storyStore'
@@ -387,7 +387,10 @@ import { useAIStore } from '@/stores/aiStore'
 import { makeProvider, PROVIDER_META, ALL_PROVIDER_IDS } from '@/api/providers'
 import type { ProviderId } from '@/api/providers'
 import { version as appVersion } from '../../package.json'
-import IconGallery from './IconGallery.vue'
+// Dev-only: lazy-load IconGallery so it is tree-shaken in production builds
+const IconGallery = import.meta.env.DEV
+  ? defineAsyncComponent(() => import('./IconGallery.vue'))
+  : null
 
 const uiStore = useUIStore()
 const settingsStore = useSettingsStore()
@@ -618,17 +621,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   color: var(--text-primary);
 }
 .close-btn {
-  background: none;
-  border: none;
   color: var(--text-secondary);
   font-size: 14px;
-  cursor: pointer;
   padding: 4px 6px;
-  border-radius: var(--radius-sm);
-  line-height: 1;
-  transition: color var(--transition-fast), background var(--transition-fast);
 }
-.close-btn:hover { color: var(--text-primary); background: var(--bg-tertiary); }
 
 /* ── Tabs ──────────────────────────────────────────── */
 .settings-tabs {
@@ -719,20 +715,9 @@ input[type="range"] {
 .pill-group { display: flex; flex-wrap: wrap; gap: var(--spacing-xs); }
 .pill {
   background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 4px 12px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--transition-fast);
 }
 .pill:hover { color: var(--text-primary); border-color: var(--text-secondary); }
-.pill.active {
-  background: var(--accent-color);
-  border-color: var(--accent-color);
-  color: #fff;
-}
 
 /* ── Hint text ─────────────────────────────────────── */
 .setting-hint {

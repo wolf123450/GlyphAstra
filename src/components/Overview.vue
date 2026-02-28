@@ -70,13 +70,35 @@
       </section>
 
       <!-- Save Button -->
-      <button class="btn-save" @click="saveOverview">Save Changes</button>
+      <button class="btn-save" @click="saveOverview" :disabled="saving">{{ saving ? 'Saving…' : 'Save Changes' }}</button>
     </div>
+
+    <!-- Inline dialog (replaces native prompt/confirm) -->
+    <Teleport to="body">
+      <div v-if="dialogVisible" class="overview-dialog-overlay" @click.self="dialogCancel">
+        <div class="overview-dialog" role="dialog" aria-modal="true" :aria-label="dialogTitle">
+          <h4>{{ dialogTitle }}</h4>
+          <input
+            v-if="dialogShowInput"
+            v-model="dialogInput"
+            :placeholder="dialogPlaceholder"
+            class="overview-dialog-input"
+            @keydown.enter="dialogOk"
+            @keydown.esc="dialogCancel"
+          />
+          <p v-else class="overview-dialog-msg">Are you sure? This cannot be undone.</p>
+          <div class="overview-dialog-actions">
+            <button class="btn-cancel" @click="dialogCancel">Cancel</button>
+            <button class="btn-ok" @click="dialogOk">OK</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </aside>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { mdiClose, mdiDeleteOutline } from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useUIStore } from '@/stores/uiStore'
@@ -95,6 +117,37 @@ const characters = computed(() => storyStore.characters)
 // re-renders the template automatically.
 const metadata = computed(() => storyStore.metadata)
 
+// ─── Inline dialog state (replaces native prompt/confirm) ─────────────────
+const dialogVisible = ref(false)
+const dialogTitle = ref('')
+const dialogInput = ref('')
+const dialogPlaceholder = ref('')
+const dialogShowInput = ref(true)
+let dialogResolve: ((value: string | null) => void) | null = null
+
+function openDialog(title: string, placeholder: string, defaultValue = '', showInput = true): Promise<string | null> {
+  dialogTitle.value = title
+  dialogPlaceholder.value = placeholder
+  dialogInput.value = defaultValue
+  dialogShowInput.value = showInput
+  dialogVisible.value = true
+  return new Promise<string | null>((resolve) => {
+    dialogResolve = resolve
+  })
+}
+
+function dialogOk() {
+  dialogVisible.value = false
+  dialogResolve?.(dialogShowInput.value ? dialogInput.value : '')
+  dialogResolve = null
+}
+
+function dialogCancel() {
+  dialogVisible.value = false
+  dialogResolve?.(null)
+  dialogResolve = null
+}
+
 const closeOverview = () => {
   uiStore.setActivePanel('editor')
 }
@@ -103,8 +156,8 @@ const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString()
 }
 
-const addCharacter = () => {
-  const name = prompt('Character name:')
+const addCharacter = async () => {
+  const name = await openDialog('Add Character', 'Character name')
   if (name && name.trim()) {
     const character: Character = {
       id: `char-${Date.now()}`,
@@ -116,31 +169,42 @@ const addCharacter = () => {
   }
 }
 
-const editCharacter = (char: Character) => {
-  const newRole = prompt('Character role:', char.role || '')
+const editCharacter = async (char: Character) => {
+  const newRole = await openDialog('Edit Character Role', 'Character role', char.role || '')
   if (newRole !== null) {
     storyStore.updateCharacter(char.id, { role: newRole })
   }
 }
 
-const deleteCharacter = (id: string) => {
-  if (confirm('Delete this character?')) {
+const deleteCharacter = async (id: string) => {
+  const result = await openDialog('Delete Character', '', '', false)
+  if (result !== null) {
     storyStore.deleteCharacter(id)
   }
 }
 
+const saving = ref(false)
+
 const saveOverview = async () => {
-  // Fields are already live-bound to storyStore.metadata via v-model,
-  // so just trigger a save and update lastModified.
-  storyStore.updateMetadata({})
-  await storyStore.saveStory()
-  uiStore.showNotification('Story overview saved!', 'success')
+  saving.value = true
+  try {
+    storyStore.updateMetadata({})
+    await storyStore.saveStory()
+    uiStore.showNotification('Story overview saved!', 'success')
+  } catch (err: unknown) {
+    uiStore.showNotification(
+      `Save failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      'error',
+    )
+  } finally {
+    saving.value = false
+  }
 }
 </script>
 
 <style scoped>
 .overview-panel {
-  width: 300px;
+  width: var(--overview-width);
   background-color: var(--bg-secondary);
   border-left: 1px solid var(--border-color);
   display: flex;
@@ -166,17 +230,13 @@ const saveOverview = async () => {
 }
 
 .close-btn {
-  background: none;
-  border: none;
   font-size: 24px;
-  cursor: pointer;
   color: var(--text-secondary);
   padding: 0;
-  line-height: 1;
 }
 
 .close-btn:hover {
-  color: var(--text-primary);
+  background: none;
 }
 
 .overview-content {
@@ -353,4 +413,39 @@ const saveOverview = async () => {
   background-color: var(--accent-hover);
   transform: translateY(-1px);
 }
+
+/* ── Inline dialog (replaces native prompt/confirm) ── */
+.overview-dialog-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+}
+.overview-dialog {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  min-width: 300px;
+  max-width: 400px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+.overview-dialog h4 { margin: 0 0 12px; }
+.overview-dialog-input {
+  width: 100%; padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.overview-dialog-msg { margin: 0 0 12px; color: var(--text-secondary); }
+.overview-dialog-actions {
+  display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px;
+}
+.overview-dialog-actions button {
+  padding: 5px 14px; border-radius: 4px; border: none; cursor: pointer; font-size: 13px;
+}
+.btn-cancel { background: var(--bg-tertiary); color: var(--text-primary); }
+.btn-ok { background: var(--accent-color); color: #fff; }
 </style>

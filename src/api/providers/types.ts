@@ -32,6 +32,8 @@ export interface CompletionOptions {
   maxTokens?: number
   /** Sequences that cause the model to stop generating. */
   stop?: string[]
+  /** AbortSignal to cancel the request mid-stream. */
+  signal?: AbortSignal
 }
 
 /**

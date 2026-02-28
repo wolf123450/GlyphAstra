@@ -153,14 +153,12 @@ function getContent(chapterId: string): string {
 
 // ── Search logic ──────────────────────────────────────────────────────────────
 
+import { escapeHtml } from '@/utils/sanitize'
+
 const SNIPPET_RADIUS = 80  // chars on each side of match
 
 function escapeRegex(s: string): string {
   return s.replace(/[$()*+.?[\\\]^{|}]/g, '\\$&')
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
 /** Strip markdown to plain text for snippet display */
