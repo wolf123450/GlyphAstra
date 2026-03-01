@@ -592,7 +592,7 @@ There's no crash reporting, error telemetry, or analytics integration. The `erro
 | # | Issue | Section | Status |
 |---|---|---|---|
 | 39 | Extract duplicated SSE parsing, `splitPrompt`, system prompt | §4.4 | ✅ |
-| 40 | Split oversized components (Settings, EditorSeamless, Editor) | §6.1 | |
+| 40 | Split oversized components (Settings, EditorSeamless, Editor) | §6.1 | ✅ |
 | 41 | Split oversized stores (storyStore, aiStore) | §5.11 | ✅ |
 | 42 | Remove dead code (greet, renderSeamless, unused configs) | §7.6, §8.4 | ✅ |
 | 43 | Unify persistence patterns across stores | §3.2 | ✅ |
@@ -604,7 +604,7 @@ There's no crash reporting, error telemetry, or analytics integration. The `erro
 | 49 | Remove `tokio` full feature; upgrade `reqwest` to 0.12 | §8.3 | ✅ |
 | 50 | Update app metadata (title, description, authors) | §13.1 | ✅ |
 | 51 | Add comprehensive test coverage (target: stores, providers, export) | §9 | ✅ |
-| 52 | Set up E2E testing (Playwright or similar) | §9.1 | |
+| 52 | Set up E2E testing (Playwright or similar) | §9.1 | Moved to IMPLEMENTATION_PLAN.md |
 | 53 | Exclude `IconGallery.vue` from production builds | §6.1 | ✅ |
 | 54 | ~~Implement auto-updater~~ | §13.3 | Moved to IMPLEMENTATION_PLAN.md |
 | 55 | Add structured logging with log-level control | §13.5 | ✅ |
