@@ -10,52 +10,8 @@
     <div v-if="isOpen" class="sidebar-content">
 
       <!-- Story Switcher -->
-      <div class="story-section">
-        <button class="story-title-btn" @click="showStoryPicker = !showStoryPicker" :title="currentStoryTitle">
-          <span class="story-name">{{ currentStoryTitle }}</span>
-          <span class="story-caret">{{ showStoryPicker ? '▲' : '▼' }}</span>
-        </button>
+      <StoryPicker ref="storyPickerRef" />
 
-        <div v-if="showStoryPicker" class="story-picker">
-          <button class="story-new-btn" @click="createAndSwitchStory"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:4px"><path :d="mdiPlusCircleOutline"/></svg>New Story</button>
-          <div class="story-list">
-            <div
-              v-for="proj in savedProjects"
-              :key="proj.id"
-              class="story-item"
-              :class="{ active: proj.id === storyStore.currentStoryId }"
-            >
-              <button class="story-item-info" @click="switchToStory(proj.id)">
-                <span class="story-item-name">{{ proj.name }}</span>
-                <span class="story-item-date">{{ formatDate(proj.lastModified) }}</span>
-              </button>
-              <button
-                class="story-item-delete"
-                title="Delete story"
-                @click.stop="requestDeleteStory(proj.id, proj.name)"
-              ><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiDeleteOutline"/></svg></button>
-            </div>
-            <div v-if="savedProjects.length === 0" class="story-item-empty">No saved stories</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Delete-story confirmation modal -->
-      <Teleport to="body">
-        <div v-if="pendingDelete" class="delete-confirm-backdrop" @click.self="pendingDelete = null">
-          <div class="delete-confirm-modal">
-            <p class="delete-confirm-title">Delete story?</p>
-            <p class="delete-confirm-body">
-              “{{ pendingDelete.name }}” and all its chapters will be permanently removed.
-              This cannot be undone.
-            </p>
-            <div class="delete-confirm-actions">
-              <button class="delete-confirm-cancel" @click="pendingDelete = null">Cancel</button>
-              <button class="delete-confirm-ok" @click="executeDeleteStory">Delete</button>
-            </div>
-          </div>
-        </div>
-      </Teleport>
 
       <!-- Chapter delete confirmation modal -->
       <Teleport to="body">
@@ -144,134 +100,25 @@
 
 <script setup lang="ts">
 import { computed, ref, onBeforeUnmount } from 'vue'
-import { mdiPlusCircleOutline, mdiCog, mdiChevronLeft, mdiChevronRight, mdiDeleteOutline, mdiCircleHalfFull, mdiWhiteBalanceSunny } from '@mdi/js'
+import { mdiPlusCircleOutline, mdiCog, mdiChevronLeft, mdiChevronRight, mdiCircleHalfFull, mdiWhiteBalanceSunny } from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useUIStore } from '@/stores/uiStore'
-import { useEditorStore } from '@/stores/editorStore'
-import { storageManager } from '@/utils/storage/storage'
 import { HELP_STORY_ID } from '@/utils/story/helpStory'
 import { loadOrCreateHelpStory } from '@/utils/story/helpStoryService'
+import StoryPicker from './story/StoryPicker.vue'
 import ChapterItem from './story/ChapterItem.vue'
 import ChapterMeta from './story/ChapterMeta.vue'
 
 const storyStore = useStoryStore()
-const editorStore = useEditorStore()
 const uiStore = useUIStore()
 
-const showStoryPicker = ref(false)
+const storyPickerRef = ref<InstanceType<typeof StoryPicker> | null>(null)
 const showChapterMeta = ref(false)
 const metaChapterId   = ref<string | null>(null)
 
 const openChapterMeta = (id: string) => {
   metaChapterId.value   = id
   showChapterMeta.value = true
-}
-
-const currentStoryTitle = computed(() => storyStore.metadata.title || 'Untitled Story')
-
-const savedProjects = computed(() => {
-  const projects = storageManager.getProjectsList()
-  const currentId = storyStore.currentStoryId
-  // Patch the current story's name with the live in-memory title so the list
-  // updates immediately when the user renames the story, before the next save.
-  const liveTitle = storyStore.metadata.title
-  return [...projects]
-    .map((p) => p.id === currentId ? { ...p, name: liveTitle || p.name } : p)
-    .sort((a, b) => {
-      // Primary: most recently modified first
-      const mDiff = new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
-      if (mDiff !== 0) return mDiff
-      // Tiebreaker: creation time embedded in story ID (story-{timestamp}-{random})
-      const createdB = parseInt(b.id.split('-')[1] ?? '0') || 0
-      const createdA = parseInt(a.id.split('-')[1] ?? '0') || 0
-      return createdB - createdA
-    })
-})
-
-const formatDate = (iso: string) => {
-  try {
-    const d = new Date(iso)
-    const datePart = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-    const timePart = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-    return `${datePart} · ${timePart}`
-  } catch {
-    return ''
-  }
-}
-
-const pendingDelete = ref<{ id: string; name: string } | null>(null)
-
-const requestDeleteStory = (id: string, name: string) => {
-  if (id === HELP_STORY_ID) {
-    uiStore.showNotification(
-      'The help story cannot be deleted. You can reset it to its original content from Settings → Help.',
-      'info', 4000
-    )
-    return
-  }
-  pendingDelete.value = { id, name }
-}
-
-const executeDeleteStory = async () => {
-  if (!pendingDelete.value) return
-  const { id } = pendingDelete.value
-  pendingDelete.value = null
-  const wasCurrent = id === storyStore.currentStoryId
-  await storyStore.deleteStory(id)
-  // After deletion the projects list no longer contains the deleted story
-  const remaining = storageManager.getProjectsList()
-  if (wasCurrent) {
-    if (remaining.length > 0) {
-      const sorted = [...remaining].sort(
-        (a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
-      )
-      await storyStore.loadStory(sorted[0].id)
-      if (!storyStore.currentChapterId && storyStore.chapters.length > 0) {
-        storyStore.setCurrentChapter(storyStore.chapters[0].id)
-      }
-    } else {
-      storyStore.createNewStory('My Story')
-    }
-  }
-  showStoryPicker.value = remaining.length > 0
-}
-
-const switchToStory = async (id: string) => {
-  if (id === storyStore.currentStoryId) {
-    showStoryPicker.value = false
-    return
-  }
-  // Flush and save the current story first
-  if (storyStore.currentChapterId) {
-    const wc = editorStore.content.trim().split(/\s+/).filter((w: string) => w.length > 0).length
-    storyStore.updateChapter(storyStore.currentChapterId, {
-      content: editorStore.content,
-      wordCount: wc,
-      lastEdited: new Date().toISOString(),
-    })
-  }
-  await storyStore.saveStory()
-  await storyStore.loadStory(id)
-  // Auto-select first chapter of the newly loaded story
-  if (!storyStore.currentChapterId && storyStore.chapters.length > 0) {
-    storyStore.setCurrentChapter(storyStore.chapters[0].id)
-  }
-  showStoryPicker.value = false
-}
-
-const createAndSwitchStory = async () => {
-  // Save current story first
-  if (storyStore.currentChapterId) {
-    const wc = editorStore.content.trim().split(/\s+/).filter((w: string) => w.length > 0).length
-    storyStore.updateChapter(storyStore.currentChapterId, {
-      content: editorStore.content,
-      wordCount: wc,
-      lastEdited: new Date().toISOString(),
-    })
-  }
-  await storyStore.saveStory()
-  storyStore.createNewStory('Untitled Story')
-  showStoryPicker.value = false
 }
 
 const isOpen = computed({
@@ -438,7 +285,7 @@ const openHelpStory = async () => {
       storyStore.setCurrentChapter(storyStore.chapters[0].id)
     }
   }
-  showStoryPicker.value = false
+  storyPickerRef.value?.close()
 }
 
 const toggleTheme = () => {
@@ -448,139 +295,6 @@ const toggleTheme = () => {
 </script>
 
 <style scoped>
-.story-section {
-  border-bottom: 1px solid var(--border-color);
-  flex-shrink: 0;
-}
-
-.story-title-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-md) var(--spacing-lg);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.story-title-btn:hover {
-  background-color: var(--bg-tertiary);
-}
-
-.story-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: left;
-}
-
-.story-caret {
-  font-size: 10px;
-  color: var(--text-tertiary);
-  flex-shrink: 0;
-}
-
-.story-picker {
-  background-color: var(--bg-primary);
-  border-top: 1px solid var(--border-color);
-}
-
-.story-new-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-lg);
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid var(--border-color);
-  cursor: pointer;
-  color: var(--accent-color);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.story-new-btn:hover {
-  background-color: var(--bg-tertiary);
-}
-
-.story-list {
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.story-item {
-  width: 100%;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  background: transparent;
-}
-
-.story-item:hover {
-  background-color: var(--bg-tertiary);
-}
-
-.story-item.active {
-  background-color: color-mix(in srgb, var(--accent-color) 15%, transparent);
-}
-
-.story-item-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: var(--spacing-sm) var(--spacing-lg);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-}
-
-.story-item-name {
-  font-size: 13px;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-.story-item-date {
-  font-size: 11px;
-  color: var(--text-tertiary);
-}
-
-.story-item-delete {
-  flex-shrink: 0;
-  padding: 0 var(--spacing-md);
-  background: transparent;
-  border: none;
-  color: var(--text-tertiary);
-  font-size: 16px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity var(--transition-fast), color var(--transition-fast);
-  align-self: stretch;
-  display: flex;
-  align-items: center;
-}
-
-.story-item:hover .story-item-delete {
-  opacity: 1;
-}
-
-.story-item-delete:hover {
-  color: var(--error-color) !important;
-}
-
 /* ── Delete-story confirmation modal ───────────────────────── */
 .delete-confirm-backdrop {
   position: fixed;
@@ -653,12 +367,6 @@ const toggleTheme = () => {
 
 .delete-confirm-ok:hover {
   filter: brightness(1.15);
-}
-
-.story-item-empty {
-  padding: var(--spacing-md) var(--spacing-lg);
-  font-size: 12px;
-  color: var(--text-tertiary);
 }
 
 .sidebar {
