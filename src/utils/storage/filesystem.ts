@@ -3,7 +3,7 @@
  * Handles local file operations through Tauri plugin-fs.
  *
  * All paths are relative to BaseDirectory.AppData, which resolves to
- * %APPDATA%\blockbreaker on Windows.
+ * %APPDATA%\glyphastra on Windows.
  */
 
 import {

@@ -24,7 +24,7 @@
 
     <div class="help-section">
       <h3 class="help-section-title">About</h3>
-      <p class="setting-hint">BlockBreaker v{{ appVersion }}</p>
+      <p class="setting-hint">Glyph Astra v{{ appVersion }}</p>
     </div>
 
     <component :is="IconGallery" v-if="IconGallery && showIconGallery" :show="showIconGallery" @close="showIconGallery = false" />

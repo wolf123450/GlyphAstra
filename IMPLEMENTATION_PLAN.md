@@ -1,7 +1,7 @@
-# BlockBreaker Implementation Plan
+# Glyph Astra Implementation Plan
 
 ## Project Overview
-BlockBreaker is a desktop-based AI-assisted creative writing application combining a Vue.js frontend with Tauri for native desktop features and Ollama for local AI models.
+Glyph Astra is a desktop-based AI-assisted creative writing application combining a Vue.js frontend with Tauri for native desktop features and Ollama for local AI models.
 
 **Tech Stack:**
 - Frontend: Vue.js 3 + Tauri
@@ -454,7 +454,7 @@ The current `prompt` field on `AIStyle` becomes a multi-sentence instruction blo
 - [x] Rename `AIStyle` interface to `WritingProfile`; add `isCustom?: boolean` (backward-compat alias `AIStyle = WritingProfile` kept)
 - [x] Replace the five genre-preset `styles` with the five style-oriented profiles above
 - [x] Add `addCustomProfile(p: WritingProfile)`, `updateProfile(name, updates)`, `deleteProfile(name)` actions
-- [x] Persist `currentStyle` + custom profiles to `localStorage` (key `blockbreaker_writing_profiles`)
+- [x] Persist `currentStyle` + custom profiles to `localStorage` (key `glyphastra_writing_profiles`)
 
 **`useAISuggestion.ts` → `buildPrompt()`:**
 - [x] Change profile injection from the single-line `Style: ${style.prompt}.` to a multi-sentence block under a `Writing style instructions:` header
@@ -783,7 +783,7 @@ Supports academic, non-fiction, and heavily-researched creative work. Three inte
 
 ## Phase 16: Cloud AI Model Integration ⏳ NOT STARTED
 
-**Context:** Ollama covers local models well, but many users will want to use hosted cloud models (OpenAI, Anthropic, Google) — especially for higher-quality suggestions or when a machine is underpowered for local inference. This is a **BYO API key** integration; BlockBreaker will never proxy or hold user keys server-side.
+**Context:** Ollama covers local models well, but many users will want to use hosted cloud models (OpenAI, Anthropic, Google) — especially for higher-quality suggestions or when a machine is underpowered for local inference. This is a **BYO API key** integration; Glyph Astra will never proxy or hold user keys server-side.
 
 ### 16.1 Architecture
 - [ ] Abstract the current Ollama client behind a `ModelProvider` interface:
@@ -809,7 +809,7 @@ Supports academic, non-fiction, and heavily-researched creative work. Three inte
 - [ ] New **AI Providers** section in Settings → AI tab
 - [ ] Per-provider row: enable toggle, API key input (masked, paste-friendly), "Test connection" button, status indicator
 - [ ] API keys never logged anywhere; connection test uses the cheapest available model (e.g. a 1-token completion)
-- [ ] Warning banner: *"Your API key is stored locally on this device only and is never sent to any BlockBreaker server."*
+- [ ] Warning banner: *"Your API key is stored locally on this device only and is never sent to any Glyph Astra server."*
 - [ ] When a cloud provider is enabled and connected, its models appear in the model selector alongside (or instead of) local Ollama models
 
 ### 16.4 Context & Cost Considerations
@@ -857,7 +857,7 @@ Higher-level metadata for multi-book series — builds on 17.1.
 ## Phase 14: Help, Onboarding & Demo Story ✅ COMPLETE
 
 ### 14.1 First-Run Onboarding Tour ✅ COMPLETE
-- [x] Detect first launch (flag in localStorage: `blockbreaker_onboarding_complete`)
+- [x] Detect first launch (flag in localStorage: `glyphastra_onboarding_complete`)
 - [x] Guided spotlight tour: 6-step overlay highlights each major UI region in sequence (sidebar, editor header, editor body, status bar, sidebar footer, finish)
 - [x] Each step has a title, description, and Next / Skip buttons
 - [x] Tour overlay dims the rest of the UI and draws a highlighted border around the active element (`OnboardingTour.vue`)

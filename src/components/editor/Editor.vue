@@ -386,12 +386,12 @@ async function checkPackStatus() {
 }
 
 // ─── Split view ──────────────────────────────────────────────────────────────
-const splitView   = ref(localStorage.getItem('blockbreaker_split_view') === 'true')
+const splitView   = ref(localStorage.getItem('glyphastra_split_view') === 'true')
 // Split view only applies to markdown mode (raw editing beside live preview)
 const splitViewActive = computed(
   () => splitView.value && !!currentChapter.value && renderMode.value === 'markdown'
 )
-watch(splitView, (val) => localStorage.setItem('blockbreaker_split_view', String(val)))
+watch(splitView, (val) => localStorage.setItem('glyphastra_split_view', String(val)))
 
 // ─── Scroll sync composable ──────────────────────────────────────────────────
 const renderMode = ref<RenderMode>('seamless')

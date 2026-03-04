@@ -1,4 +1,4 @@
-# BlockBreaker — Full Code Review
+# Glyph Astra — Full Code Review
 
 **Date**: 2026-02-28  
 **Scope**: All source (Vue frontend, Pinia stores, utilities, API providers, Tauri backend, tests, styles)  
@@ -27,7 +27,7 @@
 
 ## 1. Executive Summary
 
-BlockBreaker is a Tauri + Vue 3 desktop writing application with AI integration (OpenAI, Anthropic, Google, Ollama). The codebase is well-structured at a high level with a clear separation between components, stores, utilities, and API providers. TypeScript strict mode is enabled, and the project uses modern tooling (Vite, Pinia composition API, Vitest).
+Glyph Astra is a Tauri + Vue 3 desktop writing application with AI integration (OpenAI, Anthropic, Google, Ollama). The codebase is well-structured at a high level with a clear separation between components, stores, utilities, and API providers. TypeScript strict mode is enabled, and the project uses modern tooling (Vite, Pinia composition API, Vitest).
 
 However, several **critical security issues** must be addressed before production release — most notably disabled CSP, overly broad filesystem permissions, XSS vectors in rendered markdown, SSRF via unrestricted URL fetching, and API keys stored in plaintext localStorage. Beyond security, the codebase suffers from significant **code duplication** (4 HTML escape implementations, 3 copies of SSE parsing, 3 copies of base64 conversion), **missing error handling** in data persistence paths, **memory management gaps** (unbounded caches), and **very low test coverage** (4 of 21 utility modules tested, zero store/component/API tests).
 
@@ -89,7 +89,7 @@ All four implementations have been consolidated into a single `escapeHtml()` fun
 
 ### 3.2 ~~Inconsistent Persistence Patterns Across Stores~~ ✅ FIXED
 
-`aiStore` now uses a single debounced `watch()` that persists all AI settings to one localStorage key (`blockbreaker_ai_settings`) — matching the pattern used by `settingsStore`. Legacy migration reads old individual keys on first load. `storyStore` delegates to `persistenceService.ts` for file-based persistence.
+`aiStore` now uses a single debounced `watch()` that persists all AI settings to one localStorage key (`glyphastra_ai_settings`) — matching the pattern used by `settingsStore`. Legacy migration reads old individual keys on first load. `storyStore` delegates to `persistenceService.ts` for file-based persistence.
 
 | Store | Strategy |
 |---|---|

@@ -22,7 +22,7 @@ You can combine them: **bold and *italic* together** or ~~strike with `code` ins
 
 ## Links
 
-Visit [the BlockBreaker project](https://github.com) for more information.
+Visit [the Glyph Astra project](https://github.com) for more information.
 
 Here is a [relative link](/) in the middle of a sentence with more text after it.
 

@@ -51,7 +51,7 @@ export async function exportBackup(
   const defaultPath = `${safeTitle}-backup-${date}.json`
 
   const savePath = await save({
-    filters: [{ name: 'BlockBreaker Backup', extensions: ['json'] }],
+    filters: [{ name: 'Glyph Astra Backup', extensions: ['json'] }],
     defaultPath,
   })
   if (!savePath) return false
@@ -79,7 +79,7 @@ export async function exportBackup(
 export async function importBackup(): Promise<BackupFile | null> {
   const filePath = await open({
     multiple: false,
-    filters: [{ name: 'BlockBreaker Backup', extensions: ['json'] }],
+    filters: [{ name: 'Glyph Astra Backup', extensions: ['json'] }],
   })
   if (!filePath) return null
 

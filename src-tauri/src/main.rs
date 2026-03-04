@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    blockbreaker_lib::run()
+    glyphastra_lib::run()
 }

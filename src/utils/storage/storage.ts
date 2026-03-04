@@ -8,8 +8,8 @@ import { validateStoryData } from '@/utils/story/storyManager'
 import { errorHandler, ErrorType } from '../error'
 import { logger } from '../logger'
 
-const STORAGE_PREFIX = 'blockbreaker_story_'
-const PROJECTS_LIST_KEY = 'blockbreaker_projects_list'
+const STORAGE_PREFIX = 'glyphastra_story_'
+const PROJECTS_LIST_KEY = 'glyphastra_projects_list'
 
 export interface StorageInfo {
   size: number
@@ -160,7 +160,7 @@ class StorageManager {
   /**
    * Add project to list
    */
-  private addToProjectsList(id: string, name: string) {
+  addToProjectsList(id: string, name: string) {
     try {
       const projects = this.getProjectsList()
       const existing = projects.findIndex((p) => p.id === id)
