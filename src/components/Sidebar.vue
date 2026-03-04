@@ -1,7 +1,7 @@
 <template>
   <aside class="sidebar" :class="{ 'sidebar-collapsed': !isOpen }">
     <div class="sidebar-header">
-      <h1 class="sidebar-title">BlockBreaker</h1>
+      <h1 class="sidebar-title">Glyph Astra</h1>
       <button class="sidebar-toggle" @click="toggleSidebar" title="Toggle sidebar" aria-label="Toggle sidebar">
         <svg class="toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="isOpen ? mdiChevronLeft : mdiChevronRight"/></svg>
       </button>

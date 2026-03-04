@@ -30,9 +30,10 @@ import { initializeKeyboardShortcuts, registerDefaultShortcuts } from '@/utils/k
 import { storageManager } from '@/utils/storage/storage'
 import { loadOrCreateHelpStory, ensureHelpStoryExists } from '@/utils/story/helpStoryService'
 import { useSummaryManager } from '@/utils/ai/summaryManager'
+import { reconcileProjectsList } from '@/utils/storage/persistenceService'
 
-const LAST_STORY_KEY   = 'blockbreaker_last_story'
-const ONBOARDING_KEY   = 'blockbreaker_onboarding_complete'
+const LAST_STORY_KEY   = 'glyphastra_last_story'
+const ONBOARDING_KEY   = 'glyphastra_onboarding_complete'
 
 const uiStore = useUIStore()
 const storyStore = useStoryStore()
@@ -50,6 +51,9 @@ watch(() => storyStore.currentStoryId, (id) => {
 })
 
 onMounted(async () => {
+  // Merge any story folders on disk that aren't yet in the localStorage index
+  await reconcileProjectsList()
+
   // Try to restore the last open story
   let loaded = false
 
@@ -108,7 +112,7 @@ onMounted(async () => {
   }
 
   if (storyStore.chapters.length === 0) {
-    uiStore.showNotification('Welcome to BlockBreaker! Create your first chapter to get started.', 'info', 0)
+    uiStore.showNotification('Welcome to Glyph Astra! Create your first chapter to get started.', 'info', 0)
   }
 })
 </script>

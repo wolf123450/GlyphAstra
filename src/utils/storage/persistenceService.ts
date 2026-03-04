@@ -15,6 +15,7 @@ import {
   saveStory as fsSaveStory,
   loadStory as fsLoadStory,
   deleteStory as fsDeleteStory,
+  listProjects as fsListProjects,
 } from './fileStorage'
 import type { SerializedStory } from '@/utils/story/storyManager'
 import type { StoryMetadata, Chapter, Character } from '@/stores/storyStore'
@@ -103,4 +104,36 @@ export async function deleteStoryData(storyId: string): Promise<boolean> {
  */
 export function getProjectsList(): Array<{ id: string; name: string; lastModified: string }> {
   return storageManager.getProjectsList()
+}
+
+// ─── Reconciliation ───────────────────────────────────────────────────────────
+
+/**
+ * Merge file-system story directories into the localStorage projects list.
+ * Stories that exist on disk but are missing from the list are added.
+ * Call once at startup so that manually copied / migrated story folders
+ * are automatically discovered.
+ */
+export async function reconcileProjectsList(): Promise<void> {
+  try {
+    const onDisk = await fsListProjects()
+    if (onDisk.length === 0) return
+
+    const known = storageManager.getProjectsList()
+    const knownIds = new Set(known.map((p) => p.id))
+
+    let added = 0
+    for (const project of onDisk) {
+      if (!knownIds.has(project.id)) {
+        storageManager.addToProjectsList(project.id, project.name)
+        added++
+      }
+    }
+
+    if (added > 0) {
+      logger.info('Persistence', `Reconciled ${added} story project(s) from disk into projects list.`)
+    }
+  } catch (error) {
+    logger.warn('Persistence', 'Failed to reconcile projects list from disk:', error)
+  }
 }

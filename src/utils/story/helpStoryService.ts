@@ -36,7 +36,7 @@ export async function loadOrCreateHelpStory(): Promise<boolean> {
     const now = new Date().toISOString()
     store.updateMetadata({
       title: 'Help & Reference',
-      summary: 'Built-in reference guide and sandbox for BlockBreaker.',
+      summary: 'Built-in reference guide and sandbox for Glyph Astra.',
       genre: '',
       tone: '',
       narrativeVoice: '',

@@ -54,7 +54,7 @@ export interface UserSettings {
   themeColors: ThemeColorOverrides;
 }
 
-const STORAGE_KEY = 'blockbreaker_settings'
+const STORAGE_KEY = 'glyphastra_settings'
 
 /** Detect OS preference; fall back to 'dark' if API unavailable. */
 function detectOSTheme(): 'dark' | 'light' {

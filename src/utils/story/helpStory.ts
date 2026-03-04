@@ -9,7 +9,7 @@
  * without touching the sandbox chapters.
  */
 
-export const HELP_STORY_ID = 'blockbreaker-help'
+export const HELP_STORY_ID = 'glyphastra-help'
 
 export interface HelpChapterDef {
   id: string
@@ -20,9 +20,9 @@ export interface HelpChapterDef {
 
 // ─── Chapter content ───────────────────────────────────────────────────────
 
-const WELCOME = `# Welcome to BlockBreaker
+const WELCOME = `# Welcome to Glyph Astra
 
-BlockBreaker is a desktop creative writing app with **local AI assistance** — your stories stay on your machine and never touch a cloud.
+Glyph Astra is a desktop creative writing app with **local AI assistance** — your stories stay on your machine and never touch a cloud.
 
 ---
 
@@ -72,7 +72,7 @@ Use the three buttons in the editor toolbar to switch modes:
 
 const MARKDOWN_GUIDE = `# Markdown Guide
 
-BlockBreaker uses standard Markdown with full live rendering in Seamless mode.
+Glyph Astra uses standard Markdown with full live rendering in Seamless mode.
 
 ---
 
@@ -194,7 +194,7 @@ Prefix any Markdown character with \`\\\` to render it literally:
 
 const AI_GUIDE = `# AI Writing Guide
 
-BlockBreaker uses **Ollama** for fully local, private AI suggestions.  No internet connection or API key is required.
+Glyph Astra uses **Ollama** for fully local, private AI suggestions.  No internet connection or API key is required.
 
 ---
 
@@ -207,7 +207,7 @@ BlockBreaker uses **Ollama** for fully local, private AI suggestions.  No intern
    \`\`\`
 3. Make sure Ollama is running (it starts automatically on most systems).
 
-BlockBreaker will show a connection indicator in the AI panel.  If it says **Not connected**, start Ollama and press the refresh button.
+Glyph Astra will show a connection indicator in the AI panel.  If it says **Not connected**, start Ollama and press the refresh button.
 
 ---
 
@@ -215,7 +215,7 @@ BlockBreaker will show a connection indicator in the AI panel.  If it says **Not
 
 Place your cursor anywhere in the editor and press **Ctrl+Space**.
 
-BlockBreaker sends the text before your cursor (up to the token budget) plus your story metadata and AI settings as context.
+Glyph Astra sends the text before your cursor (up to the token budget) plus your story metadata and AI settings as context.
 
 The suggestion appears as **ghost text** after your cursor:
 
@@ -246,7 +246,7 @@ Press **Prompt Preview** to see exactly what gets sent to the model.
 
 ## AI Context
 
-BlockBreaker automatically includes relevant context in every prompt:
+Glyph Astra automatically includes relevant context in every prompt:
 
 - **Story metadata** — title, genre, tone, narrative voice
 - **Chapter summaries** — auto-generated summaries of earlier chapters
@@ -353,7 +353,7 @@ The old clock on the mantelpiece had stopped at half past three.  No one in the 
 export const HELP_CHAPTERS: HelpChapterDef[] = [
   {
     id: 'help-ch-welcome',
-    name: 'Welcome to BlockBreaker',
+    name: 'Welcome to Glyph Astra',
     content: WELCOME,
     isReadOnly: true,
   },

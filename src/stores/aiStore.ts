@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref, computed, watch } from "vue";
 
-const PROFILES_STORAGE_KEY = "blockbreaker_writing_profiles";
+const PROFILES_STORAGE_KEY = "glyphastra_writing_profiles";
 
 export interface OllamaModel {
   name: string;
@@ -115,7 +115,7 @@ function deobfuscate(obfuscated: string): string {
 // debounced watcher (same pattern as settingsStore).  Legacy per-field keys
 // are read once as a migration fallback.
 
-const AI_STORAGE_KEY = 'blockbreaker_ai_settings'
+const AI_STORAGE_KEY = 'glyphastra_ai_settings'
 
 // Legacy keys — read-only, used for one-time migration
 const LEGACY_MODEL_KEY           = 'blockbreaker_current_model'

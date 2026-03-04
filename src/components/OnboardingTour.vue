@@ -38,7 +38,7 @@ import { computed, watch, ref, nextTick, onMounted, onUnmounted } from 'vue'
 import type { CSSProperties } from 'vue'
 import { useUIStore } from '@/stores/uiStore'
 
-const ONBOARDING_KEY = 'blockbreaker_onboarding_complete'
+const ONBOARDING_KEY = 'glyphastra_onboarding_complete'
 
 const uiStore = useUIStore()
 

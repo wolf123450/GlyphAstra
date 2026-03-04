@@ -8,7 +8,7 @@
         </div>
 
         <div class="md-ref-body">
-          <p class="md-ref-intro">All supported syntax in BlockBreaker's seamless, markdown, and preview modes.</p>
+          <p class="md-ref-intro">All supported syntax in Glyph Astra's seamless, markdown, and preview modes.</p>
 
           <!-- ─── Headings ──────────────────────────────── -->
           <section class="md-section">

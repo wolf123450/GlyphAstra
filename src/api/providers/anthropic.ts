@@ -7,7 +7,7 @@
  *    Anthropic does not expose pricing via their API — figures may drift;
  *    always verify at the link above before making cost-sensitive decisions.)
  *
- * API key stored locally in aiStore; never sent to any BlockBreaker server.
+ * API key stored locally in aiStore; never sent to any Glyph Astra server.
  *
  * Note: Anthropic requires the `anthropic-dangerous-direct-browser-access: true`
  * header when calling from a browser/WebView context.

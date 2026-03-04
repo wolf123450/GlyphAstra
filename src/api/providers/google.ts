@@ -7,7 +7,7 @@
  *    The models list endpoint does not include pricing — figures may drift;
  *    always verify at the link above before making cost-sensitive decisions.)
  *
- * API key stored locally in aiStore; never sent to any BlockBreaker server.
+ * API key stored locally in aiStore; never sent to any Glyph Astra server.
  */
 
 import type { ModelProvider, ModelInfo, CompletionOptions } from './types'

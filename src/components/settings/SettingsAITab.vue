@@ -89,7 +89,7 @@
     <div class="setting-group-label">Cloud AI Providers</div>
     <div class="setting-row">
       <p class="setting-hint api-key-notice">
-        &#128274; API keys are stored locally on this device only and are never sent to any BlockBreaker server.
+        &#128274; API keys are stored locally on this device only and are never sent to any Glyph Astra server.
       </p>
     </div>
 
