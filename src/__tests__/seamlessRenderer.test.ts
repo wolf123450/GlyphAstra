@@ -912,3 +912,112 @@ describe('renderPreview', () => {
     expect(html).toContain(' world')
   })
 })
+
+// ─── 19.8: Seamless list item — fine-grained source reveal ───────────────────
+
+describe('renderTokens seamless — list item cursor granularity (19.8)', () => {
+  // Content: "- hello **bold** world"
+  // Positions:  0123456789...
+  //   token.start = 0, markerLen = 2 ("- "), textAbsStart = 2
+  //   "hello " = [2, 8), "**bold**" = [8, 16), " world" = [16, 22)
+
+  const CONTENT = '- hello **bold** world'
+
+  it('cursor at start of line (marker region) — whole block shows as source', () => {
+    const tokens = tokenizeMarkdown(CONTENT)
+    const html = renderTokens(tokens, CONTENT, 0, 'seamless')
+    // Whole block shown as raw source
+    expect(html).toContain('class="markdown-source"')
+    expect(html).toContain('- ')
+    expect(html).toContain('**bold**')
+    // Not rendered as <strong> (raw source shown instead)
+    expect(html).not.toContain('<strong>')
+  })
+
+  it('cursor on marker dash (pos=1) — whole block shows as source', () => {
+    const tokens = tokenizeMarkdown(CONTENT)
+    const html = renderTokens(tokens, CONTENT, 1, 'seamless')
+    expect(html).toContain('class="markdown-source"')
+    expect(html).toContain('**bold**')
+    expect(html).not.toContain('<strong>')
+  })
+
+  it('cursor on plain text in list item — whole block shows as source', () => {
+    // Cursor at pos 3 = 'e' in 'hello' — still within the list token
+    const tokens = tokenizeMarkdown(CONTENT)
+    const html = renderTokens(tokens, CONTENT, 3, 'seamless')
+    // renderTokens shows the whole block as source when cursor is anywhere in the token
+    expect(html).toContain('class="markdown-source"')
+    expect(html).toContain('**bold**')
+    expect(html).not.toContain('<strong>')
+  })
+
+  it('cursor inside the bold span — only **bold** shows as source, rest renders', () => {
+    // "**bold**" starts at pos 8 in "- hello **bold** world"
+    // cursor at pos 10 = inside **bold**
+    const tokens = tokenizeMarkdown(CONTENT)
+    const html = renderTokens(tokens, CONTENT, 10, 'seamless')
+    // Bold span shown as raw source
+    expect(html).toContain('class="markdown-source"')
+    expect(html).toContain('**bold**')
+    // Should NOT render as <strong> (it's shown as source instead)
+    expect(html).not.toContain('<strong>')
+    // Plain text before and after should be present
+    expect(html).toContain('hello ')
+    expect(html).toContain(' world')
+    // No list-style:none (marker not shown as source)
+    expect(html).not.toContain('list-style:none')
+  })
+
+  it('cursor after bold span on plain text — whole block shows as source', () => {
+    // " world" starts at pos 16; cursor at 18 — still in the token
+    const tokens = tokenizeMarkdown(CONTENT)
+    const html = renderTokens(tokens, CONTENT, 18, 'seamless')
+    expect(html).toContain('class="markdown-source"')
+    expect(html).toContain('**bold**')
+    expect(html).not.toContain('<strong>')
+  })
+
+  it('ordered list: cursor at marker shows whole block as source', () => {
+    const content = '1. hello **bold** world'
+    const tokens = tokenizeMarkdown(content)
+    const html = renderTokens(tokens, content, 0, 'seamless')
+    expect(html).toContain('class="markdown-source"')
+    expect(html).toContain('1. ')
+    expect(html).toContain('**bold**')
+    expect(html).not.toContain('<strong>')
+  })
+
+  it('ordered list: cursor on bold span shows only **bold** as source', () => {
+    // "1. hello **bold** world"
+    // markerLen = 3 ("1. "), textAbsStart = 3
+    // "hello " = [3,9), "**bold**" = [9,17)
+    const content = '1. hello **bold** world'
+    const tokens = tokenizeMarkdown(content)
+    const html = renderTokens(tokens, content, 11, 'seamless')
+    expect(html).toContain('**bold**')
+    expect(html).not.toContain('<strong>')
+    expect(html).not.toContain('list-style:none')
+  })
+
+  it('list item with italic: cursor on italic shows *word* as source', () => {
+    const content = '- plain *italic* text'
+    // markerLen=2, textAbsStart=2
+    // "plain " = [2,8), "*italic*" = [8,16), " text" = [16,21)
+    const tokens = tokenizeMarkdown(content)
+    const html = renderTokens(tokens, content, 10, 'seamless')
+    expect(html).toContain('*italic*')
+    expect(html).not.toContain('<em>')
+    expect(html).toContain('plain ')
+    expect(html).toContain(' text')
+  })
+
+  it('list item NOT under cursor renders as before (token.rendered)', () => {
+    // Two list items; cursor is on first, second should render normally
+    const content = '- **bold** item\n- plain item'
+    const tokens = tokenizeMarkdown(content)
+    // cursor at pos 0 (first item marker) — second item should render via token.rendered
+    const html = renderTokens(tokens, content, 0, 'seamless')
+    expect(html).toContain('plain item')
+  })
+})

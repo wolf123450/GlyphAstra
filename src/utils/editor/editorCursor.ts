@@ -20,37 +20,80 @@ const esc = escapeHtml
  * The returned spans intentionally have NO data-start so findTokenSpan() correctly
  * walks up to the enclosing token span.
  */
-export function renderInlineContent(rawText: string): string {
-  // Split on image (![), bold (**), strikethrough (~~), italic (*), inline code (`), link ([text](url))
-  // Bold must precede italic so ** is not consumed as two *. Image must precede link ('![' vs '[').
-  const parts = rawText.split(/(![^\[]*\[[^\]]*\]\([^)]+\)|\*\*.*?\*\*|~~.*?~~|\*.*?\*|`.*?`|\[[^\]]+\]\([^)]+\))/)
-  return parts.map(part => {
-    const img = part.match(/^!\[([^\]]*)\]\(([^)]+)\)$/)
-    if (img) {
-      const src      = img[2].trim().replace(/^["']|["']$/g, '')
-      const { cleanAlt, dimW, dimH } = parseImgDims(img[1])
-      const sizeAttr = imgSizeAttr(dimW, dimH)
+export function renderInlineContent(rawText: string, offset = 0): string {
+  // Scanning-loop approach: emit data-start/data-end on every inline span so
+  // that updateTokenVisibility can toggle individual spans independently.
+  let col = 0
+  let result = ''
+  while (col < rawText.length) {
+    const remaining = rawText.substring(col)
+    // Image (must precede link check)
+    const imgMatch = remaining.match(/^!\[([^\]]*)\]\(([^)]+)\)/)
+    if (imgMatch) {
+      const start = offset + col
+      const end   = start + imgMatch[0].length
+      const src   = imgMatch[2].trim().replace(/^["']|["']$/g, '')
+      const { cleanAlt, dimW, dimH } = parseImgDims(imgMatch[1])
+      const sizeAttr  = imgSizeAttr(dimW, dimH)
       const titleAttr = cleanAlt ? ` title="${esc(cleanAlt)}"` : ''
-      const imgTag   = /^https?:\/\//i.test(src)
+      const imgTag = /^https?:\/\//i.test(src)
         ? `<img class="md-image" src="${esc(src)}" alt="${esc(cleanAlt)}"${titleAttr} loading="lazy"${sizeAttr}>`
         : `<img class="md-image md-image-local" data-local-src="${esc(src)}" src="" alt="${esc(cleanAlt)}"${titleAttr}${sizeAttr}>`
-      return `<span class="token token-image rendered" data-ghost="true">${imgTag}</span>`
+      result += `<span class="token token-image rendered" data-ghost="true" data-start="${start}" data-end="${end}">${imgTag}</span>`
+      col += imgMatch[0].length
+      continue
     }
-    const bold = part.match(/^\*\*(.*?)\*\*$/)
-    if (bold) return `<span class="token token-bold rendered"><span class="marker">**</span><span class="content">${esc(bold[1])}</span><span class="marker">**</span></span>`
-    const strike = part.match(/^~~(.*?)~~$/)
-    if (strike) return `<span class="token token-strikethrough rendered"><span class="marker">~~</span><span class="content">${esc(strike[1])}</span><span class="marker">~~</span></span>`
-    const italic = part.match(/^\*(.*?)\*$/)
-    if (italic) return `<span class="token token-italic rendered"><span class="marker">*</span><span class="content">${esc(italic[1])}</span><span class="marker">*</span></span>`
-    const code = part.match(/^`(.*?)`$/)
-    if (code) return `<span class="token token-code rendered"><span class="marker">\`</span><span class="content">${esc(code[1])}</span><span class="marker">\`</span></span>`
-    const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
-    if (link) {
-      const safeHref = isDangerousUrl(link[2]) ? '' : esc(link[2])
-      return `<span class="token token-link rendered"><span class="marker">[</span><span class="content">${esc(link[1])}</span><span class="marker">](${safeHref})</span></span>`
+    // Link
+    const linkMatch = remaining.match(/^\[([^\]]+)\]\(([^)]+)\)/)
+    if (linkMatch) {
+      const start   = offset + col
+      const end     = start + linkMatch[0].length
+      const safeHref = isDangerousUrl(linkMatch[2]) ? '' : esc(linkMatch[2])
+      result += `<span class="token token-link rendered" data-start="${start}" data-end="${end}"><span class="marker">[</span><span class="content">${esc(linkMatch[1])}</span><span class="marker">](${safeHref})</span></span>`
+      col += linkMatch[0].length
+      continue
     }
-    return esc(part)
-  }).join('')
+    // Bold (before italic so ** is not consumed as two *)
+    const boldMatch = remaining.match(/^\*\*(.*?)\*\*/)
+    if (boldMatch) {
+      const start = offset + col
+      const end   = start + boldMatch[0].length
+      result += `<span class="token token-bold rendered" data-start="${start}" data-end="${end}"><span class="marker">**</span><span class="content">${esc(boldMatch[1])}</span><span class="marker">**</span></span>`
+      col += boldMatch[0].length
+      continue
+    }
+    // Strikethrough
+    const strikeMatch = remaining.match(/^~~(.*?)~~/)
+    if (strikeMatch) {
+      const start = offset + col
+      const end   = start + strikeMatch[0].length
+      result += `<span class="token token-strikethrough rendered" data-start="${start}" data-end="${end}"><span class="marker">~~</span><span class="content">${esc(strikeMatch[1])}</span><span class="marker">~~</span></span>`
+      col += strikeMatch[0].length
+      continue
+    }
+    // Italic
+    const italicMatch = remaining.match(/^\*(.*?)\*/)
+    if (italicMatch) {
+      const start = offset + col
+      const end   = start + italicMatch[0].length
+      result += `<span class="token token-italic rendered" data-start="${start}" data-end="${end}"><span class="marker">*</span><span class="content">${esc(italicMatch[1])}</span><span class="marker">*</span></span>`
+      col += italicMatch[0].length
+      continue
+    }
+    // Inline code
+    const codeMatch = remaining.match(/^`(.*?)`/)
+    if (codeMatch) {
+      const start = offset + col
+      const end   = start + codeMatch[0].length
+      result += `<span class="token token-code rendered" data-start="${start}" data-end="${end}"><span class="marker">\`</span><span class="content">${esc(codeMatch[1])}</span><span class="marker">\`</span></span>`
+      col += codeMatch[0].length
+      continue
+    }
+    // Plain character (including backslash-escaped chars — emit literally)
+    result += esc(rawText[col])
+    col++
+  }
+  return result
 }
 
 /**
@@ -74,7 +117,8 @@ export function buildStructuredHTML(tokens: Token[], content: string): string {
       html += `<span class="token token-text" data-start="${token.start}" data-end="${token.end}">${inner}</span>`
     } else if (token.type === 'header') {
       const lvl = token.level || 1
-      html += `<span class="token token-header rendered" data-level="${lvl}" data-start="${token.start}" data-end="${token.end}"><span class="marker">${'#'.repeat(lvl)} </span><span class="content">${renderInlineContent(token.text)}</span></span>`
+      const headerTextStart = token.start + lvl + 1  // e.g. "## " = lvl + 1 chars
+      html += `<span class="token token-header rendered" data-level="${lvl}" data-start="${token.start}" data-end="${token.end}" data-text-start="${headerTextStart}"><span class="marker">${'#'.repeat(lvl)} </span><span class="content">${renderInlineContent(token.text, headerTextStart)}</span></span>`
     } else if (token.type === 'bold') {
       html += `<span class="token token-bold rendered" data-start="${token.start}" data-end="${token.end}"><span class="marker">**</span><span class="content">${inner}</span><span class="marker">**</span></span>`
     } else if (token.type === 'italic') {
@@ -85,21 +129,23 @@ export function buildStructuredHTML(tokens: Token[], content: string): string {
       html += `<span class="token token-code rendered" data-start="${token.start}" data-end="${token.end}"><span class="marker">\`</span><span class="content">${inner}</span><span class="marker">\`</span></span>`
     } else if (token.type === 'listItem') {
       const indent = token.indent ?? 0
-      // Include the leading spaces in the marker so those source chars exist in
-      // the DOM and CursorOffset counting stays accurate.
       const spaces = '  '.repeat(indent)
-      html += `<span class="token token-list rendered" data-start="${token.start}" data-end="${token.end}" data-indent="${indent}"><span class="marker">${esc(spaces)}- </span><span class="content">${renderInlineContent(token.text)}</span></span>`
+      // textStart = absolute position where the text content begins (after the marker)
+      const textStart = token.start + spaces.length + 2  // e.g. "  - "
+      html += `<span class="token token-list rendered" data-start="${token.start}" data-end="${token.end}" data-text-start="${textStart}" data-indent="${indent}"><span class="marker">${esc(spaces)}- </span><span class="content">${renderInlineContent(token.text, textStart)}</span></span>`
     } else if (token.type === 'hr') {
       html += `<span class="token token-hr rendered" data-start="${token.start}" data-end="${token.end}"><span class="marker">${esc(token.content)}</span></span>`
     } else if (token.type === 'blockquote') {
       const level = token.level ?? 1
       const prefix = '>'.repeat(level) + ' '
-      html += `<span class="token token-blockquote rendered" data-start="${token.start}" data-end="${token.end}" data-level="${level}"><span class="marker">${esc(prefix)}</span><span class="content">${renderInlineContent(token.text)}</span></span>`
+      const bqTextStart = token.start + prefix.length
+      html += `<span class="token token-blockquote rendered" data-start="${token.start}" data-end="${token.end}" data-text-start="${bqTextStart}" data-level="${level}"><span class="marker">${esc(prefix)}</span><span class="content">${renderInlineContent(token.text, bqTextStart)}</span></span>`
     } else if (token.type === 'orderedList') {
       const order = token.order ?? 1
       const indent = token.indent ?? 0
       const spaces = '  '.repeat(indent)
-      html += `<span class="token token-ordered rendered" data-start="${token.start}" data-end="${token.end}" data-order="${order}" data-indent="${indent}"><span class="marker">${esc(spaces)}${order}. </span><span class="content" data-order="${order}">${renderInlineContent(token.text)}</span></span>`
+      const olTextStart = token.start + spaces.length + String(order).length + 2  // e.g. "  1. "
+      html += `<span class="token token-ordered rendered" data-start="${token.start}" data-end="${token.end}" data-text-start="${olTextStart}" data-order="${order}" data-indent="${indent}"><span class="marker">${esc(spaces)}${order}. </span><span class="content" data-order="${order}">${renderInlineContent(token.text, olTextStart)}</span></span>`
     } else if (token.type === 'fencedCode') {
       const lang = token.language ?? ''
       // Split raw content into opening fence line, body lines, closing fence line.
@@ -345,13 +391,35 @@ export function updateTokenVisibility(
     return
   }
 
-  // Seamless default: show source only for token under cursor
+  // Seamless default: show source only for token under cursor.
+  // Block tokens with a marker region (list, header, blockquote) store
+  // data-text-start — the absolute position where their text content begins.
+  // Only the marker region shows source on the outer span; when the cursor is
+  // in the text region the outer span stays rendered and the individual inline
+  // child spans (which now carry data-start/data-end via renderInlineContent)
+  // are toggled instead.
   allTokens.forEach(el => {
     const s = parseInt(el.getAttribute('data-start') ?? '0')
     const e = parseInt(el.getAttribute('data-end') ?? '0')
+    const textStartAttr = el.getAttribute('data-text-start')
+
     if (cursorPos >= s && cursorPos <= e) {
-      el.classList.remove('rendered')
-      el.classList.add('source')
+      if (textStartAttr !== null) {
+        const textStart = parseInt(textStartAttr)
+        if (cursorPos <= textStart) {
+          // Cursor is in the marker portion (- , ## , 1. , > …) → show source
+          el.classList.remove('rendered')
+          el.classList.add('source')
+        } else {
+          // Cursor is in the text content → stay rendered; inner inline spans handle toggling
+          el.classList.add('rendered')
+          el.classList.remove('source')
+        }
+      } else {
+        // Inline token (bold, italic, etc.) or plain text → show source
+        el.classList.remove('rendered')
+        el.classList.add('source')
+      }
     } else {
       el.classList.add('rendered')
       el.classList.remove('source')
