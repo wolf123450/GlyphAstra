@@ -183,6 +183,7 @@ onMounted(async () => {
   width: 16px;
   height: 48px;
   cursor: col-resize;
+  z-index: 1;
 }
 
 /* Visible pill */
@@ -210,7 +211,7 @@ onMounted(async () => {
   position: absolute;
   left: 0;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translate(-50%, -50%);
   width: 1px;
   height: 50%;
   background: var(--border-color);

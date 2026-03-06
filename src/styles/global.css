@@ -5,6 +5,8 @@
   --bg-primary: #ffffff;
   --bg-secondary: #f5f5f5;
   --bg-tertiary: #eeeeee;
+  --bg-card: #ffffff;        /* card surface — lighter than pane bg */
+  --bg-card-hover: #eeeeee; /* hover state inside a card */
   --text-primary: #1a1a1a;
   --text-secondary: #666666;
   --text-tertiary: #767676;
@@ -59,6 +61,8 @@
   --bg-primary: #1e1e1e;
   --bg-secondary: #2a2a2a;
   --bg-tertiary: #333333;
+  --bg-card: #333333;        /* elevated card surface in dark mode */
+  --bg-card-hover: #3d3d3d; /* hover state inside a dark card */
   --text-primary: #e0e0e0;
   --text-secondary: #a0a0a0;
   --text-tertiary: #8a8a8a;
@@ -86,6 +90,8 @@
     --bg-primary: #1e1e1e;
     --bg-secondary: #2a2a2a;
     --bg-tertiary: #333333;
+    --bg-card: #333333;
+    --bg-card-hover: #3d3d3d;
     --text-primary: #e0e0e0;
     --text-secondary: #a0a0a0;
     --text-tertiary: #8a8a8a;

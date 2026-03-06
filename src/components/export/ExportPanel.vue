@@ -275,7 +275,6 @@ const doRestoreBackup = async () => {
   align-items: center;
   justify-content: space-between;
   padding: 0 var(--spacing-lg);
-  border-bottom: 1px solid var(--border-color);
   height: 52px;
   flex-shrink: 0;
 }
