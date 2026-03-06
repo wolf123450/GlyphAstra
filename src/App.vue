@@ -2,7 +2,15 @@
   <TitleBar />
   <div class="app-container">
     <Sidebar />
+    <div v-if="uiStore.sidebarOpen" class="pane-divider">
+      <div class="divider-handle" title="Drag to resize sidebar" @mousedown="sidebarResize.onDividerMousedown">
+      </div>
+    </div>
     <Editor />
+    <div v-if="hasRightPanel" class="pane-divider">
+      <div class="divider-handle" title="Drag to resize panel" @mousedown="rightPanelResize.onDividerMousedown">
+      </div>
+    </div>
     <Overview />
     <AIPanel />
     <ExportPanel />
@@ -14,8 +22,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { onMounted, watch, computed } from 'vue'
 import Sidebar from '@/components/Sidebar.vue'
+import TitleBar from '@/components/TitleBar.vue'
+import { usePaneResize } from '@/utils/editor/usePaneResize'
 import Editor from '@/components/editor/Editor.vue'
 import Overview from '@/components/story/Overview.vue'
 import AIPanel from '@/components/ai/AIPanel.vue'
@@ -24,7 +34,6 @@ import Settings from '@/components/Settings.vue'
 import SearchPanel from '@/components/story/SearchPanel.vue'
 import Notification from '@/components/Notification.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
-import TitleBar from '@/components/TitleBar.vue'
 import { useUIStore } from '@/stores/uiStore'
 import { useStoryStore } from '@/stores/storyStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -41,6 +50,28 @@ const uiStore = useUIStore()
 const storyStore = useStoryStore()
 const settingsStore = useSettingsStore()
 
+/** True when any right-side panel (Overview / AI / Export) is open. */
+const hasRightPanel = computed(() =>
+  ['overview', 'ai', 'export'].includes(uiStore.activePanel)
+)
+
+// ── Pane resize helpers ──────────────────────────────────────────────────────
+const sidebarResize = usePaneResize({
+  cssVar: '--sidebar-width',
+  min: 160,
+  max: 400,
+  storageKey: 'glyphastra_sidebar_width',
+  getWidth: (x) => x,
+})
+
+const rightPanelResize = usePaneResize({
+  cssVar: '--right-panel-width',
+  min: 220,
+  max: 520,
+  storageKey: 'glyphastra_right_panel_width',
+  getWidth: (x) => window.innerWidth - x,
+})
+
 // Start background chapter auto-summariser
 useSummaryManager()
 
@@ -53,6 +84,10 @@ watch(() => storyStore.currentStoryId, (id) => {
 })
 
 onMounted(async () => {
+  // Restore persisted pane widths
+  sidebarResize.restoreWidth()
+  rightPanelResize.restoreWidth()
+
   // Merge any story folders on disk that aren't yet in the localStorage index
   await reconcileProjectsList()
 
@@ -128,5 +163,44 @@ onMounted(async () => {
   flex-direction: row;
   overflow: hidden;
   background-color: var(--bg-primary);
+}
+
+/* ── Pane divider overlay ──────────────────────────────────────────── */
+.pane-divider {
+  width: 0;
+  position: relative;
+  overflow: visible;
+  z-index: 20;
+  flex-shrink: 0;
+}
+
+/* Hit area — centered on the boundary, extends slightly into each pane */
+.divider-handle {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 48px;
+  cursor: col-resize;
+}
+
+/* Visible pill */
+.divider-handle::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--border-color);
+  transition: height var(--transition-fast), background-color var(--transition-fast);
+}
+.divider-handle:hover::before,
+.divider-handle:active::before {
+  height: 32px;
+  background: var(--accent-color);
 }
 </style>
