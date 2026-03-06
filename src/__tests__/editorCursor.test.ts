@@ -339,11 +339,17 @@ describe('buildStructuredHTML – inline content inside list items', () => {
     cleanup(div)
   })
 
-  it('nested inline spans do NOT have data-start (so findTokenSpan walks up to the list item)', () => {
+  it('nested inline spans have data-start/data-end for fine-grained cursor toggling', () => {
+    // renderInlineContent now emits data-start so updateTokenVisibility can toggle
+    // individual inline spans independently (19.8 fix).
     const content = '- Item with **bold** text'
     const div = makeContainer(content)
-    const boldSpan = div.querySelector('.token-list .token-bold')!
-    expect(boldSpan.hasAttribute('data-start')).toBe(false)
+    const boldSpan = div.querySelector('.token-list .token-bold')! as HTMLElement
+    expect(boldSpan).not.toBeNull()
+    // data-start should be the absolute source position of **bold** inside the full line
+    // '- Item with **bold** text': '- ' = 2 chars, 'Item with ' = 10 chars → offset 12
+    expect(boldSpan.hasAttribute('data-start')).toBe(true)
+    expect(parseInt(boldSpan.getAttribute('data-start')!)).toBe(12)
     cleanup(div)
   })
 
@@ -391,11 +397,13 @@ describe('buildStructuredHTML – inline content inside headers', () => {
     cleanup(div)
   })
 
-  it('nested inline spans inside header do NOT have data-start', () => {
+  it('nested inline spans inside header have data-start for fine-grained cursor toggling', () => {
     const content = '# **bold** header'
+    // "# " = 2 chars, so **bold** starts at absolute offset 2
     const div = makeContainer(content)
     const boldSpan = div.querySelector('.token-header .token-bold')!
-    expect(boldSpan?.hasAttribute('data-start')).toBe(false)
+    expect(boldSpan?.hasAttribute('data-start')).toBe(true)
+    expect(parseInt(boldSpan.getAttribute('data-start')!)).toBe(2)
     cleanup(div)
   })
 })

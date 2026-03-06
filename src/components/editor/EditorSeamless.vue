@@ -810,14 +810,14 @@ defineExpose({ scrollEl: editorInput })
 }
 
 /* ── Source mode: show raw markdown ─────────────────────── */
-.editor-input :deep(.token.source .marker) {
+.editor-input :deep(.token.source > .marker) {
   display: inline !important;
   background-color: color-mix(in srgb, var(--accent-color) 15%, transparent);
   padding: 1px 3px;
   border-radius: 2px;
   color: var(--text-secondary);
 }
-.editor-input :deep(.token.source .content) {
+.editor-input :deep(.token.source > .content) {
   font-weight: normal !important;
   font-style: normal !important;
   text-decoration: none !important;
@@ -829,8 +829,8 @@ defineExpose({ scrollEl: editorInput })
   padding-left: 0 !important;
 }
 /* Suppress the list bullet on nested .content spans too when in source mode */
-.editor-input :deep(.token.source .content::before) { display: none !important; }
-.editor-input :deep(.token-list.rendered > .content > .token.source .content::before) { display: none !important; }
+.editor-input :deep(.token.source > .content::before) { display: none !important; }
+.editor-input :deep(.token-list.rendered > .content > .token.source > .content::before) { display: none !important; }
 .editor-input :deep(.token-header.source),
 .editor-input :deep(.token-bold.source),
 .editor-input :deep(.token-italic.source),

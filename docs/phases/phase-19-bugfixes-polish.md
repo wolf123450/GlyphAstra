@@ -49,14 +49,17 @@ Tracked issues from the post-code-review pass (2026-03-03).
 - [ ] Read from `uiStore.activePanel` / `uiStore.showSettings` / `uiStore.showSearchPanel` to determine which icon should be active
 - [ ] Apply to all toggle-able panel buttons: ✦ (AI), ⬡ (Export), ◨ (Overview), 🔍 (Search), ⚙ (Settings)
 
-### 19.8 Seamless Mode Inline Source Leak on Lists (Bug)
-- [ ] When the cursor enters a list item (ordered or unordered) in seamless mode, the **entire** list item's raw source is revealed (bullet/number marker + all inline markup). Only the specific element at the cursor position should toggle to source view:
-  - Cursor at the **start of the line** → show the bullet/number source (`-`, `1.`, etc.); inline formatting elsewhere on the line (bold, italic, etc.) should remain rendered
-  - Cursor **on bold text** → show `**…**` for that span only; the bullet should render, and other inline formatting on the same line stays rendered
-  - Same principle for `*italic*`, `~~strikethrough~~`, `` `code` ``, links, etc.
-- [ ] Root cause is likely the cursor-region detection in `seamlessRenderer.ts` — the "active node" boundary is being set to the entire list item (`<li>`) instead of the specific inline node under the cursor
-- [ ] Fix: refine the cursor → source-range mapping so it resolves to the **innermost** inline Markdown span (emphasis, strong, strikethrough, code, link) rather than the block-level list item
-- [ ] Add test cases for cursor-at-start-of-list-item vs cursor-inside-bold-in-list-item vs cursor-on-plain-text-in-list-item
+### 19.8 Seamless Mode Inline Source Leak on Lists ✅ COMPLETE
+- [x] When the cursor enters a list item (ordered or unordered) in seamless mode, the **entire** list item's raw source was revealed. Now only the specific element at the cursor position toggles to source:
+  - Cursor in the **marker region** (`- `, `1. `, etc.) → outer span shows source (marker visible, list bullet suppressed); text content renders fully
+  - Cursor **on an inline span** (bold, italic, etc.) in the text → only that inner span shows source; outer span stays rendered with its bullet
+  - Cursor on **plain text** in the content → nothing shows as source; everything renders
+  - Same behaviour for headers (`## `, styled as source only when cursor on the `#` prefix) and blockquotes (`> `)
+- [x] Root cause: `updateTokenVisibility` in `editorCursor.ts` toggled the entire outer block span to `.source` whenever cursor was anywhere in `[data-start, data-end]`. Inline spans inside block content (produced by `renderInlineContent`) had no `data-start`/`data-end` attrs so they couldn't be toggled individually.
+- [x] Fix (all in `editorCursor.ts`):
+  1. **`renderInlineContent(rawText, offset)`** — refactored from regex-split to scanning loop; now emits `data-start`/`data-end` on every inline token span so `querySelectorAll('[data-start]')` finds them
+  2. **`buildStructuredHTML`** — adds `data-text-start` attribute to `listItem`, `orderedList`, `header`, and `blockquote` spans (= absolute position where the text content begins, after the marker); passes the correct offset to `renderInlineContent`
+  3. **`updateTokenVisibility`** — for spans with `data-text-start`: shows `.source` on outer span only if `cursorPos < textStart` (marker region); otherwise keeps outer as `.rendered` and lets inner inline spans toggle themselves
 
 ### 19.9 Formatting Toolbar (Expandable Styling Bar)
 - [ ] Add a collapsible/expandable toolbar above the editor area with quick-insert buttons for common Markdown formatting:
