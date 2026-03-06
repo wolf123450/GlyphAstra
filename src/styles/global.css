@@ -563,6 +563,17 @@ body.pane-resizing .export-panel {
   transition: none !important;
 }
 
+/* ── Drop cap ───────────────────────────────────────────────────────────── */
+body.drop-cap .editor-preview > p:first-child::first-letter {
+  float: left;
+  font-size: 3.6em;
+  line-height: 0.85;
+  padding-right: 0.08em;
+  padding-top: 0.05em;
+  font-weight: 700;
+  color: var(--accent-color);
+}
+
 /* ── Reduced motion ─────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

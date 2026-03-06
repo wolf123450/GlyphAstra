@@ -61,6 +61,17 @@
     </div>
 
     <div class="setting-row">
+      <label class="setting-label">Drop cap</label>
+      <div class="setting-control">
+        <div class="pill-group">
+          <button class="pill" :class="{ active: settings.dropCap }" @click="update('dropCap', true)">On</button>
+          <button class="pill" :class="{ active: !settings.dropCap }" @click="update('dropCap', false)">Off</button>
+        </div>
+      </div>
+      <p class="setting-hint inline-hint">Show a large decorative first letter at the start of each chapter in preview mode.</p>
+    </div>
+
+    <div class="setting-row">
       <label class="setting-label">Spell check</label>
       <div class="setting-control">
         <div class="pill-group">
