@@ -1,4 +1,5 @@
 <template>
+  <TitleBar />
   <div class="app-container">
     <Sidebar />
     <Editor />
@@ -23,6 +24,7 @@ import Settings from '@/components/Settings.vue'
 import SearchPanel from '@/components/story/SearchPanel.vue'
 import Notification from '@/components/Notification.vue'
 import OnboardingTour from '@/components/OnboardingTour.vue'
+import TitleBar from '@/components/TitleBar.vue'
 import { useUIStore } from '@/stores/uiStore'
 import { useStoryStore } from '@/stores/storyStore'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -120,7 +122,8 @@ onMounted(async () => {
 <style scoped>
 .app-container {
   width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: row;
   overflow: hidden;

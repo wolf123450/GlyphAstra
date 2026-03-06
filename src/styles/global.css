@@ -37,6 +37,9 @@
   --transition-fast: 150ms ease-in-out;
   --transition-normal: 300ms ease-in-out;
 
+  /* Title bar height — used by TitleBar.vue and any layout that needs to offset it */
+  --titlebar-height: 32px;
+
   /* Editor settings — overridden dynamically by settingsStore */
   --editor-font-size: 14px;
   --editor-line-height: 1.6;
