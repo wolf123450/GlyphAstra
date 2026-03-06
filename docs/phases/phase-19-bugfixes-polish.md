@@ -11,8 +11,11 @@ Tracked issues from the post-code-review pass (2026-03-03).
 - [x] Fix (`seamlessRenderer.ts` → `renderPreview`): added a new branch handling non-whitespace `text` tokens that contain `\n\n` — splits on `/\n{2,}/`, flushes the current `<p>` between segments, and normalises single newlines within a segment to spaces (standard Markdown behaviour).
 - [x] 5 new regression tests added to `seamlessRenderer.test.ts` (330 total, all passing).
 
-### 19.2 Active Model Display in Editor Status Bar
-- [ ] Show the currently selected AI model name in the editor bottom status bar (next to word count / line count). Reads from `aiStore.currentModel`. Clicking it could open the AI panel for quick model switching.
+### 19.2 Active Model Display in Editor Status Bar ✅ COMPLETE
+- [x] Status bar chip shows the active AI model name from `aiStore.currentModel`; org prefix (e.g. `anthropic/`) is stripped for brevity
+- [x] Clicking the chip calls `toggleAI()` to open the AI panel for quick model switching
+- [x] Uses `mdiRobotOutline` icon; styled as `.status-model-btn` (matches the history/summary button style) with `max-width: 160px` + ellipsis overflow
+- [x] Hidden when no model is configured (`v-if="activeModelLabel"`)
 
 ### 19.3 Custom Title Bar (Tauri Decorations)
 - [ ] Hide the default OS title bar using Tauri's `decorations: false` window config in `tauri.conf.json`

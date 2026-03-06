@@ -33,6 +33,28 @@
 - [ ] Design new app icon (`.ico` / `.icns` / `.png` set) matching chosen aesthetic
 - [ ] Ensure icons respect the current CSS `--text-primary` / `--accent-color` variables so they work in both dark and light themes
 
+### 11.y Icon Component Refactor ⏳ NOT STARTED
+
+**Problem:** Every icon in the codebase is a raw `<svg width="N" height="N" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiXxx"/></svg>` inline fragment. This is verbose, non-semantic (no `aria-label`/`role`), hard to search, and requires manually threading `width`/`height`/`fill` everywhere. It also makes a future icon set swap painful.
+
+**Solution:** Install `@mdi/vue3` (the official MDI Vue 3 component, pairs with the already-installed `@mdi/js`) and create a thin wrapper component.
+
+**`@mdi/vue3` API:**
+- `npm install @mdi/vue3` — zero extra icons download; reads path data from `@mdi/js` already in the project
+- `<Icon :path="mdiXxx" :size="1" />` — `size` is in rem (default `1`); accepts `title` for accessibility, `horizontal`/`vertical` flip, `rotate` degrees, `color`
+
+**Migration plan:**
+1. `npm install @mdi/vue3`
+2. Create `src/components/AppIcon.vue` — a thin wrapper that sets sensible default `size` and forwards all props to `@mdi/vue3`'s `Icon`, ensuring `aria-hidden="true"` by default (decorative) or `role="img"` + `:title` for meaningful icons
+3. Do a codebase-wide sweep replacing `<svg … fill="currentColor"><path :d="mdiXxx"/></svg>` with `<AppIcon :path="mdiXxx" />` — the MDI icon import names stay the same
+4. Remove per-site `width`/`height`/`fill` attributes; centralise size overrides via `size` prop or scoped CSS
+5. Remove the raw MDI icon imports from each component and re-export via a single barrel if desired
+
+**Why not just a custom `AppIcon.vue` without the new dep?**
+`@mdi/vue3` adds: SVG `<title>` injection for screen readers, flip/rotate transforms, proper `viewBox` — worth the ~3 KB dep given we already have `@mdi/js`.
+
+**Estimated scope:** ~40–50 call sites across ~20 `.vue` files (medium effort, purely mechanical).
+
 ---
 
 ## Phase 12: Chapter Management 🟡 IN PROGRESS
