@@ -911,6 +911,55 @@ describe('renderPreview', () => {
     expect(html).toContain('<strong>bold</strong>')
     expect(html).toContain(' world')
   })
+
+  // ─── 19.1: Preview paragraph rendering ─────────────────────────
+
+  it('19.1 — two plain paragraphs separated by blank line render as two <p> tags', () => {
+    const content = 'First paragraph.\n\nSecond paragraph.'
+    const tokens = tokenizeMarkdown(content)
+    const html = renderPreview(tokens)
+    const pCount = (html.match(/<p>/g) || []).length
+    expect(pCount).toBe(2)
+    expect(html).toContain('First paragraph.')
+    expect(html).toContain('Second paragraph.')
+  })
+
+  it('19.1 — three plain paragraphs render as three <p> tags', () => {
+    const content = 'One.\n\nTwo.\n\nThree.'
+    const tokens = tokenizeMarkdown(content)
+    const html = renderPreview(tokens)
+    const pCount = (html.match(/<p>/g) || []).length
+    expect(pCount).toBe(3)
+  })
+
+  it('19.1 — mixed inline formatting across a paragraph break produces two <p> tags', () => {
+    // "**Hello** world.\n\nGoodbye." — the trailing text token spans the blank line
+    const content = '**Hello** world.\n\nGoodbye.'
+    const tokens = tokenizeMarkdown(content)
+    const html = renderPreview(tokens)
+    const pCount = (html.match(/<p>/g) || []).length
+    expect(pCount).toBe(2)
+    expect(html).toContain('<strong>Hello</strong>')
+    expect(html).toContain('Goodbye.')
+  })
+
+  it('19.1 — single-newline within a paragraph does NOT create a new <p>', () => {
+    const content = 'Line one.\nLine two.'
+    const tokens = tokenizeMarkdown(content)
+    const html = renderPreview(tokens)
+    const pCount = (html.match(/<p>/g) || []).length
+    expect(pCount).toBe(1)
+  })
+
+  it('19.1 — renderTokens in preview mode also separates paragraphs', () => {
+    const content = 'Alpha.\n\nBeta.'
+    const tokens = tokenizeMarkdown(content)
+    const html = renderTokens(tokens, content, -1, 'preview')
+    const pCount = (html.match(/<p>/g) || []).length
+    expect(pCount).toBe(2)
+    expect(html).toContain('Alpha.')
+    expect(html).toContain('Beta.')
+  })
 })
 
 // ─── 19.8: Seamless list item — fine-grained source reveal ───────────────────

@@ -558,6 +558,21 @@ export function renderPreview(tokens: Token[], content?: string): string {
           }
           continue
         }
+        // A text token that spans multiple paragraphs (e.g. "para one.\n\npara two") —
+        // split on blank lines and flush a new <p> between each segment.
+        if (token.type === 'text' && token.content.includes('\n\n')) {
+          const segments = token.rendered.split(/\n{2,}/)
+          for (let s = 0; s < segments.length; s++) {
+            if (s > 0) flushInline()
+            // Normalise single-newlines inside a segment to spaces (standard MD)
+            const seg = segments[s].replace(/\n/g, ' ')
+            if (seg.trim()) {
+              if (!inlineAnchor) inlineAnchor = token
+              inlineBuf.push(seg)
+            }
+          }
+          continue
+        }
         if (!inlineAnchor) inlineAnchor = token
         inlineBuf.push(token.rendered)
       } else {
