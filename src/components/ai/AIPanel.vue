@@ -477,8 +477,8 @@ onMounted(async () => {
 
 <style scoped>
 .ai-panel {
-  width: var(--ai-panel-width);
-  min-width: var(--ai-panel-min-width);
+  width: var(--right-panel-width);
+  min-width: 220px;
   background-color: var(--bg-secondary);
   border-left: 1px solid var(--border-color);
   display: flex;

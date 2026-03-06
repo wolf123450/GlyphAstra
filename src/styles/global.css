@@ -531,6 +531,7 @@ select:focus-visible,
   --ai-panel-width: 280px;
   --ai-panel-min-width: 260px;
   --overview-width: 300px;
+  --right-panel-width: 300px;
 }
 
 /* Narrow window: tighten sidebar and panels */
@@ -551,6 +552,15 @@ select:focus-visible,
     --ai-panel-min-width: 200px;
     --overview-width: 220px;
   }
+}
+
+/* ── Suppress pane width transitions during pointer drag ─────────────────── */
+body.pane-resizing .sidebar,
+body.pane-resizing .sidebar-collapsed,
+body.pane-resizing .overview-panel,
+body.pane-resizing .ai-panel,
+body.pane-resizing .export-panel {
+  transition: none !important;
 }
 
 /* ── Reduced motion ─────────────────────────────────────────────────────── */
