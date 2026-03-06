@@ -17,15 +17,19 @@ Tracked issues from the post-code-review pass (2026-03-03).
 - [x] Uses `mdiRobotOutline` icon; styled as `.status-model-btn` (matches the history/summary button style) with `max-width: 160px` + ellipsis overflow
 - [x] Hidden when no model is configured (`v-if="activeModelLabel"`)
 
-### 19.3 Custom Title Bar (Tauri Decorations)
-- [ ] Hide the default OS title bar using Tauri's `decorations: false` window config in `tauri.conf.json`
-- [ ] Implement a custom title bar component (`TitleBar.vue`) with:
-  - App icon / name on the left
-  - Draggable region (`data-tauri-drag-region`) for window movement
-  - Minimize / maximize / close buttons on the right using Tauri's `appWindow.minimize()`, `appWindow.toggleMaximize()`, `appWindow.close()`
-  - Respect platform conventions (button order, hover colors)
-- [ ] Ensure the custom title bar works correctly on Windows; test on macOS if applicable
-- [ ] Note: Tauri 2 supports `decorations: false` + `data-tauri-drag-region` — this is fully possible
+### 19.3 Custom Title Bar (Tauri Decorations) ✅ COMPLETE
+- [x] `tauri.conf.json` — added `"decorations": false` to the window config
+- [x] `capabilities/default.json` — added `core:window:allow-minimize`, `allow-toggle-maximize`, `allow-close`, `allow-is-maximized`, `allow-start-dragging`
+- [x] `TitleBar.vue` — thin 32px bar with:
+  - Full-width `data-tauri-drag-region` for window movement
+  - App name "Glyph Astra" on the left
+  - Minimize / maximize-or-restore / close buttons on the right (Windows-style, 46px hit targets)
+  - Close button turns red on hover (`#c42b1c`)
+  - `isMaximized` state tracked via `appWindow.onResized()` listener
+  - Lazy-loaded Tauri API (`import('@tauri-apps/api/window')`) so the component safely no-ops in browser dev mode
+  - `visible` guard: only renders when `__TAURI_INTERNALS__` is present in `window`
+- [x] `App.vue` — `<TitleBar />` added as first element; `app-container` changed from `height: 100%` to `flex: 1; min-height: 0` (filling the remaining column height under `#app` flex column)
+- [x] `global.css` — `--titlebar-height: 32px` CSS variable added for use by other layout components
 
 ### 19.4 Resizable Panes (Sidebar / Editor / Side Panels)
 - [ ] Add adjustable borders/drag handles between the sidebar and the main editor area, and between the editor and any open right panel (Overview, AI, Export)
