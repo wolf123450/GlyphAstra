@@ -206,7 +206,6 @@ const saveOverview = async () => {
 .overview-panel {
   width: var(--right-panel-width);
   background-color: var(--bg-secondary);
-  border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;

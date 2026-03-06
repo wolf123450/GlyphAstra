@@ -203,4 +203,17 @@ onMounted(async () => {
   height: 32px;
   background: var(--accent-color);
 }
+
+/* Short centered divider line that replaces the full-height pane borders */
+.pane-divider::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 50%;
+  background: var(--border-color);
+  pointer-events: none;
+}
 </style>
