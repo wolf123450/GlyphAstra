@@ -56,11 +56,10 @@ Tracked issues from the post-code-review pass (2026-03-03).
 - [x] The decorative line only appears when the divider is rendered (sidebar open for left divider; right panel open for right divider), so no orphan borders when panes are collapsed
 - [x] The drag-handle pill (`.divider-handle::before`) sits in front of the accent line via natural stacking; on hover it grows and turns accent-colored as before
 
-### 19.7 Active Sidebar Icon Highlighting
-- [ ] When a sidebar panel is open (AI, Export, Overview, Search, Settings), its corresponding icon/button in the sidebar or editor header should appear highlighted (active state)
-- [ ] Match the styling used for active editor mode icons (e.g. accent-colored background pill or underline)
-- [ ] Read from `uiStore.activePanel` / `uiStore.showSettings` / `uiStore.showSearchPanel` to determine which icon should be active
-- [ ] Apply to all toggle-able panel buttons: ✦ (AI), ⬡ (Export), ◨ (Overview), 🔍 (Search), ⚙ (Settings)
+### 19.7 Active Sidebar Icon Highlighting ✅ COMPLETE
+- [x] **Editor header — Overview / AI / Export buttons**: buttons already had `:class="{ active: isOverviewOpen/isAIOpen/isExportOpen }"` bindings; added `.action-btn.active` CSS rule (accent background, white icon, matching `.mode-btn.active`) so the active state is now visible
+- [x] **Sidebar footer — Settings button**: added `:class="{ active: uiStore.showSettings }"` binding; added `.btn-icon.active` CSS rule (same accent-fill treatment as hover) so the cog icon lights up while the Settings panel is open
+- [x] Theme-toggle and Help buttons intentionally left without active state — they are actions, not panel toggles
 
 ### 19.8 Seamless Mode Inline Source Leak on Lists ✅ COMPLETE
 - [x] When the cursor enters a list item (ordered or unordered) in seamless mode, the **entire** list item's raw source was revealed. Now only the specific element at the cursor position toggles to source:
