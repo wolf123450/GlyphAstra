@@ -1,0 +1,79 @@
+name: Release
+
+# Trigger by pushing a version tag: git tag v0.2.0 && git push --tags
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            label: Linux
+          - os: windows-latest
+            label: Windows
+          - os: macos-latest
+            label: macOS (x86_64)
+          - os: macos-latest
+            label: macOS (Apple Silicon)
+            args: --target aarch64-apple-darwin
+
+    name: Build — ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # Apple Silicon cross-compile target
+          targets: ${{ matrix.args == '--target aarch64-apple-darwin' && 'aarch64-apple-darwin' || '' }}
+
+      - name: Install Linux system dependencies
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build and publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ── Code signing (not currently configured) ──────────────────────
+          # macOS notarization and Windows Authenticode signing are not set up.
+          # Unsigned builds work fine but may show OS security warnings on first
+          # launch (Gatekeeper on macOS, SmartScreen on Windows).
+          # Signing may be enabled in a future release if project funding allows.
+          # See README.md § "Release Builds & Code Signing" for details.
+          # ─────────────────────────────────────────────────────────────────
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Glyph Astra ${{ github.ref_name }}'
+          releaseBody: |
+            See the [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for what's new in this release.
+
+            ---
+            **Note — code signing:** These builds are not code-signed. macOS users may see a Gatekeeper warning on first launch; right-click the app and choose **Open** to bypass it. Windows users may see a SmartScreen prompt; click **More info → Run anyway**. Code signing may be introduced in a future release.
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
