@@ -42,6 +42,7 @@ export interface UserSettings {
   lineHeight: number;
   tabWidth: number;
   spellCheck: boolean;
+  dropCap: boolean;
   autoSaveInterval: number;
   defaultCompletionStyle: string;
   defaultCompletionLength: string;
@@ -70,6 +71,7 @@ const defaultSettings: UserSettings = {
   lineHeight: 1.6,
   tabWidth: 2,
   spellCheck: true,
+  dropCap: false,
   autoSaveInterval: 10000,
   defaultCompletionStyle: "mystical",
   defaultCompletionLength: "paragraph",
@@ -112,6 +114,7 @@ function applyCSSVars(s: UserSettings) {
   root.style.setProperty('--editor-font-size', `${s.fontSize}px`)
   root.style.setProperty('--editor-line-height', String(s.lineHeight))
   root.style.setProperty('--editor-font-family', s.fontFamily)
+  document.body.classList.toggle('drop-cap', s.dropCap)
   // Apply per-theme color overrides; remove property to fall back to stylesheet when not set
   const overrides = s.themeColors?.[s.theme] ?? {}
   for (const v of CUSTOMIZABLE_VARS) {

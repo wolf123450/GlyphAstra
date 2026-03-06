@@ -42,12 +42,12 @@ Tracked issues from the post-code-review pass (2026-03-03).
 - [x] Widths restored from localStorage on `App.vue` mount via `restoreWidth()`
 - [x] Sidebar constraints: min 160px, max 400px; right panel: min 220px, max 520px
 
-### 19.5 Drop Cap (Multi-Line Capital First Letter)
-- [ ] Add a drop cap style for chapter openings — the first letter of a chapter's first paragraph renders as a large, multi-line capital (spanning 2–3 lines)
-- [ ] Implement via CSS `::first-letter` pseudo-element with `float: left`, `font-size`, `line-height`, and `padding` tuned to the editor font
-- [ ] Toggle in settings (Settings → Editor or Appearance tab): **Show drop cap** (default: off)
-- [ ] Apply in both seamless and preview modes; export renderers (HTML, EPUB) should include the drop cap CSS when enabled
-- [ ] Consider a markdown extension syntax (e.g. a class annotation) or simply apply to the first `<p>` of each chapter automatically
+### 19.5 Drop Cap (Multi-Line Capital First Letter) ✅ COMPLETE
+- [x] Added `dropCap: boolean` (default `false`) to `UserSettings` interface and `defaultSettings` in `settingsStore.ts`
+- [x] `applyCSSVars()` toggles `body.drop-cap` class on every settings change
+- [x] CSS in `global.css`: `body.drop-cap .editor-preview > p:first-child::first-letter` — `float: left`, `font-size: 3.6em`, `line-height: 0.85`, bold, `var(--accent-color)`
+- [x] Toggle added to **Settings → Editor** tab: "Drop cap" On/Off pill-group with a hint line
+- [x] Applies in preview mode and the preview side of split view; seamless/markdown editing modes are intentionally excluded (float breaks cursor positioning in contenteditable)
 
 ### 19.6 Minimal Border / Divider Restyle
 - [ ] Rework border styles across the app to be more minimal — adjacent background sections touch directly with only a subtle, short center-aligned divider line rather than full-width borders
