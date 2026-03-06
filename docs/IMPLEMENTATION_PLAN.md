@@ -55,7 +55,7 @@ Each phase is documented in its own file under [`docs/phases/`](phases/).
 - ✅ **Phase 18**: Image Packing & Alt-Text Captions — COMPLETE
 - 🟡 **Phase 16**: Cloud AI Integration — 85% (ModelProvider interface, OpenAI/Anthropic/Google providers with streaming, Settings UI with API key management & test buttons done; token count display, per-model context limits, cost estimator pending)
 - 🟡 **Phase 17**: Story Library & Series Management — IN PROGRESS (story:// links done; metadata linking + series view not started)
-- ⏳ **Phase 19**: Bug Fixes & UI Polish — 2/10 done (19.8 seamless list source leak ✅; 19.1 preview paragraph rendering ✅; remaining: model display, custom title bar, resizable panes, drop cap, minimal borders, active icon highlighting, formatting toolbar, VS Code extension research)
+- ⏳ **Phase 19**: Bug Fixes & UI Polish — 3/10 done (19.8 seamless list source leak ✅; 19.1 preview paragraph rendering ✅; 19.2 active model status bar ✅; remaining: custom title bar, resizable panes, drop cap, minimal borders, active icon highlighting, formatting toolbar, VS Code extension research)
 
 ### Key Achievements
 - Full Vue.js + Tauri desktop application framework

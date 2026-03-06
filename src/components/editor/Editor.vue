@@ -227,6 +227,15 @@
       <span class="status-item">
         Lines: {{ lineCount }}
       </span>
+      <!-- Active AI model chip -->
+      <button
+        v-if="activeModelLabel"
+        class="status-item status-model-btn"
+        :title="`Active AI model: ${activeModelLabel} — click to open AI panel`"
+        @click="toggleAI"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path :d="mdiRobotOutline"/></svg>{{ activeModelLabel }}
+      </button>
       <!-- Chapter summary status -->
       <button
         v-if="currentChapter"
@@ -308,10 +317,12 @@ import {
   mdiArchive,
   mdiArchiveOutline,
   mdiImageBrokenVariant,
+  mdiRobotOutline,
 } from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useUIStore } from '@/stores/uiStore'
+import { useAIStore } from '@/stores/aiStore'
 import { autoSaveManager } from '@/utils/autoSave'
 import { useAISuggestion } from '@/utils/ai/useAISuggestion'
 import type { RenderMode } from '@/utils/editor/seamlessRenderer'
@@ -331,6 +342,7 @@ import { useScrollSync } from './useScrollSync'
 const storyStore = useStoryStore()
 const editorStore = useEditorStore()
 const uiStore = useUIStore()
+const aiStore = useAIStore()
 
 const currentChapter = computed(() => storyStore.currentChapter)
 
@@ -350,6 +362,15 @@ const isDirty = computed(() => editorStore.isDirty)
 const isReadOnly = computed(() => currentChapter.value?.isReadOnly ?? false)
 const isOverviewOpen = computed(() => uiStore.activePanel === 'overview')
 const isAIOpen = computed(() => uiStore.activePanel === 'ai')
+
+/** Friendly display name for the active AI model shown in the status bar. */
+const activeModelLabel = computed(() => {
+  const m = aiStore.currentModel
+  if (!m) return null
+  // Strip org prefix (e.g. "anthropic/claude-3-5-sonnet" → "claude-3-5-sonnet")
+  const slash = m.lastIndexOf('/')
+  return slash >= 0 ? m.slice(slash + 1) : m
+})
 
 const toggleOverview = () => {
   uiStore.setActivePanel(isOverviewOpen.value ? 'editor' : 'overview')
@@ -838,6 +859,14 @@ const saveChapter = async () => {
   font-family: inherit; transition: color var(--transition-fast);
 }
 .status-history-btn:hover { color: var(--accent-color); }
+
+.status-model-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; color: var(--text-tertiary); padding: 0;
+  font-family: inherit; transition: color var(--transition-fast);
+  max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.status-model-btn:hover { color: var(--accent-color); }
 
 /* ── Image pack status pill ─────────────────────────────────────────── */
 .status-pack-pill {
