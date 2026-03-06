@@ -647,7 +647,6 @@ const saveChapter = async () => {
   display: flex;
   flex-direction: column;
   background-color: var(--bg-primary);
-  border-right: 1px solid var(--border-color);
   overflow: hidden;
 }
 

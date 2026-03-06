@@ -49,12 +49,12 @@ Tracked issues from the post-code-review pass (2026-03-03).
 - [x] Toggle added to **Settings → Editor** tab: "Drop cap" On/Off pill-group with a hint line
 - [x] Applies in preview mode and the preview side of split view; seamless/markdown editing modes are intentionally excluded (float breaks cursor positioning in contenteditable)
 
-### 19.6 Minimal Border / Divider Restyle
-- [ ] Rework border styles across the app to be more minimal — adjacent background sections touch directly with only a subtle, short center-aligned divider line rather than full-width borders
-- [ ] Design approach: replace `border-right` / `border-left` on pane edges with a pseudo-element (`::after`) that draws a short vertical line (e.g. 40–60% of the container height, centered, 1px, low-opacity accent or text color)
-- [ ] Apply consistently to: sidebar ↔ editor divider, editor ↔ right panel divider, sidebar section dividers
-- [ ] **Iterate on design** — this will likely need visual experimentation before finalising; prototype with CSS variables for divider length, opacity, and color so it can be tuned easily
-- [ ] Ensure the style works well in both dark and light themes
+### 19.6 Minimal Border / Divider Restyle ✅ COMPLETE
+- [x] Removed `border-right: 1px solid var(--border-color)` from `.sidebar` (Sidebar.vue) and `.editor-panel` (Editor.vue)
+- [x] Removed `border-left: 1px solid var(--border-color)` from `.ai-panel`, `.export-panel`, `.overview-panel`
+- [x] Added `.pane-divider::after` pseudo-element in App.vue — `width: 1px; height: 50%; background: var(--border-color)` centred on the boundary — replaces all five removed full-height border lines with a single short decorative line per pane boundary
+- [x] The decorative line only appears when the divider is rendered (sidebar open for left divider; right panel open for right divider), so no orphan borders when panes are collapsed
+- [x] The drag-handle pill (`.divider-handle::before`) sits in front of the accent line via natural stacking; on hover it grows and turns accent-colored as before
 
 ### 19.7 Active Sidebar Icon Highlighting
 - [ ] When a sidebar panel is open (AI, Export, Overview, Search, Settings), its corresponding icon/button in the sidebar or editor header should appear highlighted (active state)

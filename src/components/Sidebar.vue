@@ -372,7 +372,6 @@ const toggleTheme = () => {
 .sidebar {
   width: var(--sidebar-width);
   background-color: var(--bg-secondary);
-  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   transition: width var(--transition-normal);
