@@ -99,7 +99,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 /* ── Modal card ────────────────────────────────────── */
 .settings-modal {
-  background: var(--bg-secondary);
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
@@ -118,7 +118,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   align-items: center;
   justify-content: space-between;
   padding: var(--spacing-lg) var(--spacing-xl);
-  border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
 }
 .settings-header h2 {
@@ -137,7 +136,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   display: flex;
   gap: 2px;
   padding: var(--spacing-sm) var(--spacing-xl) 0;
-  border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
   overflow-x: auto;
 }
@@ -169,7 +167,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   justify-content: space-between;
   align-items: center;
   padding: var(--spacing-md) var(--spacing-xl);
-  border-top: 1px solid var(--border-color);
   flex-shrink: 0;
 }
 .footer-btn {

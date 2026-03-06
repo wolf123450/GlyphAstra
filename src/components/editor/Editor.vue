@@ -655,7 +655,6 @@ const saveChapter = async () => {
   align-items: center;
   justify-content: space-between;
   padding: 0 var(--spacing-lg);
-  border-bottom: 1px solid var(--border-color);
   background-color: var(--bg-secondary);
   gap: var(--spacing-lg);
   height: 52px;
@@ -828,7 +827,6 @@ const saveChapter = async () => {
   gap: var(--spacing-lg);
   padding: var(--spacing-md) var(--spacing-lg);
   background-color: var(--bg-secondary);
-  border-top: 1px solid var(--border-color);
   font-size: 12px;
   color: var(--text-tertiary);
 }

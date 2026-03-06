@@ -168,7 +168,10 @@ const createAndSwitchStory = async () => {
 
 <style scoped>
 .story-section {
-  border-bottom: 1px solid var(--border-color);
+  margin: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
+  background-color: var(--bg-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
   flex-shrink: 0;
 }
 
@@ -188,7 +191,7 @@ const createAndSwitchStory = async () => {
 }
 
 .story-title-btn:hover {
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-card-hover);
 }
 
 .story-name {
@@ -206,8 +209,6 @@ const createAndSwitchStory = async () => {
 }
 
 .story-picker {
-  background-color: var(--bg-primary);
-  border-top: 1px solid var(--border-color);
 }
 
 .story-new-btn {
@@ -218,7 +219,6 @@ const createAndSwitchStory = async () => {
   padding: var(--spacing-sm) var(--spacing-lg);
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--border-color);
   cursor: pointer;
   color: var(--accent-color);
   font-size: 13px;
@@ -226,7 +226,7 @@ const createAndSwitchStory = async () => {
 }
 
 .story-new-btn:hover {
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-card-hover);
 }
 
 .story-list {
@@ -243,7 +243,7 @@ const createAndSwitchStory = async () => {
 }
 
 .story-item:hover {
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-card-hover);
 }
 
 .story-item.active {

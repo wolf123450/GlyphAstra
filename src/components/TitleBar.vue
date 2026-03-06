@@ -71,7 +71,6 @@ async function closeWindow() {
   align-items: stretch;
   height: var(--titlebar-height, 32px);
   background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
   user-select: none;
   -webkit-user-select: none;
