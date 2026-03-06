@@ -6,8 +6,10 @@
 
 Tracked issues from the post-code-review pass (2026-03-03).
 
-### 19.1 Preview Mode Paragraph Rendering (Bug)
-- [ ] In preview mode, all newlines are collapsed and separate paragraphs merge into one continuous block. The `markdownRenderer` is not converting blank-line-separated text blocks into distinct `<p>` tags (or not preserving `<br>` / margin between them). Investigate `renderMarkdown(..., 'preview')` output for plain paragraph content and ensure double-newlines produce separate `<p>` elements with proper spacing.
+### 19.1 Preview Mode Paragraph Rendering (Bug) ✅ COMPLETE
+- [x] Root cause: plain text paragraphs produced no tokens during the line-by-line scan, so `mergeAndValidateTokens` merged the entire multi-paragraph block into one big `text` token (e.g. `"Para one.\n\nPara two."`). In `renderPreview` that token wasn't whitespace-only so the `\n\n` separator check never triggered — everything ended up in a single `<p>`.
+- [x] Fix (`seamlessRenderer.ts` → `renderPreview`): added a new branch handling non-whitespace `text` tokens that contain `\n\n` — splits on `/\n{2,}/`, flushes the current `<p>` between segments, and normalises single newlines within a segment to spaces (standard Markdown behaviour).
+- [x] 5 new regression tests added to `seamlessRenderer.test.ts` (330 total, all passing).
 
 ### 19.2 Active Model Display in Editor Status Bar
 - [ ] Show the currently selected AI model name in the editor bottom status bar (next to word count / line count). Reads from `aiStore.currentModel`. Clicking it could open the AI panel for quick model switching.
