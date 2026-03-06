@@ -115,6 +115,27 @@ npm run tauri build
 
 The packaged application will be output to `src-tauri/target/release/bundle/`.
 
+## Release Builds & Code Signing
+
+Releases are built automatically via GitHub Actions (see [`.github/workflows/release.yml`](.github/workflows/release.yml)) for Windows, macOS (x86_64 + Apple Silicon), and Linux whenever a version tag is pushed:
+
+```bash
+git tag v0.2.0
+git push --tags
+```
+
+This creates a draft GitHub Release with installers for all three platforms attached. The draft can then be reviewed and published manually.
+
+### ⚠️ Unsigned builds
+
+Current releases are **not code-signed**. This means:
+
+- **macOS** — Gatekeeper will block the app on first launch. To open it, right-click the `.dmg` → **Open** → **Open** in the dialog.
+- **Windows** — SmartScreen may show an "Unknown publisher" warning. Click **More info → Run anyway**.
+- **Linux** — no signing requirement; `.deb`, `.rpm`, and `.AppImage` all work without ceremony.
+
+Code signing requires platform-specific certificates (Apple Developer Program for macOS, an Authenticode certificate for Windows) which carry ongoing costs. **If Glyph Astra receives community support or donations, enabling signed releases is a priority.** Watch the [releases page](https://github.com/your-username/glyphastra/releases) for updates.
+
 ## Project Structure
 
 ```
