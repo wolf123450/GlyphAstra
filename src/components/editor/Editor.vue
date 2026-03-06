@@ -706,6 +706,12 @@ const saveChapter = async () => {
   border-color: var(--accent-color);
 }
 
+.action-btn.active {
+  background-color: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+}
+
 .action-btn:disabled,
 .mode-btn:disabled {
   opacity: 0.35;
