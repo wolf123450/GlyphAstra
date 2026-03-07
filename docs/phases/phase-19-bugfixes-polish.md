@@ -73,17 +73,17 @@ Tracked issues from the post-code-review pass (2026-03-03).
   2. **`buildStructuredHTML`** — adds `data-text-start` attribute to `listItem`, `orderedList`, `header`, and `blockquote` spans (= absolute position where the text content begins, after the marker); passes the correct offset to `renderInlineContent`
   3. **`updateTokenVisibility`** — for spans with `data-text-start`: shows `.source` on outer span only if `cursorPos < textStart` (marker region); otherwise keeps outer as `.rendered` and lets inner inline spans toggle themselves
 
-### 19.9 Formatting Toolbar (Expandable Styling Bar)
-- [ ] Add a collapsible/expandable toolbar above the editor area with quick-insert buttons for common Markdown formatting:
+### 19.9 Formatting Toolbar (Expandable Styling Bar) ✅
+- [x] Add a collapsible/expandable toolbar above the editor area with quick-insert buttons for common Markdown formatting:
   - **Bold** (`**…**`), *Italic* (`*…*`), ~~Strikethrough~~ (`~~…~~`), `Code` (`` `…` ``), [Link] (`[text](url)`), Heading (`# `, `## `, `### `), Blockquote (`> `), Unordered list (`- `), Ordered list (`1. `), Horizontal rule (`---`), Image (`![alt](url)`)
-- [ ] Behaviour should be **cursor- and selection-aware**:
+- [x] Behaviour should be **cursor- and selection-aware**:
   - With a selection: wrap the selected text in the appropriate syntax (e.g. select "hello" → click Bold → `**hello**`)
   - Without a selection: insert a placeholder snippet (e.g. `**bold text**`) with the inner text pre-selected for immediate typing
   - For block-level items (heading, quote, list): insert at the start of the current line, or wrap selected lines
-- [ ] Toolbar is collapsed by default; toggle via a small chevron/arrow button at the edge
-- [ ] Persist collapsed/expanded state in `settingsStore`
-- [ ] Toolbar should be visible in seamless and markdown modes; hidden in preview mode
-- [ ] Use the same keyboard shortcut bindings already registered (Ctrl+B, Ctrl+I, etc.) — toolbar buttons are a visual companion to those shortcuts, with tooltips showing the shortcut
+- [x] Toolbar is collapsed by default; toggle via a toolbar button in the editor header (highlights when open, same pattern as sidebar panels)
+- [x] Persist collapsed/expanded state in `settingsStore`
+- [x] Toolbar should be visible in seamless and markdown modes; hidden in preview mode
+- [x] Use the same keyboard shortcut bindings already registered (Ctrl+B, Ctrl+I, etc.) — toolbar buttons are a visual companion to those shortcuts, with tooltips showing the shortcut
 
 ### 19.10 VS Code Extension Feasibility (Long-Term / Research)
 - [ ] **Research phase only** — evaluate whether the seamless Markdown editor can be extracted into a standalone VS Code extension

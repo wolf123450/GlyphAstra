@@ -9,6 +9,14 @@
         <!-- Split view: always visible, disabled outside markdown mode -->
         <button
           class="mode-btn"
+          :class="{ active: formattingToolbarOpen }"
+          @click="toggleFormattingToolbar"
+          title="Formatting toolbar"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiFormatText"/></svg>
+        </button>
+        <button
+          class="mode-btn"
           :class="{ active: splitView && renderMode === 'markdown' }"
           :disabled="renderMode !== 'markdown'"
           @click="splitView = !splitView"
@@ -16,6 +24,7 @@
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiViewSplitVertical"/></svg>
         </button>
+        <div class="separator"></div>
         <button
           class="mode-btn"
           :class="{ active: renderMode === 'markdown' }"
@@ -83,6 +92,15 @@
         </button>
       </div>
     </div>
+
+    <!-- Formatting toolbar -->
+    <FormattingToolbar
+      v-if="formattingToolbarOpen && renderMode !== 'preview'"
+      :content="content"
+      :cursor-pos="cursorPosition"
+      :disabled="isReadOnly || !currentChapter"
+      @insert="onToolbarInsert"
+    />
 
     <!-- Chapter type banners -->
       <div v-if="currentChapter?.chapterType === 'toc'" class="chapter-type-banner banner-toc">
@@ -318,6 +336,7 @@ import {
   mdiArchiveOutline,
   mdiImageBrokenVariant,
   mdiRobotOutline,
+  mdiFormatText,
 } from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useEditorStore } from '@/stores/editorStore'
@@ -333,16 +352,22 @@ import MarkdownReference from '../export/MarkdownReference.vue'
 import ChapterMeta from '../story/ChapterMeta.vue'
 import ChapterHistory from '../story/ChapterHistory.vue'
 import PackModal from '../export/PackModal.vue'
+import FormattingToolbar from './FormattingToolbar.vue'
 import { storageManager } from '@/utils/storage/storage'
 import { captureSnapshot } from '@/utils/story/historyManager'
 import { getUnpackedSrcs } from '@/utils/media/imagePackManager'
 import * as undoManager from '@/utils/editor/undoManager'
 import { useScrollSync } from './useScrollSync'
+import { useSettingsStore } from '@/stores/settingsStore'
 
 const storyStore = useStoryStore()
 const editorStore = useEditorStore()
 const uiStore = useUIStore()
 const aiStore = useAIStore()
+const settingsStore = useSettingsStore()
+
+const formattingToolbarOpen = computed(() => settingsStore.settings.formattingToolbarOpen)
+const toggleFormattingToolbar = () => settingsStore.updateSetting('formattingToolbarOpen', !formattingToolbarOpen.value)
 
 const currentChapter = computed(() => storyStore.currentChapter)
 
@@ -452,6 +477,14 @@ const onContentFromEditor = (newContent: string) => {
   content.value = newContent        // → editorStore.setContent (marks dirty)
   const id = storyStore.currentChapterId
   if (id) undoManager.push(id, newContent, () => cursorPosition.value)
+}
+
+/** Called when the formatting toolbar inserts/wraps text. */
+const onToolbarInsert = ({ content: newContent, cursorPos: newCursor }: { content: string; cursorPos: number }) => {
+  if (isReadOnly.value || !currentChapter.value) return
+  onSnapshot()
+  onContentFromEditor(newContent)
+  cursorPosition.value = newCursor
 }
 
 /** Flush the pre-edit state immediately (before Enter/Delete/Tab/paste/cut). */

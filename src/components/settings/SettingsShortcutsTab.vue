@@ -20,12 +20,17 @@ const settingsStore = useSettingsStore()
 const settings = settingsStore.settings
 
 function shortcutLabel(action: string): string {
+  // SHORTCUT SYNC: add a label here whenever a new action is added to
+  // defaultSettings.keyboardShortcuts in src/stores/settingsStore.ts.
   const map: Record<string, string> = {
     'new-chapter':   'New chapter',
     'save':          'Save',
     'search':        'Search',
     'settings':      'Open settings',
     'toggle-mode':   'Toggle panel mode',
+    'bold':          'Bold',
+    'italic':        'Italic',
+    'code':          'Inline code',
   }
   return map[action] ?? action
 }

@@ -43,6 +43,7 @@ export interface UserSettings {
   tabWidth: number;
   spellCheck: boolean;
   dropCap: boolean;
+  formattingToolbarOpen: boolean;
   autoSaveInterval: number;
   defaultCompletionStyle: string;
   defaultCompletionLength: string;
@@ -72,6 +73,7 @@ const defaultSettings: UserSettings = {
   tabWidth: 2,
   spellCheck: true,
   dropCap: false,
+  formattingToolbarOpen: true,
   autoSaveInterval: 10000,
   defaultCompletionStyle: "mystical",
   defaultCompletionLength: "paragraph",
@@ -80,12 +82,20 @@ const defaultSettings: UserSettings = {
   contextWindowSize: 4096,
   responseTemperature: 0.7,
   includeFutureChapters: true,
+  // SHORTCUT SYNC: these strings are display values shown in Settings → Shortcuts.
+  // The actual handlers live in:
+  //   • src/App.vue → registerDefaultShortcuts() (Ctrl+S, Ctrl+F, Ctrl+,, Ctrl+N)
+  //   • src/components/editor/EditorSeamless.vue → handleKeydown (Ctrl+B, Ctrl+I, Ctrl+`)
+  // Also update src/utils/story/helpStory.ts → SHORTCUTS chapter if you change any key.
   keyboardShortcuts: {
     "new-chapter": "ctrl+n",
     save: "ctrl+s",
     search: "ctrl+f",
     settings: "ctrl+,",
     "toggle-mode": "tab",
+    bold: "ctrl+b",
+    italic: "ctrl+i",
+    code: "ctrl+`",
   },
   themeColors: { dark: {}, light: {} },
 };

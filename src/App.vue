@@ -38,6 +38,7 @@ import { useUIStore } from '@/stores/uiStore'
 import { useStoryStore } from '@/stores/storyStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { initializeKeyboardShortcuts, registerDefaultShortcuts } from '@/utils/keyboard'
+import { autoSaveManager } from '@/utils/autoSave'
 import { storageManager } from '@/utils/storage/storage'
 import { loadOrCreateHelpStory, ensureHelpStoryExists } from '@/utils/story/helpStoryService'
 import { useSummaryManager } from '@/utils/ai/summaryManager'
@@ -124,11 +125,16 @@ onMounted(async () => {
   }
 
   // Initialize keyboard shortcuts
+  // SHORTCUT SYNC: if you add/change/remove a shortcut action here, also update:
+  //   • src/stores/settingsStore.ts   → defaultSettings.keyboardShortcuts (display string)
+  //   • src/components/settings/SettingsShortcutsTab.vue → shortcutLabel map
+  //   • src/utils/story/helpStory.ts  → SHORTCUTS chapter table
+  // Formatting shortcuts (Ctrl+B/I/`) are handled directly in EditorSeamless.vue handleKeydown.
   initializeKeyboardShortcuts()
 
   registerDefaultShortcuts({
     'new-chapter': () => {},
-    'save': () => {},
+    'save': () => { autoSaveManager.executeSave('current-chapter') },
     'search': () => { uiStore.toggleSearchPanel() },
     'settings': () => { uiStore.toggleSettings() },
     'toggle-mode': () => {

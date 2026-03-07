@@ -28,7 +28,7 @@ Each phase is documented in its own file under [`docs/phases/`](phases/).
 | **16** | 🟡 85% | Cloud AI Model Integration | [phase-16-cloud-ai.md](phases/phase-16-cloud-ai.md) |
 | **17** | 🟡 In Progress | Story Library & Series Management | [phase-17-series.md](phases/phase-17-series.md) |
 | **18** | ✅ Complete | Image Packing & Alt-Text Captions | [phase-18-image-packing.md](phases/phase-18-image-packing.md) |
-| **19** | ⏳ Not Started | Bug Fixes & UI Polish | [phase-19-bugfixes-polish.md](phases/phase-19-bugfixes-polish.md) |
+| **19** | 🟡 80% | Bug Fixes & UI Polish | [phase-19-bugfixes-polish.md](phases/phase-19-bugfixes-polish.md) |
 | **20** | ⏳ Not Started | CI/CD Pipeline Improvements | [phase-20-cicd.md](phases/phase-20-cicd.md) |
 | **21** | ⏳ Not Started | Auto-Update via GitHub Releases | [phase-21-auto-update.md](phases/phase-21-auto-update.md) |
 
@@ -57,7 +57,7 @@ Each phase is documented in its own file under [`docs/phases/`](phases/).
 - ✅ **Phase 18**: Image Packing & Alt-Text Captions — COMPLETE
 - 🟡 **Phase 16**: Cloud AI Integration — 85% (ModelProvider interface, OpenAI/Anthropic/Google providers with streaming, Settings UI with API key management & test buttons done; token count display, per-model context limits, cost estimator pending)
 - 🟡 **Phase 17**: Story Library & Series Management — IN PROGRESS (story:// links done; metadata linking + series view not started)
-- ⏳ **Phase 19**: Bug Fixes & UI Polish — 5/10 done (19.8 ✅; 19.1 ✅; 19.2 ✅; 19.3 ✅; 19.4 resizable panes ✅; remaining: drop cap, minimal borders, active icon highlighting, formatting toolbar, VS Code extension research)
+- ⏳ **Phase 19**: Bug Fixes & UI Polish — 80% done (19.1 ✅ 19.2 ✅ 19.3 ✅ 19.4 ✅ 19.5 ✅ 19.6 ✅ 19.7 ✅ 19.8 ✅; remaining: 19.9 formatting toolbar, 19.10 VS Code research, 19.11 context menu)
 
 ### Key Achievements
 - Full Vue.js + Tauri desktop application framework
