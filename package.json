@@ -11,8 +11,8 @@
     "tauri": "tauri",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:ui": "vitest --ui"
-  },
+    "test:ui": "vitest --ui",
+    "test:bundle": "npm run build && vitest run src/__tests__/bundleSafety.test.ts"  },
   "dependencies": {
     "@mdi/js": "^7.4.47",
     "@phosphor-icons/vue": "^2.2.1",

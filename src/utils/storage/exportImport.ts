@@ -15,12 +15,9 @@
 
 import { save, open } from '@tauri-apps/plugin-dialog'
 import { writeTextFile, readTextFile, writeFile, readFile } from '@tauri-apps/plugin-fs'
-import epub from 'epub-gen-memory/bundle'
-import {
-  Document, Packer, Paragraph, TextRun,
-  HeadingLevel, AlignmentType,
-  BookmarkStart, BookmarkEnd, InternalHyperlink,
-} from 'docx'
+// epub-gen-memory (JSZip) and docx both use `new Function()` internally which violates
+// the Tauri CSP at module-load time. They are dynamically imported only when the user
+// actually triggers an export so the eval never runs during startup.
 import { renderMarkdown } from '@/utils/editor/markdownRenderer'
 import { getPackedDataUrl } from '@/utils/media/imagePackManager'
 
@@ -312,7 +309,13 @@ export async function exportStoryToDocx(
   })
   if (!path) return false
 
-  const children: Paragraph[] = []
+  const {
+    Document, Packer, Paragraph, TextRun,
+    HeadingLevel, AlignmentType,
+    BookmarkStart, BookmarkEnd, InternalHyperlink,
+  } = await import('docx')
+
+  const children: InstanceType<typeof Paragraph>[] = []
 
   // Title
   children.push(
@@ -558,6 +561,7 @@ export async function exportStoryToEpub(
     }
   }
 
+  const { default: epub } = await import('epub-gen-memory/bundle')
   const blob = await epub({
     title: meta.title,
     description: meta.summary ?? '',
