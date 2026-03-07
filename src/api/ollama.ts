@@ -36,6 +36,14 @@ const OLLAMA_BASE_URL = "http://localhost:11434";
 
 import { logger } from '@/utils/logger';
 
+/** True when running inside Tauri — use invoke() for non-streaming calls. */
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+
+async function tauriInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  const { invoke } = await import('@tauri-apps/api/core')
+  return invoke<T>(cmd, args)
+}
+
 export class OllamaClient {
   private baseUrl: string;
 
@@ -48,6 +56,7 @@ export class OllamaClient {
    */
   async checkConnection(): Promise<boolean> {
     try {
+      if (isTauri) return await tauriInvoke<boolean>('check_ollama_connection')
       const response = await fetch(`${this.baseUrl}/api/tags`);
       return response.ok;
     } catch (error) {
@@ -61,6 +70,7 @@ export class OllamaClient {
    */
   async listModels(): Promise<string[]> {
     try {
+      if (isTauri) return await tauriInvoke<string[]>('list_ollama_models')
       const response = await fetch(`${this.baseUrl}/api/tags`);
       const data: ListTagsResponse = await response.json();
       return data.models.map((m) => m.name);
