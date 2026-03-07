@@ -23,6 +23,12 @@
     </div>
 
     <div class="help-section">
+      <h3 class="help-section-title">Support</h3>
+      <p class="setting-hint">If you find Glyph Astra useful, consider sponsoring development.</p>
+      <button class="btn-sm help-btn" @click="openSponsors">&#9829; Sponsor on GitHub</button>
+    </div>
+
+    <div class="help-section">
       <h3 class="help-section-title">About</h3>
       <p class="setting-hint">Glyph Astra v{{ appVersion }}</p>
     </div>
@@ -36,6 +42,7 @@ import { ref, defineAsyncComponent } from 'vue'
 import { useUIStore } from '@/stores/uiStore'
 import { useStoryStore } from '@/stores/storyStore'
 import { loadOrCreateHelpStory, resetHelpStory } from '@/utils/story/helpStoryService'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { version as appVersion } from '../../../package.json'
 
 const uiStore = useUIStore()
@@ -65,6 +72,10 @@ async function resetHelpContent() {
 function startTour() {
   uiStore.showSettings = false
   uiStore.startTour()
+}
+
+function openSponsors() {
+  openUrl('https://github.com/sponsors/wolf123450').catch(() => {})
 }
 </script>
 
