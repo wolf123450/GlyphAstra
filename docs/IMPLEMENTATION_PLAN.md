@@ -29,6 +29,8 @@ Each phase is documented in its own file under [`docs/phases/`](phases/).
 | **17** | 🟡 In Progress | Story Library & Series Management | [phase-17-series.md](phases/phase-17-series.md) |
 | **18** | ✅ Complete | Image Packing & Alt-Text Captions | [phase-18-image-packing.md](phases/phase-18-image-packing.md) |
 | **19** | ⏳ Not Started | Bug Fixes & UI Polish | [phase-19-bugfixes-polish.md](phases/phase-19-bugfixes-polish.md) |
+| **20** | ⏳ Not Started | CI/CD Pipeline Improvements | [phase-20-cicd.md](phases/phase-20-cicd.md) |
+| **21** | ⏳ Not Started | Auto-Update via GitHub Releases | [phase-21-auto-update.md](phases/phase-21-auto-update.md) |
 
 **Other documentation:**
 - [Code Review](CODE_REVIEW.md) — full security & architecture review (2026-02-28)
