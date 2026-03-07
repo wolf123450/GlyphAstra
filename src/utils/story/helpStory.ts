@@ -287,6 +287,19 @@ All shortcuts can be customised in **Settings → Shortcuts** (Ctrl+,).
 
 ---
 
+## Formatting
+
+| Shortcut | Action |
+|----------|--------|
+| **Ctrl+B** | Bold |
+| **Ctrl+I** | Italic |
+| **Ctrl+\`** | Inline code |
+
+Formatting shortcuts wrap selected text, or insert a placeholder if nothing is selected.  
+You can also click the toolbar buttons (the **T** icon in the editor header).
+
+---
+
 ## Navigation
 
 | Shortcut | Action |
@@ -298,8 +311,7 @@ All shortcuts can be customised in **Settings → Shortcuts** (Ctrl+,).
 
 ## Markdown (Seamless mode)
 
-Formatting is typed inline — no keyboard shortcuts needed.  
-Type \`**\`, \`*\`, \`~~\`, \`\`\`\` directly around text.
+Formatting can be typed inline (e.g. \`**bold**\`, \`*italic*\`) or applied via keyboard shortcuts or the toolbar.
 
 ---
 

@@ -374,6 +374,38 @@ const handleKeydown = (event: KeyboardEvent) => {
     return
   }
 
+  // ── Ctrl+B / Ctrl+I / Ctrl+` → inline formatting ─────────────────────────
+  // SHORTCUT SYNC: if you change these keys, also update:
+  //   • src/stores/settingsStore.ts   → defaultSettings.keyboardShortcuts
+  //   • src/components/settings/SettingsShortcutsTab.vue → shortcutLabel map
+  //   • src/utils/story/helpStory.ts  → SHORTCUTS chapter table
+  //   • src/components/editor/FormattingToolbar.vue → button title tooltips
+  if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey) {
+    const wrap = k === 'b' ? '**' : k === 'i' ? '*' : k === '`' ? '`' : null
+    if (wrap) {
+      event.preventDefault()
+      emit('snapshot')
+      const text = props.content
+      const s = selectionStart
+      const e = selectionEnd
+      if (s !== e) {
+        // Wrap selection
+        const newContent = text.slice(0, s) + wrap + text.slice(s, e) + wrap + text.slice(e)
+        pendingCursorPos = s + wrap.length + (e - s) + wrap.length
+        emit('update:content', newContent)
+        emit('update:cursorPos', pendingCursorPos)
+      } else {
+        // Insert placeholder with cursor inside opening marker
+        const ph = k === 'b' ? 'bold text' : k === 'i' ? 'italic text' : 'code'
+        const newContent = text.slice(0, s) + wrap + ph + wrap + text.slice(s)
+        pendingCursorPos = s + wrap.length
+        emit('update:content', newContent)
+        emit('update:cursorPos', pendingCursorPos)
+      }
+      return
+    }
+  }
+
   // ── When a suggestion is active, intercept special keys ─────────
   if (hasSuggestion.value) {
     if (event.key === 'Escape') {
