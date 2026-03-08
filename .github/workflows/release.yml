@@ -1,10 +1,17 @@
 name: Release
 
-# Trigger by pushing a version tag: git tag v0.2.0 && git push --tags
+# Automatic: push a version tag → official release  (git tag v0.2.0 && git push --tags)
+# Manual:    Actions → "Run workflow" on any branch  → draft pre-release for testing
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to build (e.g. v0.3.0-beta.1)'
+        required: true
+        default: 'v0.0.0-test'
 
 jobs:
   release:
@@ -75,13 +82,13 @@ jobs:
           # See README.md § "Release Builds & Code Signing" for details.
           # ─────────────────────────────────────────────────────────────────
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Glyph Astra ${{ github.ref_name }}'
+          tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          releaseName: 'Glyph Astra ${{ github.event_name == ''workflow_dispatch'' && inputs.version || github.ref_name }}'
           releaseBody: |
             See the [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for what's new in this release.
 
             ---
             **Note — code signing:** These builds are not code-signed. macOS users may see a Gatekeeper warning on first launch; right-click the app and choose **Open** to bypass it. Windows users may see a SmartScreen prompt; click **More info → Run anyway**. Code signing may be introduced in a future release.
           releaseDraft: true
-          prerelease: false
+          prerelease: ${{ github.event_name == 'workflow_dispatch' }}
           args: ${{ matrix.args }}
