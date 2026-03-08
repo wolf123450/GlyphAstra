@@ -133,8 +133,11 @@ export function buildContext(textBefore: string, currentChapterId: string, input
   const currentChapter = currentIdx >= 0 ? allChapters[currentIdx] : null
 
   let currentChapterText: string
-  if (textBefore.length <= VERBATIM_THRESHOLD || !currentChapter?.summary) {
-    // Either short enough for verbatim, or no summary to fall back to.
+  if (textBefore.length <= VERBATIM_THRESHOLD) {
+    // Short enough to include fully verbatim — no truncation
+    currentChapterText = textBefore
+  } else if (!currentChapter?.summary) {
+    // Too long but no summary to compress with — include the recent tail
     currentChapterText = textBefore.slice(-FALLBACK_TAIL)
   } else {
     // Long chapter with a summary: show compressed version.

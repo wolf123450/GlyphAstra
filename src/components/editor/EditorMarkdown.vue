@@ -9,6 +9,7 @@
     :suggestion-count="suggestionCount"
     :suggestion-index="suggestionIndex"
     :suggestion-generating="suggestionGenerating"
+    :suggestion-thinking="suggestionThinking"
     @update:content="emit('update:content', $event)"
     @update:cursorPos="emit('update:cursorPos', $event)"
     @trigger-ai="emit('trigger-ai')"
@@ -34,6 +35,7 @@ interface Props {
   suggestionCount?: number
   suggestionIndex?: number
   suggestionGenerating?: boolean
+  suggestionThinking?: boolean
 }
 
 interface Emits {

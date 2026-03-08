@@ -142,22 +142,9 @@
             :suggestion-count="ai.totalCount.value"
             :suggestion-index="ai.currentIndex.value"
             :suggestion-generating="ai.isGenerating.value"
-            @update:content="onContentFromEditor($event)"
-            @update:cursorPos="cursorPosition = $event"
-            @trigger-ai="onTriggerAI"
-            @accept-suggestion="onAcceptSuggestion"
-            @dismiss-suggestion="onDismissSuggestion"
-            @next-suggestion="onNextSuggestion"
-            @prev-suggestion="onPrevSuggestion"
-            @type-char="onTypeChar"
-            @navigate-chapter="navigateToChapter"
-            @navigate-story="navigateToStory"
-            @undo="onUndo"
-            @redo="onRedo"
-            @snapshot="onSnapshot"
-          />
+            :suggestion-thinking="ai.isThinking.value"
+            @update:content="onContentFromEditor($event)" aria-hidden="true" />
         </div>
-        <div class="split-divider" aria-hidden="true" />
         <div class="split-preview">
           <EditorPreview
             ref="splitPreviewRef"
@@ -180,6 +167,7 @@
         :suggestion-count="ai.totalCount.value"
         :suggestion-index="ai.currentIndex.value"
         :suggestion-generating="ai.isGenerating.value"
+        :suggestion-thinking="ai.isThinking.value"
         @update:content="onContentFromEditor($event)"
         @update:cursorPos="cursorPosition = $event"
         @trigger-ai="onTriggerAI"
@@ -204,6 +192,7 @@
         :suggestion-count="ai.totalCount.value"
         :suggestion-index="ai.currentIndex.value"
         :suggestion-generating="ai.isGenerating.value"
+        :suggestion-thinking="ai.isThinking.value"
         @update:content="onContentFromEditor($event)"
         @update:cursorPos="cursorPosition = $event"
         @trigger-ai="onTriggerAI"
@@ -584,6 +573,10 @@ const {
   soloPreviewRef,
   setMode,
 } = useScrollSync(content, renderMode, splitViewActive)
+// These refs are populated by Vue's template binding system and then read by
+// useScrollSync's scroll listeners via its own closure. The void expressions
+// prevent noUnusedLocals from flagging them (TS can't see the composable read).
+void splitEditorRef; void splitPreviewRef; void soloSeamlessRef; void soloMarkdownRef; void soloPreviewRef
 
 /** Flush editor content back into the currently-tracked chapter (if it still exists) */
 const flushCurrentChapter = (chapterId: string | null) => {

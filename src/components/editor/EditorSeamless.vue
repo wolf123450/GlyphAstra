@@ -89,6 +89,7 @@ interface Props {
   suggestionCount?: number
   suggestionIndex?: number
   suggestionGenerating?: boolean
+  suggestionThinking?: boolean
 }
 
 interface Emits {
@@ -174,11 +175,19 @@ const injectGhostSpan = () => {
   removeGhostSpan()
 
   const displayText = props.suggestionText ||
-    (props.suggestionGenerating ? 'generating…' : '')
+    (props.suggestionGenerating
+      ? (props.suggestionThinking ? 'generating (thinking)…' : 'generating…')
+      : '')
   if (!displayText) return
 
   const s = window.getSelection()
   if (!s || s.rangeCount === 0) return
+
+  // Safety: only inject inside the editor element. If the editor has lost
+  // focus (user clicked a panel button, sidebar, etc.) window.getSelection()
+  // points elsewhere — inserting here would corrupt the other element's DOM.
+  const anchorNode = s.getRangeAt(0).commonAncestorContainer
+  if (!editorInput.value.contains(anchorNode)) return
 
   const insertRange = s.getRangeAt(0).cloneRange()
   insertRange.collapse(true)
@@ -186,7 +195,9 @@ const injectGhostSpan = () => {
   const ghost = document.createElement('span')
   ghost.setAttribute('data-ghost', 'true')
   ghost.setAttribute('contenteditable', 'false')
-  ghost.className = props.suggestionGenerating ? 'ghost-loading' : 'ghost-inline'
+  ghost.className = props.suggestionGenerating
+    ? (props.suggestionThinking ? 'ghost-thinking' : 'ghost-loading')
+    : 'ghost-inline'
 
   if (props.suggestionCount && props.suggestionCount > 1) {
     ghost.appendChild(document.createTextNode(displayText))
@@ -269,7 +280,7 @@ watch(
 // Re-inject (or remove) ghost whenever suggestion text / state changes
 watch(
   [() => props.suggestionText, () => props.suggestionGenerating,
-   () => props.suggestionIndex, () => props.suggestionCount],
+   () => props.suggestionThinking, () => props.suggestionIndex, () => props.suggestionCount],
   () => {
     if (props.suggestionText || props.suggestionGenerating) {
       nextTick(() => injectGhostSpan())
@@ -308,8 +319,11 @@ const handleEditorClick = (event: MouseEvent) => {
 const onCursorActivity = () => {
   if (isUpdatingDOM) return
   const pos = livePos()
-  // Dismiss suggestion on arbitrary cursor repositioning (click / mouseup)
-  if (hasSuggestion.value) {
+  // Only dismiss the suggestion if the cursor actually moved to a different
+  // text position. The ghost span is contenteditable=false, so clicking on it
+  // or near it keeps the cursor at selectionStart (pos === selectionStart).
+  // In that case we keep the suggestion alive.
+  if (hasSuggestion.value && pos !== selectionStart) {
     removeGhostSpan()          // immediate visual removal
     emit('dismiss-suggestion')
   }
@@ -905,6 +919,12 @@ defineExpose({ scrollEl: editorInput })
   opacity: 0.45;
   font-style: italic;
   animation: pulse 1.2s ease-in-out infinite;
+}
+.editor-input :deep(.ghost-thinking) {
+  color: var(--text-tertiary);
+  opacity: 0.35;
+  font-style: italic;
+  animation: pulse 1.8s ease-in-out infinite;
 }
 .editor-input :deep(.ghost-badge) {
   display: inline-block;
