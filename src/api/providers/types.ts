@@ -34,6 +34,13 @@ export interface CompletionOptions {
   stop?: string[]
   /** AbortSignal to cancel the request mid-stream. */
   signal?: AbortSignal
+  /**
+   * Called when the model transitions between thinking and responding.
+   * Fired with `true` when the first thinking token arrives,
+   * and with `false` when the first actual response token arrives.
+   * Only invoked by providers that have a distinct thinking phase (Ollama native-thinking models).
+   */
+  onThinkingChange?: (isThinking: boolean) => void
 }
 
 /**

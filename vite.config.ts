@@ -20,6 +20,13 @@ export default defineConfig(async () => ({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
+    // Integration tests require a live Ollama instance — excluded from `npm test`.
+    // Run them separately with: npm run test:integration
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/*.integration.test.ts',
+    ],
   },
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

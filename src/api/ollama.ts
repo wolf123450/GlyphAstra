@@ -155,21 +155,30 @@ export class OllamaClient {
    */
   async generateStream(
     request: GenerateRequest,
-    onChunk: (chunk: string) => void
+    onChunk: (chunk: string) => void,
+    onThinkingChange?: (isThinking: boolean) => void
   ): Promise<void> {
     try {
       // GPT-OSS requires think:"low"|"medium"|"high" — it ignores true/false.
-      // Other thinking models (qwen3, deepseek-r1) default to thinking enabled,
-      // so we leave `think` unset for them (Ollama's default behaviour).
-      const isGptOss = request.model.toLowerCase().startsWith('gpt-oss')
-      const thinkValue: string | undefined = isGptOss ? 'low' : undefined
+      // qwen3.5 supports think:false to cleanly disable thinking mode.
+      // qwen3/qwq/deepseek-r1 natively separate thinking into a `thinking` JSON
+      // field — passing think:false to them redirects thinking into `response`
+      // (breaking our handling), so we leave `think` unset and rely on the token
+      // overhead to ensure they finish thinking before the response ends.
+      const modelLower = request.model.toLowerCase()
+      const isGptOss      = modelLower.startsWith('gpt-oss')
+      const isQwen35      = /^qwen3\.5/.test(modelLower)
+      const isNativeThink = /^(qwen3(?!\.5)|qwq|deepseek-r1)/.test(modelLower)
+      const thinkValue: string | boolean | undefined =
+        isGptOss ? 'low' : isQwen35 ? false : undefined
 
-      // Thinking tokens count toward num_predict. Add headroom so the model
-      // can finish reasoning before starting the actual response.
+      // gpt-oss and native-thinking models (qwen3/qwq/deepseek-r1) consume
+      // thinking tokens from num_predict, so pad the budget so the model can
+      // complete its reasoning and still produce a full response.
       const THINKING_OVERHEAD = 2048
       const adjustedNumPredict =
         request.num_predict !== undefined
-          ? request.num_predict + THINKING_OVERHEAD
+          ? ((isGptOss || isNativeThink) ? request.num_predict + THINKING_OVERHEAD : request.num_predict)
           : undefined
 
       // Ollama expects model parameters inside an `options` object
@@ -183,7 +192,11 @@ export class OllamaClient {
           ...(adjustedNumPredict  !== undefined && { num_predict:  adjustedNumPredict }),
           ...(request.top_p        !== undefined && { top_p:        request.top_p }),
           ...(request.top_k        !== undefined && { top_k:        request.top_k }),
-          ...(request.stop         !== undefined && { stop:         request.stop }),
+          // Do NOT pass stop sequences for native-thinking models (qwen3, qwq, deepseek-r1).
+          // Ollama applies stop sequences to the entire token stream, including thinking tokens.
+          // These models emit '\n\n' freely during thinking — the stop fires mid-think,
+          // done_reason becomes "stop" with no response, and the fallback sends raw thinking.
+          ...(!isNativeThink && request.stop !== undefined && { stop: request.stop }),
         },
       }
       const response = await fetch(`${this.baseUrl}/api/generate`, {
@@ -213,6 +226,7 @@ export class OllamaClient {
         // and never reached the response phase.
         let thinkingBuffer   = "";
         let hadResponseChunk = false;
+        let hadThinkingChunk = false;
         let doneReason       = "";
 
         const processLine = (line: string) => {
@@ -222,17 +236,28 @@ export class OllamaClient {
           if (json.done_reason) doneReason = json.done_reason;
 
           if (json.response) {
+            if (!hadResponseChunk && hadThinkingChunk) {
+              // Transitioning out of thinking phase — notify UI.
+              onThinkingChange?.(false);
+            }
             hadResponseChunk = true;
             onChunk(json.response);
           } else if (json.thinking) {
+            if (!hadThinkingChunk) {
+              // First thinking token — notify UI.
+              onThinkingChange?.(true);
+              hadThinkingChunk = true;
+            }
             thinkingBuffer += json.thinking;
           }
 
-          // Only fall back to the thinking buffer when the stream completed
-          // normally. If done_reason is "length" the model ran out of tokens
-          // mid-think — returning partial reasoning as a suggestion would be
-          // worse than returning nothing.
-          if (json.done && !hadResponseChunk && thinkingBuffer && doneReason !== "length") {
+          // For native-thinking models (qwen3, qwq, deepseek-r1), thinking content
+          // is chain-of-thought — never a valid completion to surface to the user.
+          // The fallback only applies to gpt-oss, where lightweight thinking IS the
+          // response when the model has nothing else to say.
+          // Also guard against done_reason "length" — that means the model ran out
+          // of budget mid-think and the thinking is partial/incomplete.
+          if (json.done && !isNativeThink && !hadResponseChunk && thinkingBuffer && doneReason !== "length") {
             onChunk(thinkingBuffer);
             thinkingBuffer = "";
           }

@@ -38,7 +38,8 @@ export class OllamaProvider implements ModelProvider {
         num_predict: opts.maxTokens,
         stop:        opts.stop,
       },
-      onChunk
+      onChunk,
+      opts.onThinkingChange
     )
   }
 }

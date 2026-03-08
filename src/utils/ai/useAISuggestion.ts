@@ -58,6 +58,7 @@ export function useAISuggestion() {
   const currentIndex   = ref(0)
   const consumed       = ref(0)   // chars typed-through from the active suggestion
   const isGenerating   = ref(false)
+  const isThinking     = ref(false)  // true while a native-thinking model is in its reasoning phase
   const lastPrompt     = ref('')   // exposed for PromptPreview
 
   const isActive          = computed(() => suggestions.value.length > 0 || isGenerating.value)
@@ -106,6 +107,7 @@ export function useAISuggestion() {
     currentIndex.value = 0
     consumed.value     = 0
     isGenerating.value = false
+    isThinking.value   = false
   }
 
   /**
@@ -143,10 +145,11 @@ export function useAISuggestion() {
         await provider.streamCompletion(
           prompt,
           {
-            model:       aiStore.currentModel,
-            temperature: 0.7 + i * 0.12,
-            maxTokens:   tokens,
+            model:            aiStore.currentModel,
+            temperature:      0.7 + i * 0.12,
+            maxTokens:        tokens,
             stop,
+            onThinkingChange: (thinking) => { isThinking.value = thinking },
           },
           (chunk) => {
             if (!isGenerating.value) return
@@ -242,6 +245,7 @@ export function useAISuggestion() {
     consumed,
     isActive,
     isGenerating,
+    isThinking,
     currentSuggestion,
     remainingText,
     totalCount,
