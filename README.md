@@ -1,5 +1,9 @@
 # Glyph Astra
 
+<p align="center">
+  <img src="public/icon-master.png" alt="Glyph Astra" width="128" />
+</p>
+
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink?logo=github-sponsors)](https://github.com/sponsors/wolf123450)
 
 A desktop AI-assisted creative writing application built with **Vue 3**, **Tauri 2**, and **TypeScript**. Glyph Astra combines a distraction-free markdown editor with intelligent AI writing assistance powered by local models (Ollama) or cloud providers (OpenAI, Anthropic, Google Gemini).
