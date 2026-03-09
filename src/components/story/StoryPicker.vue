@@ -2,11 +2,11 @@
   <div class="story-section">
     <button class="story-title-btn" @click="showPicker = !showPicker" :title="currentStoryTitle">
       <span class="story-name">{{ currentStoryTitle }}</span>
-      <span class="story-caret">{{ showPicker ? '▲' : '▼' }}</span>
+      <AppIcon :path="showPicker ? mdiChevronUp : mdiChevronDown" :size="14" class="story-caret" />
     </button>
 
     <div v-if="showPicker" class="story-picker">
-      <button class="story-new-btn" @click="createAndSwitchStory"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:4px"><path :d="mdiPlusCircleOutline"/></svg>New Story</button>
+      <button class="story-new-btn" @click="createAndSwitchStory"><AppIcon :path="mdiPlusCircleOutline" :size="16" style="vertical-align:middle;margin-right:4px" />New Story</button>
       <div class="story-list">
         <div
           v-for="proj in savedProjects"
@@ -22,7 +22,7 @@
             class="story-item-delete"
             title="Delete story"
             @click.stop="requestDeleteStory(proj.id, proj.name)"
-          ><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiDeleteOutline"/></svg></button>
+          ><AppIcon :path="mdiDeleteOutline" :size="14" /></button>
         </div>
         <div v-if="savedProjects.length === 0" class="story-item-empty">No saved stories</div>
       </div>
@@ -49,7 +49,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { mdiPlusCircleOutline, mdiDeleteOutline } from '@mdi/js'
+import { mdiPlusCircleOutline, mdiDeleteOutline, mdiChevronUp, mdiChevronDown } from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useEditorStore } from '@/stores/editorStore'
@@ -203,7 +203,8 @@ const createAndSwitchStory = async () => {
 }
 
 .story-caret {
-  font-size: 10px;
+  width: 14px;
+  height: 14px;
   color: var(--text-tertiary);
   flex-shrink: 0;
 }

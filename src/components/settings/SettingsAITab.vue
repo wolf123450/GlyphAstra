@@ -89,7 +89,7 @@
     <div class="setting-group-label">Cloud AI Providers</div>
     <div class="setting-row">
       <p class="setting-hint api-key-notice">
-        &#128274; API keys are stored locally on this device only and are never sent to any Glyph Astra server.
+        <AppIcon :path="mdiLockOutline" :size="13" style="vertical-align:middle;margin-right:5px" />API keys are stored locally on this device only and are never sent to any Glyph Astra server.
       </p>
     </div>
 
@@ -134,6 +134,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { mdiLockOutline } from '@mdi/js'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useAIStore } from '@/stores/aiStore'
 import { makeProvider, PROVIDER_META, ALL_PROVIDER_IDS } from '@/api/providers'

@@ -1,7 +1,7 @@
 <template>
   <div class="editor-wrapper">
     <div v-if="props.isReadOnly" class="readonly-banner">
-      🔒 This is a reference chapter — editing is disabled to preserve the help content.
+      <AppIcon :path="mdiLockOutline" :size="14" style="vertical-align:middle;margin-right:6px" />This is a reference chapter — editing is disabled to preserve the help content.
     </div>
     <div
       ref="editorInput"
@@ -40,9 +40,7 @@
           @click.stop="imgOv.locked = !imgOv.locked"
           tabindex="-1"
         >
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" aria-hidden="true">
-            <path :d="imgOv.locked ? mdiLockOutline : mdiLockOpenVariant"/>
-          </svg>
+          <AppIcon :path="imgOv.locked ? mdiLockOutline : mdiLockOpenVariant" :size="13" />
         </button>
       </div>
       <!-- SE corner drag handle -->

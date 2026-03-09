@@ -1,12 +1,13 @@
 <template>
   <Teleport to="body">
+    <Transition name="modal-fade">
     <div v-if="uiStore.showSettings" class="settings-overlay" @click.self="close" @keydown.esc="close">
-      <div class="settings-modal" role="dialog" aria-modal="true" aria-label="Settings">
+      <div class="settings-modal modal-card" ref="modalEl" role="dialog" aria-modal="true" aria-labelledby="settings-dialog-title">
 
         <!-- Header -->
         <div class="settings-header">
-          <h2>Settings</h2>
-          <button class="close-btn" @click="close" title="Close (Esc)">&#x2715;</button>
+          <h2 id="settings-dialog-title">Settings</h2>
+          <button class="close-btn" @click="close" title="Close (Esc)"><AppIcon :path="mdiClose" :size="16" /></button>
         </div>
 
         <!-- Tabs -->
@@ -38,13 +39,16 @@
 
       </div>
     </div>
+    </Transition>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { mdiClose } from '@mdi/js'
 import { useUIStore } from '@/stores/uiStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import { useFocusTrap } from '@/utils/useFocusTrap'
 import SettingsEditorTab from './settings/SettingsEditorTab.vue'
 import SettingsAutoSaveTab from './settings/SettingsAutoSaveTab.vue'
 import SettingsAITab from './settings/SettingsAITab.vue'
@@ -54,6 +58,9 @@ import SettingsHelpTab from './settings/SettingsHelpTab.vue'
 
 const uiStore = useUIStore()
 const settingsStore = useSettingsStore()
+
+const modalEl = ref<HTMLElement | null>(null)
+useFocusTrap(modalEl, computed(() => uiStore.showSettings))
 
 const activeTab = ref<'editor' | 'autosave' | 'ai' | 'appearance' | 'shortcuts' | 'help'>('editor')
 
