@@ -1,15 +1,16 @@
 <template>
   <Teleport to="body">
+    <Transition name="modal-fade">
     <div v-if="show" class="pp-overlay" @click.self="$emit('close')">
-      <div class="pp-modal" ref="modalEl" @keydown.escape="$emit('close')">
+      <div class="pp-modal modal-card" ref="modalEl" @keydown.escape="$emit('close')">
 
         <div class="pp-header">
           <span class="pp-title">AI Prompt Preview</span>
           <div class="pp-header-actions">
             <button class="pp-icon-btn" @click="copyPrompt" :title="copied ? 'Copied!' : 'Copy to clipboard'">
-              {{ copied ? '✓' : '⎘' }}
+              <AppIcon v-if="copied" :path="mdiCheck" :size="14" /><AppIcon v-else :path="mdiContentCopy" :size="14" />
             </button>
-            <button class="pp-close" @click="$emit('close')" title="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiClose"/></svg></button>
+            <button class="pp-close" @click="$emit('close')" title="Close"><AppIcon :path="mdiClose" :size="16" /></button>
           </div>
         </div>
 
@@ -19,7 +20,7 @@
             <strong>{{ model }}</strong> when you press
             <kbd>Ctrl+Space</kbd>.
           </span>
-          <button class="pp-refresh-btn" @click="refresh" title="Re-generate from current cursor position">⟳ Refresh</button>
+          <button class="pp-refresh-btn" @click="refresh" title="Re-generate from current cursor position"><AppIcon :path="mdiRefresh" :size="14" style="vertical-align:middle;margin-right:4px" />Refresh</button>
         </div>
 
         <div class="pp-body">
@@ -32,7 +33,7 @@
           </template>
 
           <div v-if="!prompt" class="pp-empty">
-            No prompt yet — trigger a suggestion with <kbd>Ctrl+Space</kbd> first, or click ⟳ Refresh.
+            No prompt yet — trigger a suggestion with <kbd>Ctrl+Space</kbd> first, or click Refresh.
           </div>
         </div>
 
@@ -46,12 +47,14 @@
 
       </div>
     </div>
+    </Transition>
   </Teleport>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
-import { mdiClose } from '@mdi/js'
+import { mdiClose, mdiCheck, mdiContentCopy, mdiRefresh } from '@mdi/js'
+import { useFocusTrap } from '@/utils/useFocusTrap'
 import { useAIStore } from '@/stores/aiStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useAISuggestion } from '@/utils/ai/useAISuggestion'
@@ -64,6 +67,7 @@ const editorStore = useEditorStore()
 const ai = useAISuggestion()
 
 const modalEl = ref<HTMLElement | null>(null)
+useFocusTrap(modalEl, computed(() => props.show))
 const prompt = ref('')
 const copied = ref(false)
 

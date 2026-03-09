@@ -6,13 +6,13 @@
     </div>
     <div class="title-bar-controls">
       <button class="tb-btn" aria-label="Minimize" title="Minimize" @click="minimize">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="mdiWindowMinimize"/></svg>
+        <AppIcon :path="mdiWindowMinimize" :size="12" />
       </button>
       <button class="tb-btn" :aria-label="isMaximized ? 'Restore' : 'Maximize'" :title="isMaximized ? 'Restore' : 'Maximize'" @click="toggleMaximize">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="isMaximized ? mdiWindowRestore : mdiWindowMaximize"/></svg>
+        <AppIcon :path="isMaximized ? mdiWindowRestore : mdiWindowMaximize" :size="12" />
       </button>
       <button class="tb-btn tb-close" aria-label="Close" title="Close" @click="closeWindow">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="mdiWindowClose"/></svg>
+        <AppIcon :path="mdiWindowClose" :size="12" />
       </button>
     </div>
   </div>

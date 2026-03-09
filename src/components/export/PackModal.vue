@@ -1,14 +1,13 @@
 <template>
   <Teleport to="body">
+    <Transition name="modal-fade">
     <div v-if="show" class="pack-overlay" @click.self="$emit('close')">
-      <div class="pack-modal" role="dialog" aria-modal="true" aria-label="Pack images">
+      <div class="pack-modal modal-card" ref="modalEl" role="dialog" aria-modal="true" aria-label="Pack images">
         <!-- Header -->
         <div class="pack-header">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" class="pack-header-icon">
-            <path :d="mdiArchive" />
-          </svg>
+          <AppIcon :path="mdiArchive" :size="18" class="pack-header-icon" />
           <span>Pack Images</span>
-          <button class="pack-close-btn" @click="$emit('close')" title="Close">✕</button>
+          <button class="pack-close-btn" @click="$emit('close')" title="Close"><AppIcon :path="mdiClose" :size="14" /></button>
         </div>
 
         <!-- Body -->
@@ -31,19 +30,17 @@
           <!-- Done -->
           <div v-else-if="state === 'done'" class="pack-result">
             <div class="pack-summary">
-              <span class="pack-stat packed">✓ {{ result!.packed }} packed</span>
-              <span class="pack-stat skipped">⊘ {{ result!.skipped }} skipped</span>
+              <span class="pack-stat packed"><AppIcon :path="mdiCheck" :size="12" style="vertical-align:middle;margin-right:3px" />{{ result!.packed }} packed</span>
+              <span class="pack-stat skipped"><AppIcon :path="mdiMinusCircleOutline" :size="12" style="vertical-align:middle;margin-right:3px" />{{ result!.skipped }} skipped</span>
               <template v-if="result!.failed > 0">
-                <span class="pack-stat failed">✕ {{ result!.failed }} failed</span>
+                <span class="pack-stat failed"><AppIcon :path="mdiClose" :size="12" style="vertical-align:middle;margin-right:3px" />{{ result!.failed }} failed</span>
               </template>
               <span class="pack-stat total">of {{ result!.total }} total</span>
             </div>
 
             <div v-if="result!.failedSrcs.length > 0" class="pack-failed-list">
               <p class="pack-failed-heading">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:4px">
-                  <path :d="mdiImageBrokenVariant" />
-                </svg>
+                <AppIcon :path="mdiImageBrokenVariant" :size="14" style="vertical-align:middle;margin-right:4px" />
                 Could not resolve the following images:
               </p>
               <ul>
@@ -84,15 +81,17 @@
         </div>
       </div>
     </div>
+    </Transition>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { mdiArchive, mdiImageBrokenVariant } from '@mdi/js'
+import { ref, computed, watch } from 'vue'
+import { mdiArchive, mdiImageBrokenVariant, mdiClose, mdiCheck, mdiMinusCircleOutline } from '@mdi/js'
 import { packAllImages } from '@/utils/media/imagePackManager'
 import type { PackResult } from '@/utils/media/imagePackManager'
 import { useStoryStore } from '@/stores/storyStore'
+import { useFocusTrap } from '@/utils/useFocusTrap'
 
 const props = defineProps<{
   show: boolean
@@ -106,6 +105,9 @@ const emit = defineEmits<{
 }>()
 
 const storyStore = useStoryStore()
+
+const modalEl = ref<HTMLElement | null>(null)
+useFocusTrap(modalEl, computed(() => props.show))
 
 type State = 'idle' | 'packing' | 'done' | 'error'
 

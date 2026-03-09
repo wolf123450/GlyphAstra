@@ -1,8 +1,9 @@
 <template>
+  <Transition name="panel-slide">
   <aside class="overview-panel" v-if="isVisible">
     <div class="overview-header">
       <h3>Story Overview</h3>
-      <button class="close-btn" @click="closeOverview" title="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiClose"/></svg></button>
+      <button class="close-btn" @click="closeOverview" title="Close"><AppIcon :path="mdiClose" :size="16" /></button>
     </div>
 
     <div class="overview-content">
@@ -52,7 +53,7 @@
       <section class="overview-section">
         <div class="section-header">
           <h4>Characters</h4>
-          <button class="btn-add" @click="addCharacter" title="Add character">⊕</button>
+          <button class="btn-add" @click="addCharacter" title="Add character"><AppIcon :path="mdiPlusCircleOutline" :size="16" /></button>
         </div>
         <div class="character-list">
           <div v-if="characters.length === 0" class="empty-list">
@@ -62,8 +63,8 @@
             <div class="character-name">{{ char.name }}</div>
             <div v-if="char.role" class="character-role">{{ char.role }}</div>
             <div class="character-actions">
-              <button class="action-btn" @click="editCharacter(char)" title="Edit">✎</button>
-              <button class="action-btn delete" @click="deleteCharacter(char.id)" title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiDeleteOutline"/></svg></button>
+              <button class="action-btn" @click="editCharacter(char)" title="Edit"><AppIcon :path="mdiPencilOutline" :size="14" /></button>
+              <button class="action-btn delete" @click="deleteCharacter(char.id)" title="Delete"><AppIcon :path="mdiDeleteOutline" :size="14" /></button>
             </div>
           </div>
         </div>
@@ -95,11 +96,12 @@
       </div>
     </Teleport>
   </aside>
+  </Transition>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { mdiClose, mdiDeleteOutline } from '@mdi/js'
+import { mdiClose, mdiDeleteOutline, mdiPlusCircleOutline, mdiPencilOutline } from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useUIStore } from '@/stores/uiStore'
 import type { Character } from '@/stores/storyStore'

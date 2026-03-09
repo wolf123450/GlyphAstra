@@ -1,10 +1,11 @@
 <template>
   <Teleport to="body">
+    <Transition name="modal-fade">
     <div v-if="show" class="md-ref-overlay" @click.self="$emit('close')">
-      <div class="md-ref-modal" role="dialog" aria-modal="true" aria-label="Markdown Reference" @keydown.escape="$emit('close')" tabindex="-1" ref="modalEl">
+      <div class="md-ref-modal modal-card" role="dialog" aria-modal="true" aria-label="Markdown Reference" @keydown.escape="$emit('close')" tabindex="-1" ref="modalEl">
         <div class="md-ref-header">
           <span class="md-ref-title">Markdown Reference</span>
-          <button class="md-ref-close" @click="$emit('close')" title="Close (Esc)" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="mdiClose"/></svg></button>
+          <button class="md-ref-close" @click="$emit('close')" title="Close (Esc)" aria-label="Close"><AppIcon :path="mdiClose" :size="16" /></button>
         </div>
 
         <div class="md-ref-body">
@@ -162,7 +163,7 @@
                 </tr>
                 <tr>
                   <td colspan="2" class="ex-tip">
-                    💡 In Seamless mode, use <kbd>Ctrl+Click</kbd> to follow a link.
+                    <AppIcon :path="mdiLightbulbOutline" :size="13" style="vertical-align:middle;margin-right:4px;color:var(--accent-color)" />In Seamless mode, use <kbd>Ctrl+Click</kbd> to follow a link.
                     External links open in your system browser.
                   </td>
                 </tr>
@@ -198,8 +199,8 @@
                 </tr>
                 <tr>
                   <td colspan="2" class="ex-tip">
-                    💡 In Seamless mode, <strong>click a rendered image</strong> to show the grab-handle overlay.
-                    Drag the <strong>SE corner handle</strong> to resize. The 🔒 button toggles aspect-ratio lock (default: locked).
+                    <AppIcon :path="mdiLightbulbOutline" :size="13" style="vertical-align:middle;margin-right:4px;color:var(--accent-color)" />In Seamless mode, <strong>click a rendered image</strong> to show the grab-handle overlay.
+                    Drag the <strong>SE corner handle</strong> to resize. The <AppIcon :path="mdiLockOutline" :size="12" style="vertical-align:middle" /> button toggles aspect-ratio lock (default: locked).
                     Local paths are relative to the story folder; remote URLs are lazy-loaded.
                   </td>
                 </tr>
@@ -311,17 +312,21 @@
         </div><!-- /body -->
       </div>
     </div>
+    </Transition>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
-import { mdiClose } from '@mdi/js'
+import { ref, computed, watch, nextTick } from 'vue'
+import { mdiClose, mdiLightbulbOutline, mdiLockOutline } from '@mdi/js'
+import { useFocusTrap } from '@/utils/useFocusTrap'
 
 const props = defineProps<{ show: boolean }>()
 defineEmits<{ close: [] }>()
 
 const modalEl = ref<HTMLElement | null>(null)
+const show = computed(() => props.show)
+useFocusTrap(modalEl, show)
 
 watch(() => props.show, async (val) => {
   if (val) {

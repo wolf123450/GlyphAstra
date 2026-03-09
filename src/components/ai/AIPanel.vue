@@ -1,8 +1,9 @@
 <template>
+  <Transition name="panel-slide">
   <aside class="ai-panel" v-if="isVisible">
     <div class="ai-header">
       <h3>AI Settings</h3>
-      <button class="close-btn" @click="closePanel" title="Close" aria-label="Close AI panel">&#x2715;</button>
+      <button class="close-btn" @click="closePanel" title="Close" aria-label="Close AI panel"><AppIcon :path="mdiClose" :size="16" /></button>
     </div>
 
     <div class="ai-content">
@@ -26,7 +27,8 @@
             <span class="dot" :class="isConnected ? 'dot-on' : 'dot-off'"></span>
             <span class="conn-label">{{ isConnected ? 'Connected' : 'Offline' }}</span>
             <button class="btn-sm" @click="checkConn" :disabled="checking" aria-label="Refresh connection">
-              {{ checking ? '…' : '⟳' }}
+              <template v-if="checking">…</template>
+              <AppIcon v-else :path="mdiRefresh" :size="14" />
             </button>
           </div>
           <div v-if="!isConnected" class="hint">Run <code>ollama serve</code> to start</div>
@@ -100,7 +102,9 @@
           </Transition>
 
           <!-- Model selector -->
-          <div v-if="modelsLoading" class="hint">Loading models…</div>
+          <div v-if="modelsLoading" class="hint">
+            <AppIcon :path="mdiLoading" :size="13" class="icon-spin" />&nbsp;Loading models…
+          </div>
           <div v-if="connError" class="hint hint-error">{{ connError }}</div>
           <template v-else-if="cloudModelList.length > 0">
             <div class="field-row">
@@ -118,7 +122,7 @@
               <span class="pricing-in">{{ formatPrice(selectedModelInfo.pricing.inputPer1M) }} in</span>
               <span class="pricing-sep">/</span>
               <span class="pricing-out">{{ formatPrice(selectedModelInfo.pricing.outputPer1M) }} out</span>
-              <span class="pricing-unit">per 1M tokens ⓘ</span>
+              <span class="pricing-unit">per 1M tokens <AppIcon :path="mdiInformationOutline" :size="12" style="vertical-align:middle;opacity:0.7" /></span>
             </div>
             <!-- Summary model -->
             <div class="field-row">
@@ -133,7 +137,7 @@
               <span class="pricing-in">{{ formatPrice(selectedSummaryModelInfo.pricing.inputPer1M) }} in</span>
               <span class="pricing-sep">/</span>
               <span class="pricing-out">{{ formatPrice(selectedSummaryModelInfo.pricing.outputPer1M) }} out</span>
-              <span class="pricing-unit">per 1M tokens ⓘ</span>
+              <span class="pricing-unit">per 1M tokens <AppIcon :path="mdiInformationOutline" :size="12" style="vertical-align:middle;opacity:0.7" /></span>
             </div>
           </template>
           <div v-else-if="!hasKey" class="hint muted">Enter an API key above to load models.</div>
@@ -145,8 +149,8 @@
         <div class="sec-label-row">
           <span class="sec-label">Writing profile</span>
           <div class="sec-label-actions">
-            <button class="btn-icon" @click="showPromptPreview = true" title="View current AI prompt" aria-label="View current AI prompt">⊙</button>
-            <button class="btn-icon" @click="openNewProfile" title="New custom profile" aria-label="New custom profile">＋</button>
+            <button class="btn-icon" @click="showPromptPreview = true" title="View current AI prompt" aria-label="View current AI prompt"><AppIcon :path="mdiEyeOutline" :size="14" /></button>
+            <button class="btn-icon" @click="openNewProfile" title="New custom profile" aria-label="New custom profile"><AppIcon :path="mdiPlus" :size="14" /></button>
           </div>
         </div>
 
@@ -168,7 +172,7 @@
               @click="openEditProfile(p.name)"
               :title="p.isCustom ? 'Edit profile' : 'View profile instructions'"
               :aria-label="p.isCustom ? 'Edit profile' : 'View profile instructions'"
-            >{{ p.isCustom ? '✎' : '⊙' }}</button>
+            ><AppIcon :path="p.isCustom ? mdiPencilOutline : mdiEyeOutline" :size="14" /></button>
           </div>
         </div>
 
@@ -240,6 +244,7 @@
       @close="showPromptPreview = false"
     />
   </aside>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -250,7 +255,7 @@ import { useStoryStore } from '@/stores/storyStore'
 import { ollamaClient } from '@/api/ollama'
 import { makeProvider, PROVIDER_META, ALL_PROVIDER_IDS } from '@/api/providers'
 import type { ProviderId, ModelInfo } from '@/api/providers'
-import { mdiTune } from '@mdi/js'
+import { mdiTune, mdiClose, mdiRefresh, mdiEyeOutline, mdiPlus, mdiPencilOutline, mdiInformationOutline, mdiLoading } from '@mdi/js'
 import WritingProfileEditor from './WritingProfileEditor.vue'
 import PromptPreview from './PromptPreview.vue'
 

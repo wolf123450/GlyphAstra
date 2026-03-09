@@ -1,12 +1,13 @@
 <template>
   <Teleport to="body">
+    <Transition name="modal-fade">
     <div v-if="show && chapter" class="meta-backdrop" @mousedown.self="close">
-      <div class="meta-modal" role="dialog" aria-modal="true">
+      <div class="meta-modal modal-card" ref="modalEl" role="dialog" aria-modal="true">
 
         <!-- Header -->
         <div class="meta-header">
           <h2 class="meta-title">Chapter Properties</h2>
-          <button class="close-btn" @click="close" title="Close (Esc)"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiClose"/></svg></button>
+          <button class="close-btn" @click="close" title="Close (Esc)"><AppIcon :path="mdiClose" :size="16" /></button>
         </div>
 
         <div class="meta-body">
@@ -57,10 +58,10 @@
               <button class="label-preset" @click="draft.chapterLabel = 'Part I'">Part I</button>
               <button class="label-preset" @click="draft.chapterLabel = 'Part II'">Part II</button>
               <button class="label-preset" @click="draft.chapterLabel = 'Part III'">Part III</button>
-              <button class="label-preset label-preset--contents" @click="draft.chapterLabel = 'Contents'">&#x2261; Contents</button>
-              <button class="label-preset label-preset--cover" @click="draft.chapterLabel = 'Cover'">&#x25C6; Cover</button>
-              <button class="label-preset label-preset--license" @click="draft.chapterLabel = 'License'">&#x2A3E; License</button>
-              <button v-if="draft.chapterLabel" class="label-preset label-preset--clear" @click="draft.chapterLabel = ''">&#x2715; Clear</button>
+              <button class="label-preset label-preset--contents" @click="draft.chapterLabel = 'Contents'"><AppIcon :path="mdiTableOfContents" :size="11" style="vertical-align:middle;margin-right:3px" />Contents</button>
+              <button class="label-preset label-preset--cover" @click="draft.chapterLabel = 'Cover'"><AppIcon :path="mdiBookOpenVariant" :size="11" style="vertical-align:middle;margin-right:3px" />Cover</button>
+              <button class="label-preset label-preset--license" @click="draft.chapterLabel = 'License'"><AppIcon :path="mdiScaleBalance" :size="11" style="vertical-align:middle;margin-right:3px" />License</button>
+              <button v-if="draft.chapterLabel" class="label-preset label-preset--clear" @click="draft.chapterLabel = ''"><AppIcon :path="mdiClose" :size="11" style="vertical-align:middle;margin-right:3px" />Clear</button>
             </div>
           </div>
 
@@ -69,11 +70,11 @@
             <label class="field-label">Chapter type</label>
             <div class="pill-row type-row">
               <button class="pill" :class="{ active: effectiveType === 'normal' }" @click="setEffectiveType('normal')">Normal</button>
-              <button class="pill pill-outline" :class="{ active: effectiveType === 'plot-outline' }" @click="setEffectiveType('plot-outline')" title="Injected as the story outline layer in every AI prompt">&#x25B8; Plot Outline</button>
-              <button class="pill pill-toc" :class="{ active: effectiveType === 'toc' }" @click="setEffectiveType('toc')" title="Auto-generates a chapter list on export">&#x2261; Contents</button>
-              <button class="pill pill-cover" :class="{ active: effectiveType === 'cover' }" @click="setEffectiveType('cover')" title="Styled as a cover page in export">&#x25C6; Cover</button>
-              <button class="pill pill-license" :class="{ active: effectiveType === 'license' }" @click="setEffectiveType('license')" title="Rendered as a legal / license block">&#x2A3E; License</button>
-              <button class="pill pill-illustration" :class="{ active: effectiveType === 'illustration' }" @click="setEffectiveType('illustration')" title="Exports as an image with caption">&#x25A1; Illustration</button>
+              <button class="pill pill-outline" :class="{ active: effectiveType === 'plot-outline' }" @click="setEffectiveType('plot-outline')" title="Injected as the story outline layer in every AI prompt"><AppIcon :path="mdiArrowRight" :size="12" style="vertical-align:middle;margin-right:3px" />Plot Outline</button>
+              <button class="pill pill-toc" :class="{ active: effectiveType === 'toc' }" @click="setEffectiveType('toc')" title="Auto-generates a chapter list on export"><AppIcon :path="mdiTableOfContents" :size="12" style="vertical-align:middle;margin-right:3px" />Contents</button>
+              <button class="pill pill-cover" :class="{ active: effectiveType === 'cover' }" @click="setEffectiveType('cover')" title="Styled as a cover page in export"><AppIcon :path="mdiBookOpenVariant" :size="12" style="vertical-align:middle;margin-right:3px" />Cover</button>
+              <button class="pill pill-license" :class="{ active: effectiveType === 'license' }" @click="setEffectiveType('license')" title="Rendered as a legal / license block"><AppIcon :path="mdiScaleBalance" :size="12" style="vertical-align:middle;margin-right:3px" />License</button>
+              <button class="pill pill-illustration" :class="{ active: effectiveType === 'illustration' }" @click="setEffectiveType('illustration')" title="Exports as an image with caption"><AppIcon :path="mdiImageOutline" :size="12" style="vertical-align:middle;margin-right:3px" />Illustration</button>
             </div>
             <p v-if="effectiveType === 'plot-outline'" class="field-hint">
               This chapter's content will be injected as a story outline in every AI prompt.
@@ -110,7 +111,7 @@
                   v-for="tag in draft.contextTags"
                   :key="tag"
                   class="tag-chip"
-                >{{ tag }}<button class="chip-remove" @click="removeTag(tag)" title="Remove tag">&#x2715;</button></span>
+                >{{ tag }}<button class="chip-remove" @click="removeTag(tag)" title="Remove tag"><AppIcon :path="mdiClose" :size="10" /></button></span>
                 <input
                   ref="tagInputRef"
                   v-model="tagInputValue"
@@ -144,19 +145,19 @@
                   :disabled="isRegenerating || !aiStore.canGenerate"
                   @click="regenerate"
                   :title="aiStore.canGenerate ? 'Regenerate summary now' : 'No AI provider available'"
-                >{{ isRegenerating ? '…' : '⟳ Regenerate' }}</button>
+                ><template v-if="isRegenerating">…</template><template v-else><AppIcon :path="mdiRefresh" :size="13" style="vertical-align:middle;margin-right:4px" />Regenerate</template></button>
               </div>
             </div>
 
             <!-- Manual edit warning -->
             <div v-if="draft.summaryManuallyEdited" class="summary-warn">
-              &#9888; Manual edit active — will not update automatically.
+              <AppIcon :path="mdiAlertOutline" :size="14" style="vertical-align:middle;margin-right:5px" />Manual edit active — will not update automatically.
               Regenerate to replace.
             </div>
 
             <!-- Paused warning -->
             <div v-if="draft.summaryPaused" class="summary-info">
-              &#9208; Auto-summary is paused for this chapter.
+              <AppIcon :path="mdiPauseCircleOutline" :size="14" style="vertical-align:middle;margin-right:5px" />Auto-summary is paused for this chapter.
             </div>
 
             <textarea
@@ -197,15 +198,18 @@
 
       </div>
     </div>
+    </Transition>
   </Teleport>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
-import { mdiClose } from '@mdi/js'
+import { mdiClose, mdiTableOfContents, mdiBookOpenVariant, mdiScaleBalance, mdiImageOutline,
+         mdiArrowRight, mdiRefresh, mdiAlertOutline, mdiPauseCircleOutline } from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useAIStore } from '@/stores/aiStore'
 import { triggerSummary } from '@/utils/ai/summaryManager'
+import { useFocusTrap } from '@/utils/useFocusTrap'
 
 interface Props {
   show: boolean
@@ -218,6 +222,9 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit  = defineEmits<Emits>()
+
+const modalEl = ref<HTMLElement | null>(null)
+useFocusTrap(modalEl, computed(() => props.show))
 
 const storyStore = useStoryStore()
 const aiStore    = useAIStore()

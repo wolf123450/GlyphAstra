@@ -1,8 +1,9 @@
 <template>
+  <Transition name="panel-slide">
   <aside class="export-panel" v-if="isVisible">
     <div class="export-header">
       <h3>Export / Import</h3>
-      <button class="close-btn" @click="closePanel" title="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiClose"/></svg></button>
+      <button class="close-btn" @click="closePanel" title="Close"><AppIcon :path="mdiClose" :size="16" /></button>
     </div>
 
     <div class="export-content">
@@ -12,28 +13,28 @@
         <div class="sec-label">Export story</div>
         <div class="btn-col">
           <button class="ex-btn" @click="doExport('story-md')" :disabled="busy">
-            <span class="ex-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiLanguageMarkdown"/></svg></span>
+            <span class="ex-icon"><AppIcon :path="mdiLanguageMarkdown" :size="20" /></span>
             <span class="ex-info">
               <span class="ex-name">Markdown</span>
               <span class="ex-desc">All chapters as one .md file</span>
             </span>
           </button>
           <button class="ex-btn" @click="doExport('story-html')" :disabled="busy">
-            <span class="ex-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiLanguageHtml5"/></svg></span>
+            <span class="ex-icon"><AppIcon :path="mdiLanguageHtml5" :size="20" /></span>
             <span class="ex-info">
               <span class="ex-name">HTML</span>
               <span class="ex-desc">Styled page, printable to PDF</span>
             </span>
           </button>
           <button class="ex-btn" @click="doExport('story-docx')" :disabled="busy">
-            <span class="ex-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiFileWordOutline"/></svg></span>
+            <span class="ex-icon"><AppIcon :path="mdiFileWordOutline" :size="20" /></span>
             <span class="ex-info">
               <span class="ex-name">Word (.docx)</span>
               <span class="ex-desc">Word-compatible document</span>
             </span>
           </button>
           <button class="ex-btn" @click="doExport('story-epub')" :disabled="busy">
-            <span class="ex-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiBookOpenPageVariant"/></svg></span>
+            <span class="ex-icon"><AppIcon :path="mdiBookOpenPageVariant" :size="20" /></span>
             <span class="ex-info">
               <span class="ex-name">EPUB (.epub)</span>
               <span class="ex-desc">E-reader compatible ebook</span>
@@ -49,7 +50,7 @@
         <div v-else class="hint">No chapter selected</div>
         <div class="btn-col">
           <button class="ex-btn" @click="doExport('chapter-md')" :disabled="busy || !currentChapter">
-            <span class="ex-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiLanguageMarkdown"/></svg></span>
+            <span class="ex-icon"><AppIcon :path="mdiLanguageMarkdown" :size="20" /></span>
             <span class="ex-info">
               <span class="ex-name">Markdown</span>
               <span class="ex-desc">Current chapter as .md file</span>
@@ -63,7 +64,7 @@
         <div class="sec-label">Import</div>
         <div class="btn-col">
           <button class="ex-btn" @click="doImport" :disabled="busy">
-            <span class="ex-icon">⬆</span>
+            <span class="ex-icon"><AppIcon :path="mdiFileImport" :size="20" /></span>
             <span class="ex-info">
               <span class="ex-name">Import Markdown</span>
               <span class="ex-desc">Add .md file as new chapter</span>
@@ -77,14 +78,14 @@
         <div class="sec-label">Backup &amp; Restore</div>
         <div class="btn-col">
           <button class="ex-btn" @click="doBackup" :disabled="busy">
-            <span class="ex-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiDatabaseExportOutline"/></svg></span>
+            <span class="ex-icon"><AppIcon :path="mdiDatabaseExportOutline" :size="20" /></span>
             <span class="ex-info">
               <span class="ex-name">Export backup</span>
               <span class="ex-desc">Full story + AI data to .json</span>
             </span>
           </button>
           <button class="ex-btn" @click="doRestoreBackup" :disabled="busy">
-            <span class="ex-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiDatabaseImportOutline"/></svg></span>
+            <span class="ex-icon"><AppIcon :path="mdiDatabaseImportOutline" :size="20" /></span>
             <span class="ex-info">
               <span class="ex-name">Restore backup</span>
               <span class="ex-desc">Load a .json backup as new story</span>
@@ -95,10 +96,14 @@
 
       <!-- Status -->
       <div v-if="status" class="status-msg" :class="statusType">{{ status }}</div>
-      <div v-if="busy" class="status-msg info">Working…</div>
+      <div v-if="busy" class="status-msg info">
+        <AppIcon :path="mdiLoading" :size="14" class="icon-spin" />
+        Working…
+      </div>
 
     </div>
   </aside>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -126,6 +131,8 @@ import {
   mdiBookOpenPageVariant,
   mdiDatabaseExportOutline,
   mdiDatabaseImportOutline,
+  mdiFileImport,
+  mdiLoading,
 } from '@mdi/js'
 
 const uiStore     = useUIStore()

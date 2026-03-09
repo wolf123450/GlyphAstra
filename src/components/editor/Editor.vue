@@ -13,7 +13,7 @@
           @click="toggleFormattingToolbar"
           title="Formatting toolbar"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiFormatText"/></svg>
+          <AppIcon :path="mdiFormatText" :size="16" />
         </button>
         <button
           class="mode-btn"
@@ -22,7 +22,7 @@
           @click="splitView = !splitView"
           title="Split view — raw markdown left, live preview right"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiViewSplitVertical"/></svg>
+          <AppIcon :path="mdiViewSplitVertical" :size="16" />
         </button>
         <div class="separator"></div>
         <button
@@ -31,7 +31,7 @@
           @click="setMode('markdown')"
           title="Show all markdown"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiLanguageMarkdown"/></svg>
+          <AppIcon :path="mdiLanguageMarkdown" :size="16" />
         </button>
         <button
           class="mode-btn"
@@ -39,7 +39,7 @@
           @click="setMode('seamless')"
           title="Seamless editing"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiApproximatelyEqual"/></svg>
+          <AppIcon :path="mdiApproximatelyEqual" :size="16" />
         </button>
         <button
           class="mode-btn"
@@ -47,7 +47,7 @@
           @click="setMode('preview')"
           title="Preview mode"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiEyeOutline"/></svg>
+          <AppIcon :path="mdiEyeOutline" :size="16" />
         </button>
         <div class="separator"></div>
         <button
@@ -56,7 +56,7 @@
           :disabled="!isDirty || isReadOnly"
           title="Save (Ctrl+S)"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiContentSaveOutline"/></svg>
+          <AppIcon :path="mdiContentSaveOutline" :size="16" />
         </button>
         <button
           class="action-btn"
@@ -64,7 +64,7 @@
           @click="toggleOverview"
           title="Story Overview"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiBookOpenVariant"/></svg>
+          <AppIcon :path="mdiBookOpenVariant" :size="16" />
         </button>
         <button
           class="action-btn"
@@ -72,7 +72,7 @@
           @click="toggleAI"
           title="AI Assistant (Ctrl+Space)"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiRobot"/></svg>
+          <AppIcon :path="mdiRobot" :size="16" />
         </button>
         <button
           class="action-btn"
@@ -80,7 +80,7 @@
           @click="toggleExport"
           title="Export / Import"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiApplicationExport"/></svg>
+          <AppIcon :path="mdiApplicationExport" :size="16" />
         </button>
         <button
           class="action-btn"
@@ -104,18 +104,18 @@
 
     <!-- Chapter type banners -->
       <div v-if="currentChapter?.chapterType === 'toc'" class="chapter-type-banner banner-toc">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:6px"><path :d="mdiFormatListNumbered"/></svg>
+        <AppIcon :path="mdiFormatListNumbered" :size="16" style="vertical-align:middle;margin-right:6px" />
         <strong>Table of Contents</strong> &mdash; On export, this chapter’s content is replaced with an auto-generated chapter list. Text written here is not included in the export.
       </div>
       <div v-if="currentChapter?.chapterType === 'illustration'" class="chapter-type-banner banner-illustration">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:6px"><path :d="mdiImageOutline"/></svg>
+        <AppIcon :path="mdiImageOutline" :size="16" style="vertical-align:middle;margin-right:6px" />
         <strong>Illustration</strong> &mdash; Set the image path and caption in <em>Chapter Properties</em>. Any text here appears after the image in the export.
       </div>
     <div class="editor-body" :class="{ 'editor-body--split': splitViewActive }">
       <!-- ── Live TOC panel replaces editor for Contents chapters ────────── -->
       <div v-if="currentChapter?.chapterType === 'toc'" class="toc-live-panel">
         <div class="toc-live-header">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiFormatListNumbered"/></svg>
+          <AppIcon :path="mdiFormatListNumbered" :size="15" />
           Table of Contents
           <span class="toc-live-badge">live &mdash; click any entry to navigate &bull; updates as chapters change</span>
         </div>
@@ -217,14 +217,14 @@
       <div v-else class="editor-empty">
         <p v-if="renderMode === 'preview'">Select a chapter to see the preview</p>
         <p v-else>Select a chapter to start writing</p>
-        <p class="text-muted">Create a new chapter using the ⊕ button in the sidebar</p>
+        <p class="text-muted">Create a new chapter using the + button in the sidebar</p>
       </div>
     </div>
 
     <!-- Status Bar -->
     <div class="editor-status">
-      <span v-if="isDirty" class="status-item unsaved">● Unsaved changes</span>
-      <span v-else class="status-item saved">✓ Saved</span>
+      <span v-if="isDirty" class="status-item unsaved"><AppIcon :path="mdiCircleSmall" :size="10" style="vertical-align:middle;margin-right:4px" />Unsaved changes</span>
+      <span v-else class="status-item saved"><AppIcon :path="mdiCheck" :size="12" style="vertical-align:middle;margin-right:3px" />Saved</span>
       <span class="status-item">
         {{ content.length }} characters
       </span>
@@ -241,7 +241,7 @@
         :title="`Active AI model: ${activeModelLabel} — click to open AI panel`"
         @click="toggleAI"
       >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path :d="mdiRobotOutline"/></svg>{{ activeModelLabel }}
+        <AppIcon :path="mdiRobotOutline" :size="13" style="vertical-align:middle;margin-right:3px" />{{ activeModelLabel }}
       </button>
       <!-- Chapter summary status -->
       <button
@@ -250,14 +250,14 @@
         :class="{ 'has-summary': currentChapter.summary }"
         :title="currentChapter.summary ? 'AI summary available — click to edit chapter properties' : 'No summary yet — click to open chapter properties'"
         @click="openChapterMeta"
-      ><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path :d="mdiTextBoxOutline"/></svg>{{ currentChapter.summary ? 'Summary' : 'No summary' }}</button>
+      ><AppIcon :path="mdiTextBoxOutline" :size="14" style="vertical-align:middle;margin-right:3px" />{{ currentChapter.summary ? 'Summary' : 'No summary' }}</button>
       <!-- Version history -->
       <button
         v-if="currentChapter"
         class="status-item status-history-btn"
         :title="'Version history'"
         @click="showHistory = true"
-      ><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path :d="mdiHistory"/></svg> History</button>
+      ><AppIcon :path="mdiHistory" :size="14" style="vertical-align:middle;margin-right:3px" /> History</button>
       <!-- Image pack status widget -->
       <div
         v-if="storyStore.currentStoryId"
@@ -269,9 +269,7 @@
           :title="packIsStale ? 'Images not fully packed \u2014 click to pack' : 'All images packed'"
           @click="packFocusFailed = false; showPackModal = true"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle">
-            <path :d="packIsStale ? mdiArchiveOutline : mdiArchive" />
-          </svg>
+          <AppIcon :path="packIsStale ? mdiArchiveOutline : mdiArchive" :size="14" style="vertical-align:middle" />
         </button>
         <button
           v-if="packUnresolvedCount > 0"
@@ -279,9 +277,7 @@
           :title="`${packUnresolvedCount} image${packUnresolvedCount > 1 ? 's' : ''} could not be resolved`"
           @click="packFocusFailed = true; showPackModal = true"
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:2px">
-            <path :d="mdiImageBrokenVariant" />
-          </svg>
+          <AppIcon :path="mdiImageBrokenVariant" :size="13" style="vertical-align:middle;margin-right:2px" />
           <span class="pack-error-count">{{ packUnresolvedCount }}</span>
         </button>
       </div>
@@ -326,6 +322,8 @@ import {
   mdiImageBrokenVariant,
   mdiRobotOutline,
   mdiFormatText,
+  mdiCheck,
+  mdiCircleSmall,
 } from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useEditorStore } from '@/stores/editorStore'

@@ -10,7 +10,7 @@
       class="drag-handle"
       title="Drag to reorder"
       @mousedown.stop.prevent="onHandleDown"
-    ><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiDragVertical"/></svg></span>
+    ><AppIcon :path="mdiDragVertical" :size="14" /></span>
     <div class="chapter-content">
       <div class="chapter-name-row">
           <span v-if="props.displayLabel" class="chapter-label" :title="chapter.chapterLabel ? 'Custom label' : 'Auto-numbered'">{{ props.displayLabel }}</span>
@@ -31,13 +31,13 @@
           @click.stop="startRename"
         >
           {{ chapter.name }}
-          <svg class="edit-icon" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiPencilOutline"/></svg>
+          <AppIcon :path="mdiPencilOutline" :size="13" class="edit-icon" />
         </span>
-        <span v-if="chapter.isPlotOutline" class="badge badge-outline" title="Plot outline — injected into every AI prompt">▸ Outline</span>
-        <span v-else-if="chapter.chapterType === 'toc'" class="badge badge-toc" title="Table of Contents — auto-generates chapter list on export">&#x2261; TOC</span>
-        <span v-else-if="chapter.chapterType === 'cover'" class="badge badge-cover" title="Cover page">&#x25C6; Cover</span>
-        <span v-else-if="chapter.chapterType === 'license'" class="badge badge-license" title="License / legal block">&#x2A3E; License</span>
-        <span v-else-if="chapter.chapterType === 'illustration'" class="badge badge-illus" title="Illustration chapter">&#x25A1; Illus.</span>
+        <span v-if="chapter.isPlotOutline" class="badge badge-outline" title="Plot outline — injected into every AI prompt"><AppIcon :path="mdiArrowRight" :size="11" style="vertical-align:middle;margin-right:2px" />Outline</span>
+        <span v-else-if="chapter.chapterType === 'toc'" class="badge badge-toc" title="Table of Contents — auto-generates chapter list on export"><AppIcon :path="mdiTableOfContents" :size="11" style="vertical-align:middle;margin-right:2px" />TOC</span>
+        <span v-else-if="chapter.chapterType === 'cover'" class="badge badge-cover" title="Cover page"><AppIcon :path="mdiBookOpenVariant" :size="11" style="vertical-align:middle;margin-right:2px" />Cover</span>
+        <span v-else-if="chapter.chapterType === 'license'" class="badge badge-license" title="License / legal block"><AppIcon :path="mdiScaleBalance" :size="11" style="vertical-align:middle;margin-right:2px" />License</span>
+        <span v-else-if="chapter.chapterType === 'illustration'" class="badge badge-illus" title="Illustration chapter"><AppIcon :path="mdiImageOutline" :size="11" style="vertical-align:middle;margin-right:2px" />Illus.</span>
       </div>
       <div class="chapter-meta">
         <span class="status" :class="`status-${chapter.status}`">
@@ -45,21 +45,23 @@
         </span>
         <span class="word-count">{{ chapter.wordCount }} words</span>
         <span v-if="chapter.contextTags && chapter.contextTags.length" class="tags-badge" :title="chapter.contextTags.join(', ')">
-          &#x2317; {{ chapter.contextTags.length }}
+          <AppIcon :path="mdiTagMultipleOutline" :size="11" style="vertical-align:middle;margin-right:2px" />{{ chapter.contextTags.length }}
         </span>
-        <span v-if="chapter.summary" class="summary-badge" title="AI summary available"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiTextBoxOutline"/></svg></span>
+        <span v-if="chapter.summary" class="summary-badge" title="AI summary available"><AppIcon :path="mdiTextBoxOutline" :size="12" /></span>
       </div>
     </div>
     <div class="chapter-actions" v-show="isActive">
-      <button class="action-btn delete" @click.stop="deleteThis" title="Delete" aria-label="Delete chapter"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="mdiDeleteOutline"/></svg></button>
-      <button class="action-btn" @click.stop="openMeta" title="Edit properties" aria-label="Edit chapter properties"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="mdiDotsVertical"/></svg></button>
+      <button class="action-btn delete" @click.stop="deleteThis" title="Delete" aria-label="Delete chapter"><AppIcon :path="mdiDeleteOutline" :size="14" /></button>
+      <button class="action-btn" @click.stop="openMeta" title="Edit properties" aria-label="Edit chapter properties"><AppIcon :path="mdiDotsVertical" :size="14" /></button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
-import { mdiDragVertical, mdiPencilOutline, mdiDotsVertical, mdiDeleteOutline, mdiTextBoxOutline } from '@mdi/js'
+import { mdiDragVertical, mdiPencilOutline, mdiDotsVertical, mdiDeleteOutline, mdiTextBoxOutline,
+         mdiArrowRight, mdiTableOfContents, mdiBookOpenVariant, mdiScaleBalance, mdiImageOutline,
+         mdiTagMultipleOutline } from '@mdi/js'
 import type { Chapter } from '@/stores/storyStore'
 
 interface Props {

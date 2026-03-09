@@ -7,9 +7,7 @@
       :title="btn.title"
       @mousedown.prevent="btn.action()"
     >
-      <svg v-if="btn.icon" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path :d="btn.icon" />
-      </svg>
+      <AppIcon v-if="btn.icon" :path="btn.icon" :size="15" />
       <span v-else class="tb-fmt-text">{{ btn.glyph }}</span>
     </button>
   </div>
