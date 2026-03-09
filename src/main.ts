@@ -1,6 +1,7 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
+import AppIcon from "./components/AppIcon.vue";
 import "./styles/global.css";
 
 const app = createApp(App);
@@ -49,4 +50,5 @@ if (import.meta.env.PROD) {
 }
 
 app.use(pinia);
+app.component('AppIcon', AppIcon);
 app.mount("#app");

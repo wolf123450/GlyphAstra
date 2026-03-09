@@ -7,9 +7,9 @@
       role="alert"
       aria-live="assertive"
     >
-      <span class="notification-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path :d="getIconPath()"/></svg></span>
+      <span class="notification-icon"><AppIcon :path="getIconPath()" :size="18" /></span>
       <span class="notification-message">{{ message }}</span>
-      <button class="notification-close" @click="hideNotification"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiClose"/></svg></button>
+      <button class="notification-close" @click="hideNotification"><AppIcon :path="mdiClose" :size="14" /></button>
     </div>
   </transition>
 </template>

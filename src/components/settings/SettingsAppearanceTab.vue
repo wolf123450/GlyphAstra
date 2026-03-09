@@ -8,12 +8,12 @@
             class="pill"
             :class="{ active: settings.theme === 'dark' }"
             @click="setTheme('dark')"
-          >&#x25D0; Dark</button>
+          ><AppIcon :path="mdiWeatherNight" :size="14" style="vertical-align:middle;margin-right:5px" />Dark</button>
           <button
             class="pill"
             :class="{ active: settings.theme === 'light' }"
             @click="setTheme('light')"
-          >&#x2600; Light</button>
+          ><AppIcon :path="mdiWhiteBalanceSunny" :size="14" style="vertical-align:middle;margin-right:5px" />Light</button>
         </div>
       </div>
     </div>
@@ -59,6 +59,7 @@
 <script setup lang="ts">
 import { useSettingsStore, CUSTOMIZABLE_VARS, type CustomizableVar } from '@/stores/settingsStore'
 import { useUIStore } from '@/stores/uiStore'
+import { mdiWeatherNight, mdiWhiteBalanceSunny } from '@mdi/js'
 
 const settingsStore = useSettingsStore()
 const settings = settingsStore.settings

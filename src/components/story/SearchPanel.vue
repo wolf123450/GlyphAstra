@@ -1,11 +1,12 @@
 <template>
   <Teleport to="body">
+    <Transition name="panel-drop">
     <div v-if="uiStore.showSearchPanel" class="search-overlay" @click.self="close">
-      <div class="search-panel" ref="panelEl" @keydown="onKeydown">
+      <div class="search-panel modal-card" ref="panelEl" @keydown="onKeydown">
 
         <!-- ── Input ─────────────────────────────────────────── -->
         <div class="search-input-row">
-          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiMagnify"/></svg>
+          <AppIcon :path="mdiMagnify" :size="16" class="search-icon" />
           <input
             ref="inputEl"
             v-model="query"
@@ -14,7 +15,7 @@
             autocomplete="off"
             spellcheck="false"
           />
-          <button v-if="query" class="clear-btn" @click="query = ''" title="Clear">✕</button>
+          <button v-if="query" class="clear-btn" @click="query = ''" title="Clear"><AppIcon :path="mdiClose" :size="12" /></button>
           <button
             class="mode-btn"
             :class="{ active: caseSensitive }"
@@ -32,7 +33,7 @@
             :class="{ active: showReplace }"
             @click="showReplace = !showReplace"
             title="Toggle replace (Alt+H)"
-          ><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiSwapHorizontal"/></svg></button>
+          ><AppIcon :path="mdiSwapHorizontal" :size="15" /></button>
         </div>
 
         <!-- ── Regex error ──────────────────────────────────── -->
@@ -40,7 +41,7 @@
 
         <!-- ── Replace row ─────────────────────────────────── -->
         <div v-if="showReplace" class="replace-row">
-          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="opacity:0.4"><path :d="mdiSwapHorizontal"/></svg>
+          <AppIcon :path="mdiSwapHorizontal" :size="16" class="search-icon" style="opacity:0.4" />
           <input
             v-model="replaceText"
             class="search-input"
@@ -48,7 +49,7 @@
             autocomplete="off"
             spellcheck="false"
           />
-          <button v-if="replaceText" class="clear-btn" @click="replaceText = ''" title="Clear">✕</button>
+          <button v-if="replaceText" class="clear-btn" @click="replaceText = ''" title="Clear"><AppIcon :path="mdiClose" :size="12" /></button>
           <button
             class="replace-btn"
             :disabled="!query.trim() || resultGroups.length === 0"
@@ -112,15 +113,17 @@
         </div>
       </div>
     </div>
+    </Transition>
   </Teleport>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
-import { mdiMagnify, mdiSwapHorizontal } from '@mdi/js'
+import { mdiMagnify, mdiSwapHorizontal, mdiClose } from '@mdi/js'
 import { useUIStore } from '@/stores/uiStore'
 import { useStoryStore } from '@/stores/storyStore'
 import { useEditorStore } from '@/stores/editorStore'
+import { useFocusTrap } from '@/utils/useFocusTrap'
 
 // ── Stores ────────────────────────────────────────────────────────────────────
 const uiStore = useUIStore()
@@ -131,6 +134,7 @@ const editorStore = useEditorStore()
 const query = ref('')
 const focusedIndex = ref(0)
 const panelEl = ref<HTMLElement | null>(null)
+useFocusTrap(panelEl, computed(() => uiStore.showSearchPanel))
 const inputEl = ref<HTMLInputElement | null>(null)
 const caseSensitive = ref(false)
 const regexMode = ref(false)

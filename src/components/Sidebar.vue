@@ -3,7 +3,7 @@
     <div class="sidebar-header">
       <span class="sidebar-title">Stories</span>
       <button class="sidebar-toggle" @click="toggleSidebar" title="Toggle sidebar" aria-label="Toggle sidebar">
-        <svg class="toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="isOpen ? mdiChevronLeft : mdiChevronRight"/></svg>
+        <AppIcon :path="isOpen ? mdiChevronLeft : mdiChevronRight" :size="16" class="toggle-icon" />
       </button>
     </div>
 
@@ -31,7 +31,7 @@
 
       <!-- New Chapter Button -->
       <button class="btn-sidebar-action" @click="createNewChapter" title="Create new chapter (Ctrl+N)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path :d="mdiPlusCircleOutline"/></svg>
+        <AppIcon :path="mdiPlusCircleOutline" :size="16" style="flex-shrink:0" />
         <span class="label">New Chapter</span>
       </button>
 
@@ -80,10 +80,10 @@
     <div class="sidebar-footer">
       <div class="icon-group">
         <button class="btn-icon" :class="{ active: uiStore.showSettings }" @click="toggleSettings" title="Settings (Ctrl+,)" aria-label="Settings">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="mdiCog"/></svg>
+          <AppIcon :path="mdiCog" :size="18" />
         </button>
         <button class="btn-icon" @click="toggleTheme" :title="`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`" :aria-label="`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="theme === 'dark' ? mdiCircleHalfFull : mdiWhiteBalanceSunny"/></svg>
+          <AppIcon :path="theme === 'dark' ? mdiCircleHalfFull : mdiWhiteBalanceSunny" :size="18" />
         </button>
         <button class="btn-icon" @click="openHelpStory" title="Help &amp; Reference" aria-label="Help and Reference">
           ?

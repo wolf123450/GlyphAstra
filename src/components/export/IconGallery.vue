@@ -1,7 +1,8 @@
 <template>
   <Teleport to="body">
+    <Transition name="modal-fade">
     <div v-if="show" class="ig-backdrop" @click.self="emit('close')">
-      <div class="ig-modal" role="dialog" aria-label="Icon Gallery">
+      <div class="ig-modal modal-card" ref="modalEl" role="dialog" aria-label="Icon Gallery">
 
         <!-- ── Header ──────────────────────────────────────────── -->
         <div class="ig-header">
@@ -16,7 +17,7 @@
                 @click="iconSize = s"
               >{{ s }}</button>
             </div>
-            <button class="ig-close-btn" @click="emit('close')" title="Close">✕</button>
+            <button class="ig-close-btn" @click="emit('close')" title="Close"><AppIcon :path="mdiClose" :size="16" /></button>
           </div>
         </div>
 
@@ -33,7 +34,7 @@
             <div class="ig-slot-meta">
               <span class="ig-slot-name">{{ slot.name }}</span>
               <span v-if="selections[slot.id]" class="ig-slot-selection">
-                ✓ {{ selections[slot.id]!.label }}
+                <AppIcon :path="mdiCheck" :size="12" style="vertical-align:middle;margin-right:2px" />{{ selections[slot.id]!.label }}
               </span>
               <span class="ig-slot-desc">{{ slot.description }}</span>
             </div>
@@ -65,7 +66,7 @@
                 ><path :d="mdi.path" /></svg>
                 <span class="ig-card-name">{{ mdi.label }}</span>
                 <span class="ig-badge ig-badge--mdi">MDI</span>
-                <span v-if="selections[slot.id]?.importName === mdi.importName" class="ig-selected-check">✓</span>
+                <span v-if="selections[slot.id]?.importName === mdi.importName" class="ig-selected-check"><AppIcon :path="mdiCheck" :size="12" /></span>
               </div>
             </div>
           </div>
@@ -83,7 +84,7 @@
                 Clear all
               </button>
               <button class="ig-json-btn ig-json-btn--primary" @click="copyJson" :disabled="selectedCount === 0">
-                {{ jsonCopied ? '✓ Copied!' : 'Copy JSON' }}
+                <AppIcon v-if="jsonCopied" :path="mdiCheck" :size="13" style="vertical-align:middle;margin-right:3px" />{{ jsonCopied ? 'Copied!' : 'Copy JSON' }}
               </button>
             </div>
           </div>
@@ -103,11 +104,13 @@
 
       </div>
     </div>
+    </Transition>
   </Teleport>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useFocusTrap } from '@/utils/useFocusTrap'
 
 // ─── Material Design Icons ────────────────────────────────────────
 import {
@@ -153,6 +156,7 @@ import {
   // ── notification icons
   mdiCheckCircle,
   mdiCheckCircleOutline,
+  mdiCheck,
   mdiCloseCircle,
   mdiAlertCircle,
   mdiAlertCircleOutline,
@@ -191,8 +195,11 @@ interface Slot {
 }
 
 // ─── State ────────────────────────────────────────────────────────
-defineProps<{ show: boolean }>()
+const props = defineProps<{ show: boolean }>()
 const emit = defineEmits<{ close: [] }>()
+
+const modalEl = ref<HTMLElement | null>(null)
+useFocusTrap(modalEl, computed(() => props.show))
 
 const iconSize   = ref(24)
 const selections = ref<Record<string, MdiCandidate | null>>({})
