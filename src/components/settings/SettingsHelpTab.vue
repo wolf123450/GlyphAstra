@@ -4,13 +4,13 @@
     <div v-if="IconGallery" class="help-section">
       <h3 class="help-section-title">Icons</h3>
       <p class="setting-hint">Compare Phosphor and Material Design icon candidates for the UI overhaul (Phase 11.x).</p>
-      <button class="btn-sm help-btn" @click="showIconGallery = true">&#9783; Browse icon gallery</button>
+      <button class="btn-sm help-btn" @click="showIconGallery = true"><AppIcon :path="mdiShapeOutline" :size="14" style="vertical-align:middle;margin-right:5px" />Browse icon gallery</button>
     </div>
 
     <div class="help-section">
       <h3 class="help-section-title">Onboarding</h3>
       <p class="setting-hint">Take the guided tour to learn the key areas of the app.</p>
-      <button class="btn-sm help-btn" @click="startTour">&#9654; Take the tour</button>
+      <button class="btn-sm help-btn" @click="startTour"><AppIcon :path="mdiPlayOutline" :size="14" style="vertical-align:middle;margin-right:5px" />Take the tour</button>
     </div>
 
     <div class="help-section">
@@ -25,7 +25,7 @@
     <div class="help-section">
       <h3 class="help-section-title">Support</h3>
       <p class="setting-hint">If you find Glyph Astra useful, consider sponsoring development.</p>
-      <button class="btn-sm help-btn" @click="openSponsors">&#9829; Sponsor on GitHub</button>
+      <button class="btn-sm help-btn" @click="openSponsors"><AppIcon :path="mdiHeart" :size="14" style="vertical-align:middle;margin-right:5px" />Sponsor on GitHub</button>
     </div>
 
     <div class="help-section">
@@ -39,6 +39,7 @@
 
 <script setup lang="ts">
 import { ref, defineAsyncComponent } from 'vue'
+import { mdiShapeOutline, mdiPlayOutline, mdiHeart } from '@mdi/js'
 import { useUIStore } from '@/stores/uiStore'
 import { useStoryStore } from '@/stores/storyStore'
 import { loadOrCreateHelpStory, resetHelpStory } from '@/utils/story/helpStoryService'

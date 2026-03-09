@@ -1,16 +1,17 @@
 <template>
   <Teleport to="body">
+    <Transition name="modal-fade">
     <div v-if="show" class="hist-overlay" @click.self="$emit('close')">
-      <div class="hist-modal" role="dialog" aria-modal="true" aria-label="Version History" @keydown.esc.prevent="$emit('close')" tabindex="-1">
+      <div class="hist-modal modal-card" ref="modalEl" role="dialog" aria-modal="true" aria-label="Version History" @keydown.esc.prevent="$emit('close')" tabindex="-1">
 
         <!-- Header -->
         <div class="hist-header">
           <div class="hist-title-row">
-            <svg class="hist-icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiHistory"/></svg>
+            <AppIcon :path="mdiHistory" :size="20" class="hist-icon" />
             <h3 class="hist-title">Version History</h3>
             <span class="hist-subtitle">{{ chapterName }}</span>
           </div>
-          <button class="close-btn" @click="$emit('close')" title="Close" aria-label="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path :d="mdiClose"/></svg></button>
+          <button class="close-btn" @click="$emit('close')" title="Close" aria-label="Close"><AppIcon :path="mdiClose" :size="16" /></button>
         </div>
 
         <!-- Body -->
@@ -46,17 +47,17 @@
               <div class="preview-toolbar">
                 <div class="diff-mode-group">
                   <button class="diff-mode-btn" :class="{ active: diffMode === 'none' }"     @click="diffMode = 'none'">
-                    <span class="dmb-glyph">◈</span><span class="dmb-label">Preview</span>
+                    <AppIcon :path="mdiEyeOutline" :size="14" class="dmb-glyph" /><span class="dmb-label">Preview</span>
                   </button>
                   <button class="diff-mode-btn" :class="{ active: diffMode === 'current' }"  @click="diffMode = 'current'">
-                    <span class="dmb-glyph">⇔</span><span class="dmb-label">vs&nbsp;Current</span>
+                    <AppIcon :path="mdiSwapHorizontal" :size="14" class="dmb-glyph" /><span class="dmb-label">vs&nbsp;Current</span>
                   </button>
                   <button class="diff-mode-btn" :class="{ active: diffMode === 'previous', disabled: !hasPrevious }" @click="diffMode = 'previous'" :disabled="!hasPrevious">
-                    <span class="dmb-glyph">⇦</span><span class="dmb-label">vs&nbsp;Previous</span>
+                    <AppIcon :path="mdiArrowLeft" :size="14" class="dmb-glyph" /><span class="dmb-label">vs&nbsp;Previous</span>
                   </button>
                 </div>
                 <span class="snapshot-age">{{ formatDateFull(selectedEntry.savedAt) }}</span>
-                <button class="btn-restore" @click="restore"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px"><path :d="mdiArrowULeftTop"/></svg> Restore</button>
+                <button class="btn-restore" @click="restore"><AppIcon :path="mdiArrowULeftTop" :size="15" style="vertical-align:middle;margin-right:3px" /> Restore</button>
               </div>
               <div class="preview-scroll">
                 <div
@@ -66,8 +67,8 @@
                 />
                 <div v-else class="diff-view">
                   <div class="diff-legend">
-                    <span class="legend-del">■ removed</span>
-                    <span class="legend-add">■ added</span>
+                    <span class="legend-del"><AppIcon :path="mdiSquare" :size="10" style="vertical-align:middle;margin-right:3px" />removed</span>
+                    <span class="legend-add"><AppIcon :path="mdiSquare" :size="10" style="vertical-align:middle;margin-right:3px" />added</span>
                   </div>
                   <div
                     v-for="(line, i) in diffLines"
@@ -96,6 +97,7 @@
         </div>
       </div>
     </div>
+    </Transition>
   </Teleport>
 </template>
 
@@ -107,7 +109,8 @@ import { getHistory, type HistoryEntry } from '@/utils/story/historyManager'
 import { renderMarkdown } from '@/utils/editor/markdownRenderer'
 import { sanitizeHtml } from '@/utils/sanitize'
 import { computeLineDiff, pairDelAdd, type DiffLine } from '@/utils/editor/diffEngine'
-import { mdiHistory, mdiArrowULeftTop, mdiClose } from '@mdi/js'
+import { mdiHistory, mdiArrowULeftTop, mdiClose, mdiEyeOutline, mdiSwapHorizontal, mdiArrowLeft, mdiSquare } from '@mdi/js'
+import { useFocusTrap } from '@/utils/useFocusTrap'
 
 interface Props {
   show: boolean
@@ -115,6 +118,9 @@ interface Props {
 
 const props = defineProps<Props>()
 defineEmits<{ (e: 'close'): void }>()
+
+const modalEl = ref<HTMLElement | null>(null)
+useFocusTrap(modalEl, computed(() => props.show))
 
 const storyStore  = useStoryStore()
 const editorStore = useEditorStore()
@@ -212,7 +218,7 @@ function formatDateFull(ms: number): string {
 function restore() {
   if (!selectedEntry.value) return
   editorStore.setContent(selectedEntry.value.content)
-  restoredMsg.value = '✓ Editor content replaced'
+  restoredMsg.value = 'Editor content replaced'
   setTimeout(() => { restoredMsg.value = '' }, 3000)
 }
 </script>
@@ -422,7 +428,7 @@ function restore() {
   cursor: not-allowed;
 }
 
-.dmb-glyph { font-size: 13px; line-height: 1; }
+.dmb-glyph { width: 14px; height: 14px; vertical-align: middle; flex-shrink: 0; }
 .dmb-label { font-size: 11px; font-weight: 500; }
 
 .snapshot-age {

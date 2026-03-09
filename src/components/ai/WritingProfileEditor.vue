@@ -1,11 +1,12 @@
 <template>
   <Teleport to="body">
-    <div v-if="show" class="wpe-overlay" @click.self="cancel">
-      <div class="wpe-modal" ref="modalEl" @keydown.escape="cancel">
+    <Transition name="modal-fade">
+      <div v-if="props.show" class="wpe-overlay" @click.self="cancel">
+        <div class="wpe-modal modal-card" ref="modalEl" @keydown.escape="cancel">
 
         <div class="wpe-header">
           <span class="wpe-title">{{ isNew ? 'New Writing Profile' : editingCustom ? 'Edit Profile' : 'View Profile' }}</span>
-          <button class="wpe-close" @click="cancel" title="Close"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path :d="mdiClose"/></svg></button>
+          <button class="wpe-close" @click="cancel" title="Close"><AppIcon :path="mdiClose" :size="16" /></button>
         </div>
 
         <div class="wpe-body">
@@ -93,7 +94,6 @@
         </div>
 
       </div>
-    </div>
 
     <!-- Inline delete confirmation (replaces native confirm) -->
     <div v-if="showDeleteConfirm" class="wpe-confirm-overlay" @click.self="cancelDelete">
@@ -105,6 +105,8 @@
         </div>
       </div>
     </div>
+  </div>
+  </Transition>
   </Teleport>
 </template>
 
@@ -112,6 +114,7 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { mdiClose } from '@mdi/js'
 import { useAIStore, type WritingProfile } from '@/stores/aiStore'
+import { useFocusTrap } from '@/utils/useFocusTrap'
 
 const props = defineProps<{
   show: boolean
@@ -126,6 +129,7 @@ const emit = defineEmits<{
 
 const aiStore = useAIStore()
 const modalEl = ref<HTMLElement | null>(null)
+useFocusTrap(modalEl, computed(() => props.show))
 const nameTouched = ref(false)
 const validationError = ref('')
 
