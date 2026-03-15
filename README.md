@@ -123,14 +123,48 @@ The packaged application will be output to `src-tauri/target/release/bundle/`.
 
 ## Release Builds & Code Signing
 
-Releases are built automatically via GitHub Actions (see [`.github/workflows/release.yml`](.github/workflows/release.yml)) for Windows, macOS (x86_64 + Apple Silicon), and Linux whenever a version tag is pushed:
+Releases are built automatically via GitHub Actions (see [`.github/workflows/release.yml`](.github/workflows/release.yml)) for Windows, macOS (x86_64 + Apple Silicon), and Linux whenever a version tag is pushed.
+
+### Creating a release
+
+1. Bump the version in `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
+2. Create a branch, commit, and open a PR:
 
 ```bash
-git tag v0.2.0
-git push --tags
+git checkout -b version-bump-v0.3.0
+git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json
+git commit -m "chore: bump to v0.3.0"
+git push origin version-bump-v0.3.0
+# open a PR and merge it into master
 ```
 
-This creates a draft GitHub Release with installers for all three platforms attached. The draft can then be reviewed and published manually.
+3. After the PR is merged, tag the merge commit on `master` and push the tag:
+
+```bash
+git checkout master
+git pull origin master
+git tag v0.3.0
+git push origin v0.3.0
+```
+
+This triggers the workflow, which builds all platforms and creates a **draft** GitHub Release with installers attached. Once you've verified the draft, publish it manually from the GitHub Releases page. Publishing the release also triggers the `update-manifest` job, which generates and attaches `latest.json` for the auto-updater.
+
+### Re-running a failed release
+
+If CI fails after the tag is already pushed (e.g. a workflow bug was fixed):
+
+1. Fix the issue on a branch, open a PR, and merge it into `master`.
+2. Delete the old draft release from the GitHub Releases page.
+3. Move the tag to the new HEAD and force-push to re-trigger CI:
+
+```bash
+git checkout master
+git pull origin master
+git tag -f v0.3.0
+git push --force origin v0.3.0
+```
+
+> **Note:** force-pushing a tag re-triggers the workflow but does **not** automatically delete any draft release GitHub already created. Always delete the old draft from the Releases page before re-running so the asset upload starts clean.
 
 ### ⚠️ Unsigned builds
 
