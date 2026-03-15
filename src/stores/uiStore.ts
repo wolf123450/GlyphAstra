@@ -28,6 +28,7 @@ export const useUIStore = defineStore("ui", () => {
     "info"
   );
   const isNotificationVisible = ref<boolean>(false);
+  const notificationAction = ref<{ label: string; callback: () => void } | null>(null);
   let _notificationTimer: number | undefined;
 
   const toggleSidebar = () => {
@@ -67,14 +68,16 @@ export const useUIStore = defineStore("ui", () => {
   const showNotification = (
     message: string,
     type: "success" | "error" | "info" | "warning" = "info",
-    duration: number = 3000
+    duration: number = 3000,
+    action?: { label: string; callback: () => void }
   ) => {
     notificationMessage.value = message;
     notificationType.value = type;
+    notificationAction.value = action ?? null;
     isNotificationVisible.value = true;
 
+    if (_notificationTimer !== undefined) clearTimeout(_notificationTimer);
     if (duration > 0) {
-      if (_notificationTimer !== undefined) clearTimeout(_notificationTimer);
       _notificationTimer = window.setTimeout(() => {
         isNotificationVisible.value = false;
         _notificationTimer = undefined;
@@ -84,6 +87,7 @@ export const useUIStore = defineStore("ui", () => {
 
   const hideNotification = () => {
     isNotificationVisible.value = false;
+    notificationAction.value = null;
   };
 
   // ─── Onboarding tour ─────────────────────────────────────────────────
@@ -123,6 +127,7 @@ export const useUIStore = defineStore("ui", () => {
     notificationMessage,
     notificationType,
     isNotificationVisible,
+    notificationAction,
     // Methods
     toggleSidebar,
     setSidebarWidth,

@@ -43,6 +43,7 @@ import { storageManager } from '@/utils/storage/storage'
 import { loadOrCreateHelpStory, ensureHelpStoryExists } from '@/utils/story/helpStoryService'
 import { useSummaryManager } from '@/utils/ai/summaryManager'
 import { reconcileProjectsList } from '@/utils/storage/persistenceService'
+import { autoCheckForUpdate } from '@/utils/updateService'
 
 const LAST_STORY_KEY   = 'glyphastra_last_story'
 const ONBOARDING_KEY   = 'glyphastra_onboarding_complete'
@@ -157,6 +158,9 @@ onMounted(async () => {
   if (storyStore.chapters.length === 0) {
     uiStore.showNotification('Welcome to Glyph Astra! Create your first chapter to get started.', 'info', 0)
   }
+
+  // Auto-check for updates after a short delay to avoid blocking startup
+  setTimeout(() => autoCheckForUpdate(), 10_000)
 })
 </script>
 
