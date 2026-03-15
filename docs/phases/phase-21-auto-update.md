@@ -29,20 +29,21 @@ Key components:
 
 ### 21.2 Configure the Updater in tauri.conf.json
 
-- [ ] Add an `updater` block to `bundle` in `tauri.conf.json`:
+- [ ] Add a `plugins.updater` block to `tauri.conf.json` (Tauri 2 plugin config — **not** under `bundle`):
   ```json
-  "updater": {
-    "active": true,
-    "dialog": false,
-    "pubkey": "<paste ed25519 public key here>",
-    "endpoints": [
-      "https://github.com/wolf123450/GlyphAstra/releases/latest/download/latest.json"
-    ]
+  "plugins": {
+    "updater": {
+      "pubkey": "<paste ed25519 public key here>",
+      "endpoints": [
+        "https://github.com/wolf123450/GlyphAstra/releases/latest/download/latest.json"
+      ]
+    }
   }
   ```
-- [ ] `dialog: false` — we will show our own Vue update UI rather than the native OS dialog
+- [ ] In Tauri 2, the updater plugin has no `active` or `dialog` config — update UI is always custom (our Vue component)
 - [ ] The endpoint URL must serve a JSON file in Tauri's update manifest format (see 21.3)
-- [ ] Add `"core:updater:default"` permission to `capabilities/default.json`
+- [ ] Add `"updater:default"` permission to `capabilities/default.json`
+- [ ] Add `"process:allow-restart"` permission to `capabilities/default.json` (for `relaunch()` after install)
 
 ### 21.3 Publish the Update Manifest as a Release Asset
 
@@ -84,12 +85,12 @@ Format:
   ```
 - [ ] Each platform will then output `<installer>.sig` sidecar files alongside the normal installer — these are consumed by step 21.3 to build `latest.json`
 
-### 21.5 Add tauri-plugin-updater (Rust + JS)
+### 21.5 Add tauri-plugin-updater + tauri-plugin-process (Rust + JS)
 
-- [ ] `Cargo.toml` — add `tauri-plugin-updater = "2"`
-- [ ] `package.json` — add `"@tauri-apps/plugin-updater": "^2"`
-- [ ] `lib.rs` — register `.plugin(tauri_plugin_updater::Builder::new().build())`
-- [ ] `capabilities/default.json` — add `"updater:default"`
+- [ ] `Cargo.toml` — add `tauri-plugin-updater = "2"` and `tauri-plugin-process = "2"`
+- [ ] `package.json` — add `"@tauri-apps/plugin-updater": "^2"` and `"@tauri-apps/plugin-process": "^2"`
+- [ ] `lib.rs` — register `.plugin(tauri_plugin_updater::Builder::new().build())` and `.plugin(tauri_plugin_process::init())`
+- [ ] `capabilities/default.json` — add `"updater:default"` and `"process:allow-restart"`
 
 ### 21.6 Update Check Service (Frontend)
 

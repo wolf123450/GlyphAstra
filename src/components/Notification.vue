@@ -9,6 +9,7 @@
     >
       <span class="notification-icon"><AppIcon :path="getIconPath()" :size="18" /></span>
       <span class="notification-message">{{ message }}</span>
+      <button v-if="action" class="notification-action" @click="onAction">{{ action.label }}</button>
       <button class="notification-close" @click="hideNotification"><AppIcon :path="mdiClose" :size="14" /></button>
     </div>
   </transition>
@@ -30,6 +31,11 @@ const uiStore = useUIStore()
 const isVisible = computed(() => uiStore.isNotificationVisible)
 const message = computed(() => uiStore.notificationMessage)
 const type = computed(() => uiStore.notificationType)
+const action = computed(() => uiStore.notificationAction)
+
+const onAction = () => {
+  action.value?.callback()
+}
 
 const getIconPath = () => {
   switch (type.value) {
@@ -109,6 +115,23 @@ const hideNotification = () => {
   flex: 1;
   font-size: 14px;
   color: var(--text-primary);
+}
+
+.notification-action {
+  background: var(--accent-color);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+
+.notification-action:hover {
+  opacity: 0.85;
 }
 
 .notification-close {
