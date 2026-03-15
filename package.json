@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:bundle": "npm run build && vitest run src/__tests__/bundleSafety.test.ts",
-    "test:integration": "vitest run --config vitest.integration.config.ts"  },
+    "test:integration": "vitest run --config vitest.integration.config.ts"
+  },
   "dependencies": {
     "@mdi/js": "^7.4.47",
     "@phosphor-icons/vue": "^2.2.1",
@@ -22,6 +23,8 @@
     "@tauri-apps/plugin-fs": "^2.4.5",
     "@tauri-apps/plugin-log": "^2",
     "@tauri-apps/plugin-opener": "^2",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.10.0",
     "docx": "^9.5.3",
     "dompurify": "^3.3.1",
     "epub-gen-memory": "^1.1.2",
