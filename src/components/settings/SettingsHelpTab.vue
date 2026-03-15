@@ -31,6 +31,10 @@
     <div class="help-section">
       <h3 class="help-section-title">About</h3>
       <p class="setting-hint">Glyph Astra v{{ appVersion }}</p>
+      <button class="btn-sm help-btn" :disabled="updateChecking" @click="manualCheckForUpdate">
+        <AppIcon :path="mdiUpdate" :size="14" style="vertical-align:middle;margin-right:5px" />
+        {{ updateChecking ? 'Checking…' : 'Check for updates' }}
+      </button>
     </div>
 
     <component :is="IconGallery" v-if="IconGallery && showIconGallery" :show="showIconGallery" @close="showIconGallery = false" />
@@ -39,12 +43,13 @@
 
 <script setup lang="ts">
 import { ref, defineAsyncComponent } from 'vue'
-import { mdiShapeOutline, mdiPlayOutline, mdiHeart } from '@mdi/js'
+import { mdiShapeOutline, mdiPlayOutline, mdiHeart, mdiUpdate } from '@mdi/js'
 import { useUIStore } from '@/stores/uiStore'
 import { useStoryStore } from '@/stores/storyStore'
 import { loadOrCreateHelpStory, resetHelpStory } from '@/utils/story/helpStoryService'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { version as appVersion } from '../../../package.json'
+import { checkForUpdate, downloadAndInstallUpdate } from '@/utils/updateService'
 
 const uiStore = useUIStore()
 const storyStore = useStoryStore()
@@ -77,6 +82,30 @@ function startTour() {
 
 function openSponsors() {
   openUrl('https://github.com/sponsors/wolf123450').catch(() => {})
+}
+
+const updateChecking = ref(false)
+
+async function manualCheckForUpdate() {
+  updateChecking.value = true
+  try {
+    const result = await checkForUpdate()
+    if (result.available && result.version) {
+      uiStore.showNotification(
+        `Glyph Astra v${result.version} is available`,
+        'info',
+        0,
+        {
+          label: 'Install update',
+          callback: () => downloadAndInstallUpdate(),
+        }
+      )
+    } else {
+      uiStore.showNotification('You\'re on the latest version.', 'success')
+    }
+  } finally {
+    updateChecking.value = false
+  }
 }
 </script>
 

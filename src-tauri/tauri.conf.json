@@ -34,5 +34,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM1RDFGMTcyQ0ZEMUM4RDUKUldUVnlOSFBjdkhSeFc0aEEyNCtjYnBhTDlPUDlYT2MvVDlCUW1uTlYwYnhDTUJMTjNUNVN3Q0UK",
+      "endpoints": [
+        "https://github.com/wolf123450/GlyphAstra/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
