@@ -58,7 +58,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, watch } from 'vue'
+import { useUIStore } from '@/stores/uiStore'
 import { mdiDragVertical, mdiPencilOutline, mdiDotsVertical, mdiDeleteOutline, mdiTextBoxOutline,
          mdiArrowRight, mdiTableOfContents, mdiBookOpenVariant, mdiScaleBalance, mdiImageOutline,
          mdiTagMultipleOutline } from '@mdi/js'
@@ -81,6 +82,16 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+const uiStore = useUIStore()
+
+// Triggered by context menu "Rename" action
+watch(() => uiStore.renamingChapterId, (id) => {
+  if (id === props.chapter.id) {
+    uiStore.clearChapterRename()
+    startRename()
+  }
+})
 
 const isEditingTitle = ref(false)
 const editTitleValue = ref('')

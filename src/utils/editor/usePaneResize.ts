@@ -67,5 +67,10 @@ export function usePaneResize(opts: PaneResizeOptions) {
     window.addEventListener('mouseup', onMouseup)
   }
 
-  return { onDividerMousedown, restoreWidth }
+  function resetWidth() {
+    localStorage.removeItem(opts.storageKey)
+    document.documentElement.style.removeProperty(opts.cssVar)
+  }
+
+  return { onDividerMousedown, restoreWidth, resetWidth }
 }

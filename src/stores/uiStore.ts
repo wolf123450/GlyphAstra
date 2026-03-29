@@ -2,6 +2,12 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { useSettingsStore } from "./settingsStore";
 
+// ─── Context menu types ───────────────────────────────────────────────────────
+export type MenuItem =
+  | { type: 'action'; label: string; shortcut?: string; danger?: boolean; callback: () => void }
+  | { type: 'separator' }
+  | { type: 'disabled'; label: string }
+
 export interface UIState {
   sidebarOpen: boolean;
   sidebarWidth: number;
@@ -90,6 +96,35 @@ export const useUIStore = defineStore("ui", () => {
     notificationAction.value = null;
   };
 
+  // ─── Context menu ─────────────────────────────────────────────────────
+  const contextMenuVisible = ref(false)
+  const contextMenuX       = ref(0)
+  const contextMenuY       = ref(0)
+  const contextMenuItems   = ref<MenuItem[]>([])
+
+  const showContextMenu = (x: number, y: number, items: MenuItem[]) => {
+    contextMenuItems.value  = items
+    contextMenuX.value      = x
+    contextMenuY.value      = y
+    contextMenuVisible.value = true
+  }
+
+  const hideContextMenu = () => {
+    contextMenuVisible.value = false
+  }
+
+  // ─── Chapter action triggers (set by context menu, consumed by Sidebar / ChapterItem) ──
+  const renamingChapterId      = ref<string | null>(null)
+  const pendingDeleteChapterId = ref<string | null>(null)
+  const pendingMetaChapterId   = ref<string | null>(null)
+
+  const triggerChapterRename = (id: string) => { renamingChapterId.value = id }
+  const triggerChapterDelete = (id: string) => { pendingDeleteChapterId.value = id }
+  const triggerChapterMeta   = (id: string) => { pendingMetaChapterId.value = id }
+  const clearChapterRename   = () => { renamingChapterId.value = null }
+  const clearChapterDelete   = () => { pendingDeleteChapterId.value = null }
+  const clearChapterMeta     = () => { pendingMetaChapterId.value = null }
+
   // ─── Onboarding tour ─────────────────────────────────────────────────
   const tourActive = ref(false)
   const tourStep   = ref(0)
@@ -138,6 +173,23 @@ export const useUIStore = defineStore("ui", () => {
     setSidebarSearchQuery,
     showNotification,
     hideNotification,
+    // Context menu
+    contextMenuVisible,
+    contextMenuX,
+    contextMenuY,
+    contextMenuItems,
+    showContextMenu,
+    hideContextMenu,
+    // Chapter action triggers
+    renamingChapterId,
+    pendingDeleteChapterId,
+    pendingMetaChapterId,
+    triggerChapterRename,
+    triggerChapterDelete,
+    triggerChapterMeta,
+    clearChapterRename,
+    clearChapterDelete,
+    clearChapterMeta,
     // Onboarding tour
     tourActive,
     tourStep,
