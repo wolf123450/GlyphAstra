@@ -26,3 +26,6 @@ dist-ssr
 # Tauri update signing keys
 *.key
 *.key.pub
+
+# Claude Code local settings
+.claude/

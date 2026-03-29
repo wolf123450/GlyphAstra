@@ -3,12 +3,12 @@
   <div class="app-container">
     <Sidebar />
     <div v-if="uiStore.sidebarOpen" class="pane-divider">
-      <div class="divider-handle" title="Drag to resize sidebar" @mousedown="sidebarResize.onDividerMousedown">
+      <div class="divider-handle" data-divider="sidebar" title="Drag to resize sidebar" @mousedown="sidebarResize.onDividerMousedown">
       </div>
     </div>
     <Editor />
     <div v-if="hasRightPanel" class="pane-divider">
-      <div class="divider-handle" title="Drag to resize panel" @mousedown="rightPanelResize.onDividerMousedown">
+      <div class="divider-handle" data-divider="panel" title="Drag to resize panel" @mousedown="rightPanelResize.onDividerMousedown">
       </div>
     </div>
     <Overview />
@@ -18,6 +18,7 @@
     <SearchPanel />
     <Notification />
     <OnboardingTour />
+    <ContextMenu />
   </div>
 </template>
 
@@ -44,6 +45,8 @@ import { loadOrCreateHelpStory, ensureHelpStoryExists } from '@/utils/story/help
 import { useSummaryManager } from '@/utils/ai/summaryManager'
 import { reconcileProjectsList } from '@/utils/storage/persistenceService'
 import { autoCheckForUpdate } from '@/utils/updateService'
+import ContextMenu from '@/components/ContextMenu.vue'
+import { createContextMenuResolver } from '@/utils/contextMenuResolver'
 
 const LAST_STORY_KEY   = 'glyphastra_last_story'
 const ONBOARDING_KEY   = 'glyphastra_onboarding_complete'
@@ -76,6 +79,14 @@ const rightPanelResize = usePaneResize({
 
 // Start background chapter auto-summariser
 useSummaryManager()
+
+// ── Context menu ─────────────────────────────────────────────────────────────
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+
+const contextMenuResolver = createContextMenuResolver({
+  sidebarResetWidth:    () => sidebarResize.resetWidth(),
+  rightPanelResetWidth: () => rightPanelResize.resetWidth(),
+})
 
 // Apply persisted theme immediately
 uiStore.setTheme(settingsStore.settings.theme)
@@ -158,6 +169,18 @@ onMounted(async () => {
   if (storyStore.chapters.length === 0) {
     uiStore.showNotification('Welcome to Glyph Astra! Create your first chapter to get started.', 'info', 0)
   }
+
+  // Global context menu handler
+  document.addEventListener('contextmenu', (e) => {
+    // Always suppress the default menu in production Tauri builds
+    if (import.meta.env.PROD && isTauri) e.preventDefault()
+
+    const items = contextMenuResolver(e)
+    if (items.length > 0) {
+      e.preventDefault()
+      uiStore.showContextMenu(e.clientX, e.clientY, items)
+    }
+  })
 
   // Auto-check for updates after a short delay to avoid blocking startup
   setTimeout(() => autoCheckForUpdate(), 10_000)
