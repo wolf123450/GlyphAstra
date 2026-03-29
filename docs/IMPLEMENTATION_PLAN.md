@@ -29,7 +29,7 @@ Each phase is documented in its own file under [`docs/phases/`](phases/).
 | **17** | 🟡 In Progress | Story Library & Series Management | [phase-17-series.md](phases/phase-17-series.md) |
 | **18** | ✅ Complete | Image Packing & Alt-Text Captions | [phase-18-image-packing.md](phases/phase-18-image-packing.md) |
 | **19** | 🟡 90% | Bug Fixes & UI Polish | [phase-19-bugfixes-polish.md](phases/phase-19-bugfixes-polish.md) |
-| **20** | 🟡 ~40% | CI/CD Pipeline Improvements | [phase-20-cicd.md](phases/phase-20-cicd.md) |
+| **20** | ✅ Complete | CI/CD Pipeline Improvements | [phase-20-cicd.md](phases/phase-20-cicd.md) |
 | **21** | ✅ Complete | Auto-Update via GitHub Releases | [phase-21-auto-update.md](phases/phase-21-auto-update.md) |
 
 **Other documentation:**
@@ -58,7 +58,7 @@ Each phase is documented in its own file under [`docs/phases/`](phases/).
 - 🟡 **Phase 16**: Cloud AI Integration — 85% (ModelProvider interface, OpenAI/Anthropic/Google providers with streaming, Settings UI with API key management & test buttons done; token count display, per-model context limits, cost estimator pending)
 - 🟡 **Phase 17**: Story Library & Series Management — IN PROGRESS (story:// links done; metadata linking + series view not started)
 - 🟡 **Phase 19**: Bug Fixes & UI Polish — 90% done (19.1–19.9 ✅; remaining: 19.10 VS Code research, 19.11 context menu)
-- 🟡 **Phase 20**: CI/CD Pipeline Improvements — ~40% (ci.yml created, CHANGELOG.md created, npm caching done; bundle safety in CI, Rust cache, Dependabot, branch protection docs, CI badge pending)
+- ✅ **Phase 20**: CI/CD Pipeline Improvements — COMPLETE (ci.yml with bundle safety + concurrency, duplicate test steps removed from release.yml, Rust cache, Dependabot, CI badge, Contributing docs)
 - ✅ **Phase 21**: Auto-Update via GitHub Releases — COMPLETE (Ed25519 signing, tauri.conf.json, latest.json CI job, updateService.ts, notification UI, manual check in Settings)
 
 ### Key Achievements
