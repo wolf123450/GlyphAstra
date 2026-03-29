@@ -4,6 +4,7 @@
   <img src="public/icon-master.png" alt="Glyph Astra" width="128" />
 </p>
 
+[![CI](https://github.com/wolf123450/GlyphAstra/actions/workflows/ci.yml/badge.svg)](https://github.com/wolf123450/GlyphAstra/actions/workflows/ci.yml)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink?logo=github-sponsors)](https://github.com/sponsors/wolf123450)
 
 A desktop AI-assisted creative writing application built with **Vue 3**, **Tauri 2**, and **TypeScript**. Glyph Astra combines a distraction-free markdown editor with intelligent AI writing assistance powered by local models (Ollama) or cloud providers (OpenAI, Anthropic, Google Gemini).
@@ -125,46 +126,7 @@ The packaged application will be output to `src-tauri/target/release/bundle/`.
 
 Releases are built automatically via GitHub Actions (see [`.github/workflows/release.yml`](.github/workflows/release.yml)) for Windows, macOS (x86_64 + Apple Silicon), and Linux whenever a version tag is pushed.
 
-### Creating a release
-
-1. Bump the version in `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
-2. Create a branch, commit, and open a PR:
-
-```bash
-git checkout -b version-bump-v0.3.0
-git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json
-git commit -m "chore: bump to v0.3.0"
-git push origin version-bump-v0.3.0
-# open a PR and merge it into master
-```
-
-3. After the PR is merged, tag the merge commit on `master` and push the tag:
-
-```bash
-git checkout master
-git pull origin master
-git tag v0.3.0
-git push origin v0.3.0
-```
-
-This triggers the workflow, which builds all platforms and creates a **draft** GitHub Release with installers attached. Once you've verified the draft, publish it manually from the GitHub Releases page. Publishing the release also triggers the `update-manifest` job, which generates and attaches `latest.json` for the auto-updater.
-
-### Re-running a failed release
-
-If CI fails after the tag is already pushed (e.g. a workflow bug was fixed):
-
-1. Fix the issue on a branch, open a PR, and merge it into `master`.
-2. Delete the old draft release from the GitHub Releases page.
-3. Move the tag to the new HEAD and force-push to re-trigger CI:
-
-```bash
-git checkout master
-git pull origin master
-git tag -f v0.3.0
-git push --force origin v0.3.0
-```
-
-> **Note:** force-pushing a tag re-triggers the workflow but does **not** automatically delete any draft release GitHub already created. Always delete the old draft from the Releases page before re-running so the asset upload starts clean.
+See [`docs/VERSION_BUMP.md`](docs/VERSION_BUMP.md) for the full step-by-step release process.
 
 ### ⚠️ Unsigned builds
 
@@ -227,6 +189,16 @@ Settings and the project index are stored in `localStorage` as a secondary backu
 | `Tab` | Accept AI suggestion |
 | `Esc` | Dismiss AI suggestion |
 | `↑` / `↓` | Cycle between AI suggestions |
+
+## Contributing
+
+Pull requests are welcome. To maintain code quality, the repository uses the following branch protection rules on `master` (configure in **Settings → Branches → Add rule**):
+
+- Require the **CI / Tests & bundle safety** status check to pass before merging
+- Require at least **1 pull request review** before merging
+- Do not allow direct pushes to `master`
+
+These rules ensure every merge has passed tests and received a review.
 
 ## License
 
