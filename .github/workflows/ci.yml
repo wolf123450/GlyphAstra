@@ -6,9 +6,13 @@ on:
   push:
     branches: [master]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
-    name: Unit tests
+    name: Tests & bundle safety
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,5 +28,5 @@ jobs:
       - name: Run unit tests
         run: npm test
 
-      - name: Build frontend
-        run: npm run build
+      - name: Build frontend + run bundle safety tests
+        run: npm run test:bundle

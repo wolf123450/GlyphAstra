@@ -1,6 +1,6 @@
 [package]
 name = "glyphastra"
-version = "0.1.0"
+version = "0.2.1"
 description = "A desktop AI-assisted creative writing application"
 authors = ["Clint"]
 edition = "2021"
