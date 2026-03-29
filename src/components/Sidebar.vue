@@ -101,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { mdiPlusCircleOutline, mdiCog, mdiChevronLeft, mdiChevronRight, mdiCircleHalfFull, mdiWhiteBalanceSunny } from '@mdi/js'
 import { useStoryStore } from '@/stores/storyStore'
 import { useUIStore } from '@/stores/uiStore'
@@ -294,6 +294,21 @@ const toggleTheme = () => {
   const newTheme = theme.value === 'dark' ? 'light' : 'dark'
   uiStore.setTheme(newTheme)
 }
+
+// ── Context menu triggers ─────────────────────────────────────────────────────
+watch(() => uiStore.pendingDeleteChapterId, (id) => {
+  if (id) {
+    uiStore.clearChapterDelete()
+    deleteChapter(id)
+  }
+})
+
+watch(() => uiStore.pendingMetaChapterId, (id) => {
+  if (id) {
+    uiStore.clearChapterMeta()
+    openChapterMeta(id)
+  }
+})
 </script>
 
 <style scoped>
