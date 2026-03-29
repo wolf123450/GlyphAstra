@@ -28,9 +28,9 @@ Each phase is documented in its own file under [`docs/phases/`](phases/).
 | **16** | 🟡 85% | Cloud AI Model Integration | [phase-16-cloud-ai.md](phases/phase-16-cloud-ai.md) |
 | **17** | 🟡 In Progress | Story Library & Series Management | [phase-17-series.md](phases/phase-17-series.md) |
 | **18** | ✅ Complete | Image Packing & Alt-Text Captions | [phase-18-image-packing.md](phases/phase-18-image-packing.md) |
-| **19** | 🟡 80% | Bug Fixes & UI Polish | [phase-19-bugfixes-polish.md](phases/phase-19-bugfixes-polish.md) |
-| **20** | ⏳ Not Started | CI/CD Pipeline Improvements | [phase-20-cicd.md](phases/phase-20-cicd.md) |
-| **21** | ⏳ Not Started | Auto-Update via GitHub Releases | [phase-21-auto-update.md](phases/phase-21-auto-update.md) |
+| **19** | 🟡 90% | Bug Fixes & UI Polish | [phase-19-bugfixes-polish.md](phases/phase-19-bugfixes-polish.md) |
+| **20** | 🟡 ~40% | CI/CD Pipeline Improvements | [phase-20-cicd.md](phases/phase-20-cicd.md) |
+| **21** | ✅ Complete | Auto-Update via GitHub Releases | [phase-21-auto-update.md](phases/phase-21-auto-update.md) |
 
 **Other documentation:**
 - [Code Review](CODE_REVIEW.md) — full security & architecture review (2026-02-28)
@@ -53,11 +53,13 @@ Each phase is documented in its own file under [`docs/phases/`](phases/).
 - ⏳ **Phase 11**: Performance & Polish — NOT STARTED (icon overhaul planned)
 - 🟡 **Phase 12**: Chapter Management — IN PROGRESS (drag-to-reorder, version history, session undo/redo, special chapter types, inline title editing, custom labels/numbering done; translations + bibliography/footnotes not started)
 - ✅ **Phase 14**: Help & Onboarding — COMPLETE (tour, demo story, read-only flag, Help settings tab)
-- ⏳ **Phase 13**: Advanced Features — NOT STARTED
+- ⏳ **Phase 13**: Advanced Features — NOT STARTED (auto-updater moved to Phase 21 and completed)
 - ✅ **Phase 18**: Image Packing & Alt-Text Captions — COMPLETE
 - 🟡 **Phase 16**: Cloud AI Integration — 85% (ModelProvider interface, OpenAI/Anthropic/Google providers with streaming, Settings UI with API key management & test buttons done; token count display, per-model context limits, cost estimator pending)
 - 🟡 **Phase 17**: Story Library & Series Management — IN PROGRESS (story:// links done; metadata linking + series view not started)
-- ⏳ **Phase 19**: Bug Fixes & UI Polish — 80% done (19.1 ✅ 19.2 ✅ 19.3 ✅ 19.4 ✅ 19.5 ✅ 19.6 ✅ 19.7 ✅ 19.8 ✅; remaining: 19.9 formatting toolbar, 19.10 VS Code research, 19.11 context menu)
+- 🟡 **Phase 19**: Bug Fixes & UI Polish — 90% done (19.1–19.9 ✅; remaining: 19.10 VS Code research, 19.11 context menu)
+- 🟡 **Phase 20**: CI/CD Pipeline Improvements — ~40% (ci.yml created, CHANGELOG.md created, npm caching done; bundle safety in CI, Rust cache, Dependabot, branch protection docs, CI badge pending)
+- ✅ **Phase 21**: Auto-Update via GitHub Releases — COMPLETE (Ed25519 signing, tauri.conf.json, latest.json CI job, updateService.ts, notification UI, manual check in Settings)
 
 ### Key Achievements
 - Full Vue.js + Tauri desktop application framework
@@ -81,6 +83,8 @@ Each phase is documented in its own file under [`docs/phases/`](phases/).
 - Notification system
 - Multi-provider AI support (Ollama, OpenAI, Anthropic, Google)
 - Image packing for portable, self-contained stories
+- Auto-update via Tauri updater plugin + GitHub Releases (Ed25519 signed)
+- CI workflow (ci.yml) + CHANGELOG.md
 - 149+ unit tests (Vitest)
 
 ### Next Priorities
