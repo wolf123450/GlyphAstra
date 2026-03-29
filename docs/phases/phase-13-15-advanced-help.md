@@ -8,7 +8,7 @@
 
 - [ ] Analytics and insights
 - [ ] Community features
-- [ ] **Auto-updater** — configure Tauri's `updater` plugin to ship security patches and new releases. Requires: (1) finalise app rename, (2) host on GitHub with Releases for update manifests, (3) add `updater` section to `tauri.conf.json` with public signing key and GitHub endpoint.
+- [x] **Auto-updater** — fully implemented in [Phase 21](phase-21-auto-update.md). Ed25519 signing, `tauri.conf.json` updater config, `latest.json` CI job, `updateService.ts`, notification UI with install + restart action, manual check in Settings → Help.
 - [ ] **E2E testing** — set up Playwright (or similar) for end-to-end tests covering critical user flows: story creation, chapter editing, AI suggestion acceptance, export, and settings persistence. Deferred from CODE_REVIEW.md §9.1 item #52.
 
 ---

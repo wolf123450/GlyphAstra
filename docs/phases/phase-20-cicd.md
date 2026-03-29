@@ -1,4 +1,4 @@
-# Phase 20: CI/CD Pipeline Improvements ⏳ NOT STARTED
+# Phase 20: CI/CD Pipeline Improvements 🟡 ~40% Complete
 
 [← Back to Implementation Plan](../IMPLEMENTATION_PLAN.md)
 
@@ -8,19 +8,16 @@ The initial release pipeline (Phase 19 / v0.2.0) established a working GitHub Ac
 
 ---
 
-### 20.1 Separate CI and Release Workflows
+### 20.1 Separate CI and Release Workflows 🟡 Partial
 
 **Current state:** A single `release.yml` workflow runs on every `v*` tag push, combining tests, bundle safety check, and the Tauri build/publish in one job per platform.
 
 **Goal:** Split into two independent workflows so PRs and branch pushes get feedback cheaply, and the release workflow can assume tests have already passed.
 
-- [ ] Create `.github/workflows/ci.yml` — triggers on `push` (all branches) and `pull_request`
-  - Runs on a single runner (`ubuntu-latest`) for speed
-  - Steps: `npm ci` → `npm test` → `npm run build` → `npx vitest run src/__tests__/bundleSafety.test.ts`
-  - Output: commit status check ("✅ Tests & bundle safety") required to merge PRs
-- [ ] Modify `release.yml` — remove the duplicate `npm test` / `test:bundle` steps (CI already ran them); keep only the Tauri build + publish steps per matrix runner
-  - Add a `needs: []` note in comments explaining CI is a prerequisite by branch protection rules
-- [ ] (Optional) Add `concurrency:` group on CI workflow to cancel in-progress runs when a newer commit arrives on the same branch
+- [x] Create `.github/workflows/ci.yml` — triggers on `push` (master) and `pull_request`; runs `npm ci` → `npm test` → `npm run build`
+- [ ] `ci.yml` is missing the bundle safety test step (`npx vitest run src/__tests__/bundleSafety.test.ts`)
+- [ ] Modify `release.yml` — remove the duplicate `npm test` / `test:bundle` steps (they still exist; CI already ran them)
+- [ ] (Optional) Add `concurrency:` group on CI workflow to cancel in-progress runs when a newer commit arrives
 
 ### 20.2 Branch Protection Rules (Documentation)
 
@@ -38,23 +35,18 @@ The initial release pipeline (Phase 19 / v0.2.0) established a working GitHub Ac
   - `github-actions` ecosystem, monthly schedule
 - [ ] Cap concurrent open PRs at 5 to avoid inbox floods
 
-### 20.4 Release Notes Automation (CHANGELOG)
+### 20.4 Release Notes Automation (CHANGELOG) ✅
 
-**Current state:** `releaseBody` in `release.yml` is a static placeholder pointing to a `CHANGELOG.md` that doesn't exist yet.
-
-- [ ] Create `CHANGELOG.md` at the repo root following [Keep a Changelog](https://keepachangelog.com) format
-  - Seed with `## [0.2.0] - 2026-03-06` entry summarising Phase 19 work
-- [ ] Update `release.yml` `releaseBody` to reference `CHANGELOG.md` properly, or switch to the `actions/github-script` approach to auto-read the relevant section
+- [x] `CHANGELOG.md` created at repo root following [Keep a Changelog](https://keepachangelog.com) format
+- [ ] Update `release.yml` `releaseBody` to reference `CHANGELOG.md` properly
 - [ ] (Optional / future) Evaluate `release-please` or `semantic-release` for fully automated changelog generation from conventional commits
 
-### 20.5 Artifact Caching
+### 20.5 Artifact Caching 🟡 Partial
 
-**Current state:** Each CI/release run downloads all npm and Cargo dependencies from scratch.
-
-- [ ] `release.yml` — add `cache: npm` to `actions/setup-node` (already done for npm); add Rust cache via `Swatinem/rust-cache@v2`
+- [x] `ci.yml` — `cache: npm` set in `actions/setup-node`
+- [x] `release.yml` — `cache: npm` set in `actions/setup-node`
+- [ ] Add Rust cache via `Swatinem/rust-cache@v2` in both `ci.yml` and `release.yml`
   - Cargo registry + build artifacts are typically 1–2 GB; caching the registry alone halves CI time on cache hits
-- [ ] `ci.yml` — same caching strategy
-- [ ] Note: `rust-cache` action keys the cache on `Cargo.lock` hash; it will auto-invalidate when dependencies change
 
 ### 20.6 Build Status Badge
 
