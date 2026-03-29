@@ -1,4 +1,4 @@
-# Phase 19: Bug Fixes & UI Polish 🟡 90% Complete
+# Phase 19: Bug Fixes & UI Polish ✅ Complete
 
 [← Back to Implementation Plan](../IMPLEMENTATION_PLAN.md)
 
@@ -95,74 +95,48 @@ Tracked issues from the post-code-review pass (2026-03-03).
 - [ ] **Decision gate:** only proceed if the Webview approach works and there's clear user demand; otherwise park this idea
 - [ ] If pursued: create a `vscode-extension/` workspace folder with its own `package.json`, build pipeline, and a shared import of `seamlessRenderer.ts` + rendering utilities
 
-### 19.11 Context Menu Rework
+### 19.11 Context Menu Rework ✅ COMPLETE
 
-The default WebView2 context menu exposes browser developer tools and other entries that are inappropriate in a release build. This item replaces it with a purpose-built context menu that is both safer and more useful.
+#### 19.11.1 Suppress Default Context Menu ✅
+- [x] Global `contextmenu` listener in `App.vue` `onMounted`; always calls `preventDefault()` in `import.meta.env.PROD && isTauri` builds
+- [x] Custom menu also suppresses default when it has items (dev mode included)
+- [x] Guard: does not suppress when `__TAURI_INTERNALS__` is absent (browser dev mode keeps inspect)
 
-#### 19.11.1 Suppress the Default Context Menu in Release Builds
-- [ ] In development builds the native WebView2 context menu is fine (Inspect, View Source, etc. are useful). In release builds it must be hidden entirely so that a custom menu can be shown instead.
-- [ ] **Approach A (JS — simple)** — attach a global `contextmenu` event listener in `main.ts` (or `App.vue` `onMounted`) that calls `event.preventDefault()`. Conditionally register it only when `import.meta.env.PROD` is `true`. This suppresses the default browser-level menu everywhere.
-- [ ] **Approach B (Tauri — thorough)** — Tauri 2 exposes `webview.on_context_menu` or the `prevent_default_all` window option in `WindowBuilder`. Investigate whether `tauri.conf.json` supports a `contextMenu: false` flag; if so, set it for release and leave dev untouched.
-- [ ] The custom Vue context menu (see 19.11.3 below) must be shown instead — so `preventDefault()` is required regardless of approach.
-- [ ] Guard: never suppress the menu when running under `__TAURI_INTERNALS__` is absent (browser dev mode needs inspect).
+#### 19.11.2 Reset Pane Widths via Handle Right-Click ✅
+- [x] `usePaneResize` now exports `resetWidth()` — removes localStorage entry + removes CSS var (reverts to `:root` default)
+- [x] Handle divs in `App.vue` have `data-divider="sidebar"` / `data-divider="panel"` attributes
+- [x] Resolver detects `.divider-handle` target and returns "Reset to default width" item
 
-#### 19.11.2 Reset Pane Widths via Handle Right-Click
-- [ ] Right-clicking a pane drag handle (`.divider-handle`) should open a small context menu with a single item: **"Reset to default width"**.
-- [ ] Action: call `document.documentElement.style.removeProperty(cssVar)` and `localStorage.removeItem(storageKey)` — both values are already available inside the `usePaneResize` composable, so a `resetWidth()` function should be exported alongside `onDividerMousedown` and `restoreWidth`.
-- [ ] Wire up: add `@contextmenu.prevent="sidebarResize.showResetMenu($event)"` / `rightPanelResize.showResetMenu($event)` on the handle `<div>` in `App.vue`. The composable can emit a `{ x, y, reset }` event that the menu system renders.
-- [ ] After reset, the CSS variable reverts to its `:root` default (sidebar: 250px, right panel: 300px).
+#### 19.11.3 Custom Context Menu Component ✅
+- [x] `src/components/ContextMenu.vue` — teleported, absolutely-positioned, themed
+- [x] Item types: **Action** (label + optional shortcut + callback + optional danger flag), **Separator**, **Disabled** (header label)
+- [x] Closes on click outside (pointerdown capture) or Escape
+- [x] Position snaps away from screen edges using `getBoundingClientRect()` after nextTick
+- [x] z-index 1000; CSS vars for all colours
+- [x] State managed via `uiStore.showContextMenu` / `hideContextMenu`
+- [x] `MenuItem` type exported from `uiStore.ts`
 
-#### 19.11.3 Custom Context Menu Component
-- [ ] Create `src/components/ContextMenu.vue` — a teleported (`<Teleport to="body">`) absolutely-positioned menu that accepts a list of items and a screen position.
-- [ ] Item types:
-  - **Action** — label + optional keyboard shortcut hint + callback
-  - **Separator** — `<hr>` visual divider
-  - **Disabled** — greyed-out non-interactive label (for informational headers)
-- [ ] Behaviour:
-  - Click outside or press `Escape` → close
-  - Position snaps away from screen edges to stay fully visible
-  - z-index above all panels (suggest `z-index: 1000`)
-- [ ] Wire up via a composable `useContextMenu` (or a `uiStore` action) that exposes `showMenu({ x, y, items })` and `hideMenu()`.
-- [ ] Style: matches the app theme (CSS variables for background, border, text, hover accent).
+#### 19.11.4 Spellcheck Suggestions ⏳ Deferred
+- WebView2 does not expose spelling suggestions through any accessible JS API at this level. Skipped as best-effort; no degraded UX — editor still has native spellcheck underlines.
 
-#### 19.11.4 Spellcheck Suggestions on Misspelled Words
-- [ ] When the user right-clicks a word that the browser spellchecker has underlined, the context menu should offer the browser's suggested corrections at the top of the menu.
-- [ ] **Browser API**: The `beforeinput` / `textInput` events don't expose spellcheck suggestions. Instead, listen for `contextmenu` on the editor element; check if `event.target` or its ancestors carry the browser's spellcheck marker.
-  - Chrome/WebView2 fires a `contextmenu` event with `InputEvent` spelling suggestions accessible via the (non-standard but WebView2-supported) `getSpellingSuggestions()` API on the event — investigate availability in Tauri's WebView2 version.
-  - Fallback: use the `spellcheck` attribute on the contenteditable and intercept the `contextmenu` event; read `window.getSelection()` to detect the clicked word, then check it against a dictionary via `navigator.language` if no native API is available.
-- [ ] Show suggestions as the first group of menu items, each with a callback that replaces the misspelled word range in the editor's plain-text content via `editorStore`.
-- [ ] If no suggestions are available (word not flagged or API unavailable), omit this section silently.
+#### 19.11.5 Standard Edit Operations ✅
+- [x] Right-clicking a `[contenteditable]` shows Cut + Copy (only when text selected) + Paste always
+- [x] Uses `document.execCommand` (works natively in WebView2 without extra capabilities)
+- [x] Paste goes through the contenteditable's `input` event, so undo history is preserved
 
-#### 19.11.5 Standard Edit Operations (Copy / Cut / Paste)
-- [ ] The context menu for text selection areas (editor, chapter titles, input fields) should include:
-  - **Cut** — `document.execCommand('cut')` or `navigator.clipboard.writeText` + delete selection
-  - **Copy** — `navigator.clipboard.writeText(selection.toString())`
-  - **Paste** — `navigator.clipboard.readText()` then insert at cursor
-- [ ] Show **Cut** and **Copy** only when there is an active non-empty text selection; **Paste** when the clipboard is non-empty (check `navigator.clipboard.readText()` resolves).
-- [ ] Note: `execCommand` is deprecated but still works in WebView2; `navigator.clipboard` requires the `clipboard-read` / `clipboard-write` permissions. Add these to `capabilities/default.json` if not already present.
-- [ ] In the editor body: map these to `editorStore` actions so they go through the undo history stack rather than bypassing it.
+#### 19.11.6 Context-Sensitive Items by Target ✅
 
-#### 19.11.6 Context-Sensitive Items by Target
-- [ ] The menu content should adapt based on what element was right-clicked. Define a resolver function that inspects `event.target` and returns the appropriate item list:
-
-| Target | Extra menu items |
+| Target | Items |
 |---|---|
-| Pane drag handle | Reset pane width (19.11.2) |
-| Editor / contenteditable | Spellcheck suggestions (19.11.4), Cut/Copy/Paste (19.11.5) |
-| Link in preview pane | Open in browser (`shell.open(href)` via Tauri) |
-| Image in preview pane | Copy image path / Open containing folder |
-| Chapter item in sidebar | Rename, Duplicate, Delete chapter (mirrors existing button actions) |
-| Chapter history entry | Restore this version, Delete entry |
-| Anywhere (fallback) | Nothing (menu is suppressed, or only global items like Copy if selection exists) |
+| Pane drag handle | Reset to default width |
+| Chapter item (`[data-chapter-id]`) | Chapter name header, Rename, Edit properties, Delete (danger) |
+| External link in preview pane | Open in browser, Copy link |
+| Image in preview pane | Copy image path (only for non-data-URL srcs) |
+| Contenteditable (editor) | Cut (if selection), Copy (if selection), Paste |
+| Anything else | Nothing (default suppressed in prod only) |
 
-- [ ] The resolver lives in a utility file `src/utils/contextMenuResolver.ts` and returns `MenuItem[]` given a `MouseEvent`.
-- [ ] Avoid duplicating logic already in toolbar buttons or keyboard shortcuts — context menu items should call the same underlying store actions.
-
-#### Roll-up Implementation Order
-1. Build `ContextMenu.vue` + `useContextMenu` in isolation with a stub item list (19.11.3)
-2. Suppress default context menu in release builds (19.11.1)
-3. Wire up Copy/Cut/Paste for the editor (19.11.5)
-4. Add handle right-click reset (19.11.2), exporting `resetWidth()` from `usePaneResize`
-5. Implement spellcheck suggestions (19.11.4) — mark as best-effort given WebView2 API limitations
-6. Add context-sensitive sidebar chapter items (19.11.6)
-7. Add preview pane link/image items (19.11.6)
+- [x] Resolver in `src/utils/contextMenuResolver.ts` — factory pattern, stores captured in closure
+- [x] Chapter Rename trigger: `uiStore.renamingChapterId` watched by `ChapterItem.vue`
+- [x] Chapter Delete trigger: `uiStore.pendingDeleteChapterId` watched by `Sidebar.vue` → fires existing confirmation modal
+- [x] Chapter Meta trigger: `uiStore.pendingMetaChapterId` watched by `Sidebar.vue` → opens `ChapterMeta` modal
+- [x] Duplicate not implemented (no storyStore action exists; deferred)
