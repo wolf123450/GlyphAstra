@@ -26,14 +26,14 @@
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.0",
     "docx": "^9.5.3",
-    "dompurify": "^3.3.1",
+    "dompurify": "^3.3.3",
     "epub-gen-memory": "^1.1.2",
     "pinia": "^3.0.4",
-    "vue": "^3.5.13"
+    "vue": "^3.5.31"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
-    "@types/dompurify": "^3.0.5",
+    "@types/dompurify": "^3.2.0",
     "@types/node": "^25.3.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vitest/ui": "^4.0.18",
