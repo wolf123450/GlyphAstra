@@ -26,10 +26,10 @@
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.0",
     "docx": "^9.6.1",
-    "dompurify": "^3.3.3",
+    "dompurify": "^3.4.17",
     "epub-gen-memory": "^1.1.2",
     "pinia": "^3.0.4",
-    "vue": "^3.5.31"
+    "vue": "^3.5.44"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
